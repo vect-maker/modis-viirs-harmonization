@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Flame } from '@lucide/vue'
+import PyroTraceLogo from '@/components/common/PyroTraceLogo.vue'
 </script>
 
 <template>
@@ -8,8 +8,7 @@ import { Flame } from '@lucide/vue'
       class="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 text-xs text-ink-muted sm:flex-row sm:items-center sm:px-6"
     >
       <div class="flex items-center gap-2 text-ink-secondary">
-        <Flame aria-hidden="true" class="h-4 w-4 text-accent" />
-        <span class="font-semibold">PyroTrace</span>
+        <PyroTraceLogo class="h-5 w-auto" />
         <span>· NASA Space Apps Challenge 2026</span>
       </div>
       <p>

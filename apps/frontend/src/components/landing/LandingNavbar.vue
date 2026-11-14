@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Flame, ArrowRight } from '@lucide/vue'
+import { ArrowRight } from '@lucide/vue'
+import PyroTraceLogo from '@/components/common/PyroTraceLogo.vue'
 </script>
 
 <template>
@@ -9,14 +10,9 @@ import { Flame, ArrowRight } from '@lucide/vue'
     <div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
       <RouterLink
         to="/"
-        class="inline-flex items-center gap-2.5 rounded-md px-1 py-1 text-base font-semibold tracking-tight text-ink-primary focus-visible:outline-2 focus-visible:outline-focus"
+        class="inline-flex items-center rounded-md px-1 py-1 focus-visible:outline-2 focus-visible:outline-focus"
       >
-        <span
-          class="flex h-8 w-8 items-center justify-center rounded-lg border border-accent/35 bg-accent/15 text-accent-bright"
-        >
-          <Flame aria-hidden="true" class="h-4 w-4" />
-        </span>
-        <span>PyroTrace</span>
+        <PyroTraceLogo class="h-8 w-auto" />
       </RouterLink>
 
       <nav aria-label="Primary navigation" class="hidden items-center gap-6 md:flex">
