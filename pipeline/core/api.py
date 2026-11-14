@@ -27,7 +27,8 @@ async def wait_for_budget(
         if current < limit:
             return budget
         print(
-            f"FIRMS API quota exhausted ({current}/{limit}). Waiting {poll_interval}s..."
+            f"FIRMS API quota exhausted ({current}/{limit}). "
+            f"Waiting {poll_interval}s..."
         )
         await asyncio.sleep(poll_interval)
 

@@ -1,0 +1,25 @@
+[project]
+name = "firms-pipeline"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "dotenv",
+    "httpx2[http2]",
+    "pandas[parquet,feather,performance]",
+    "sqlmodel",
+    "ruff",
+    "basedpyright",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+extraPaths = ["pipeline"]
+include = ["pipeline"]
+reportMissingTypeStubs = false

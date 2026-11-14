@@ -11,6 +11,19 @@ setup-env:
 sync-meta:
     uv run pipeline/sync_meta.py
 
-# Transform metdata
+# Transform metadata
 transform-meta:
     uv run pipeline/transform_meta.py
+
+# Auto-format and auto-fix pipeline code
+format:
+    uv run ruff format pipeline
+    uv run ruff check --fix pipeline
+
+# Lint pipeline code with ruff
+lint:
+    uv run ruff check pipeline
+
+# Type-check pipeline code with basedpyright
+typecheck:
+    uv run basedpyright pipeline

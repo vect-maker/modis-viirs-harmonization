@@ -17,5 +17,8 @@ META_DIR = Path(os.getenv("META_DIR", str(DATA_DIR / "_meta")))
 TEMP_DIR = Path(os.getenv("TEMP_DIR", str(DATA_DIR / "temp")))
 RAW_META_DIR = Path(os.getenv("RAW_META_DIR", str(TEMP_DIR / "raw_meta")))
 
+DB_PATH = Path(os.getenv("PIPELINE_DB_PATH", str(DATA_DIR / "pipeline.db")))
+DATABASE_URL = f"sqlite:///{DB_PATH}"
+
 COUNTRY_SUMMARY_INDEX_PATH = "data/country/yearly_summary_files.txt"
 MAPKEY_STATUS_URL = f"{BASE_URL}/mapserver/mapkey_status/"
