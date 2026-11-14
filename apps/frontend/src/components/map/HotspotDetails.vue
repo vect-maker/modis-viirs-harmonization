@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { onKeyStroke } from '@vueuse/core'
 import { X, MapPin, Satellite } from '@lucide/vue'
 import type { FireHotspot } from '@/types/hotspot'
 
 defineProps<{ hotspot: FireHotspot }>()
 const emit = defineEmits<{ close: [] }>()
+
+onKeyStroke('Escape', () => emit('close'))
 </script>
 
 <template>
@@ -27,11 +30,11 @@ const emit = defineEmits<{ close: [] }>()
     <p class="mb-3 text-xs text-neutral-400">{{ hotspot.acq_datetime }} UTC</p>
     <dl class="mb-3 grid grid-cols-2 gap-3 border-b border-white/10 pb-3">
       <div>
-        <dt class="mb-1 text-xs text-neutral-500">Radiative Power</dt>
+        <dt class="mb-1 text-xs text-neutral-400">Radiative Power</dt>
         <dd class="font-mono text-sm">{{ hotspot.frp }} MW</dd>
       </div>
       <div>
-        <dt class="mb-1 text-xs text-neutral-500">Brightness</dt>
+        <dt class="mb-1 text-xs text-neutral-400">Brightness</dt>
         <dd class="font-mono text-sm">{{ hotspot.bright_mir }} K</dd>
       </div>
     </dl>

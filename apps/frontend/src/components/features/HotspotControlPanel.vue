@@ -38,7 +38,7 @@ const { stats } = storeToRefs(useHotspotsStore())
       </div>
       <HotspotFilters />
       <HotspotCsvExport />
-      <p class="border-t border-white/10 pt-3 text-[10px] leading-relaxed text-neutral-500">
+      <p class="border-t border-white/10 pt-3 text-[11px] leading-relaxed text-neutral-400">
         Imagery: Esri, Maxar, Earthstar Geographics ·
         <a href="https://maplibre.org/" target="_blank" rel="noopener noreferrer" class="rounded hover:text-neutral-300 focus-visible:outline-2 focus-visible:outline-red-400">MapLibre</a>
       </p>

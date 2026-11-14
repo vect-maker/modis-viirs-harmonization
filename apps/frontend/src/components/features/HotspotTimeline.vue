@@ -71,7 +71,7 @@ function selectDay(date: string) {
           >
             No detections in the available records for this area and sensor.
           </p>
-          <p class="pl-12 text-[10px] leading-relaxed text-neutral-500">
+          <p class="pl-12 text-[11px] leading-relaxed text-neutral-400">
             Counts reflect the available records. Daily coverage may be incomplete.
           </p>
         </div>

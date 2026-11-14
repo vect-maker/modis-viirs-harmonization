@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, useTemplateRef, watch } from 'vue'
+import { computed, useTemplateRef, watch } from 'vue'
 import { useDocumentVisibility, useRafFn, useResizeObserver } from '@vueuse/core'
 import {
   createSpaceStars,
@@ -91,7 +91,6 @@ watch(
 )
 
 useResizeObserver(canvas, resize)
-onMounted(resize)
 </script>
 
 <template>

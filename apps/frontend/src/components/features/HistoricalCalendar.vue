@@ -44,7 +44,7 @@ function formatCount(value: number | null | undefined) {
         @update:model-value="store.setSensor"
       />
     </div>
-    <p class="text-[11px] leading-relaxed text-neutral-500">
+    <p class="text-[11px] leading-relaxed text-neutral-400">
       National totals. Map area and date filters do not apply here. Counts are not harmonized;
       observation coverage is unverified.
     </p>
@@ -89,18 +89,18 @@ function formatCount(value: number | null | undefined) {
         MODIS: {{ formatCount(selectedMonth?.modisCount) }} · VIIRS:
         {{ formatCount(selectedMonth?.viirsCount) }}
       </p>
-      <p v-if="selectedMonth" class="text-[11px] text-neutral-500">
+      <p v-if="selectedMonth" class="text-[11px] text-neutral-400">
         All sensors: records on {{ selectedMonth.observedDays }} days in this month. This does not
         confirm complete satellite coverage.
       </p>
       <p v-else class="text-xs text-neutral-400">
         No records are present for this month. Fire absence cannot be inferred.
       </p>
-      <p class="text-[11px] text-neutral-500">
+      <p class="text-[11px] text-neutral-400">
         The map continues to show the daily sample. Historical point loading is not connected yet.
       </p>
     </div>
-    <p v-else class="text-xs text-neutral-500">
+    <p v-else class="text-xs text-neutral-400">
       Select a month to inspect its totals and sensor sources.
     </p>
   </section>

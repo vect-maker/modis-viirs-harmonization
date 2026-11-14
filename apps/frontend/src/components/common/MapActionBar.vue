@@ -1,91 +1,60 @@
 <script setup lang="ts">
 import { Pentagon, LocateFixed, Trash2, Globe2 } from '@lucide/vue'
+import BaseTooltip from '@/components/ui/BaseTooltip.vue'
 
 defineProps<{ hasArea: boolean }>()
 const emit = defineEmits<{ draw: []; recenter: []; clear: []; globe: [] }>()
+
+const actionClass =
+  'inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-[7px] px-2.5 py-2 text-xs font-medium whitespace-nowrap text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-400 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer'
 </script>
 
 <template>
   <div class="flex shrink-0 items-center gap-1" role="group" aria-label="Map tools">
-    <button
-      type="button"
-      class="dock-action dock-action-primary"
-      aria-label="Draw an area to filter hotspots"
-      title="Draw an area"
-      @click="emit('draw')"
-    >
-      <Pentagon aria-hidden="true" class="h-4 w-4" />
-      <span class="sm:hidden">Draw</span><span class="hidden sm:inline">Draw Area</span>
-    </button>
-    <button
-      type="button"
-      class="dock-action"
-      aria-label="Show all Nicaragua hotspots"
-      title="Center on Nicaragua"
-      @click="emit('recenter')"
-    >
-      <LocateFixed aria-hidden="true" class="h-4 w-4" />
-      <span class="hidden xl:inline">Nicaragua</span>
-    </button>
-    <button
-      type="button"
-      class="dock-action"
-      aria-label="Show the satellite globe"
-      title="View globe"
-      @click="emit('globe')"
-    >
-      <Globe2 aria-hidden="true" class="h-4 w-4" />
-      <span class="hidden xl:inline">Globe</span>
-    </button>
-    <button
-      type="button"
-      class="dock-action"
-      :disabled="!hasArea"
-      aria-label="Clear selected area"
-      title="Clear selected area"
-      @click="emit('clear')"
-    >
-      <Trash2 aria-hidden="true" class="h-4 w-4" />
-      <span class="hidden xl:inline">Clear Area</span>
-    </button>
+    <BaseTooltip text="Draw an area to filter hotspots">
+      <button
+        type="button"
+        class="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-[7px] border border-red-500/20 bg-red-500/[0.07] px-2.5 py-2 text-xs font-medium whitespace-nowrap text-red-200 hover:bg-red-500/[0.14] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-400 cursor-pointer"
+        aria-label="Draw an area to filter hotspots"
+        @click="emit('draw')"
+      >
+        <Pentagon aria-hidden="true" class="h-4 w-4" />
+        <span class="sm:hidden">Draw</span><span class="hidden sm:inline">Draw Area</span>
+      </button>
+    </BaseTooltip>
+    <BaseTooltip text="Center on Nicaragua">
+      <button
+        type="button"
+        :class="actionClass"
+        aria-label="Show all Nicaragua hotspots"
+        @click="emit('recenter')"
+      >
+        <LocateFixed aria-hidden="true" class="h-4 w-4" />
+        <span class="hidden xl:inline">Nicaragua</span>
+      </button>
+    </BaseTooltip>
+    <BaseTooltip text="View satellite globe">
+      <button
+        type="button"
+        :class="actionClass"
+        aria-label="Show the satellite globe"
+        @click="emit('globe')"
+      >
+        <Globe2 aria-hidden="true" class="h-4 w-4" />
+        <span class="hidden xl:inline">Globe</span>
+      </button>
+    </BaseTooltip>
+    <BaseTooltip :text="hasArea ? 'Clear selected area' : 'No area selected'">
+      <button
+        type="button"
+        :class="actionClass"
+        :disabled="!hasArea"
+        aria-label="Clear selected area"
+        @click="emit('clear')"
+      >
+        <Trash2 aria-hidden="true" class="h-4 w-4" />
+        <span class="hidden xl:inline">Clear Area</span>
+      </button>
+    </BaseTooltip>
   </div>
 </template>
-
-<style scoped>
-.dock-action {
-  display: inline-flex;
-  min-width: 40px;
-  min-height: 40px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 7px;
-  padding: 8px 10px;
-  color: #a3aab0;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.dock-action:hover:not(:disabled) {
-  background: #ffffff0a;
-  color: #f5f5f5;
-}
-.dock-action:focus-visible {
-  outline: 2px solid #f87171;
-  outline-offset: -2px;
-}
-.dock-action:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-.dock-action-primary {
-  color: #fecaca;
-  background: #ef444412;
-  border: 1px solid #ef444430;
-}
-.dock-action-primary:hover:not(:disabled) {
-  background: #ef444424;
-  color: white;
-}
-</style>

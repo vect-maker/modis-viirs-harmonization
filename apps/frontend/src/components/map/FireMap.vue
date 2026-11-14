@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch, ref, onMounted, onUnmounted, h, render, shallowRef } from 'vue'
+import { computed, watch, onMounted, onUnmounted, h, render, shallowRef, useTemplateRef } from 'vue'
 import { useMediaQuery, usePreferredReducedMotion, useResizeObserver } from '@vueuse/core'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
@@ -50,13 +50,13 @@ defineSlots<{
   }): unknown
 }>()
 
-const mapContainer = ref<HTMLDivElement | null>(null)
+const mapContainer = useTemplateRef<HTMLDivElement>('mapContainer')
 const map = shallowRef<maplibregl.Map | null>(null)
 const draw = shallowRef<MapboxDraw | null>(null)
 
 const hotspotsStore = useHotspotsStore()
 const { filteredHotspots } = storeToRefs(hotspotsStore)
-const activeRoiArea = ref<number | null>(null)
+const activeRoiArea = shallowRef<number | null>(null)
 const filteredCount = computed(() => hotspotsStore.filteredHotspots.length)
 const activePopup = shallowRef<maplibregl.Popup | null>(null)
 
