@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, h, render, shallowRef } from 'vue'
+import { computed, watch, ref, onMounted, onUnmounted, h, render, shallowRef } from 'vue'
+import { Pentagon, Trash2 } from '@lucide/vue'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import type { MapLayerMouseEvent } from 'maplibre-gl'
@@ -38,10 +39,10 @@ const map = shallowRef<maplibregl.Map | null>(null)
 const draw = shallowRef<MapboxDraw | null>(null)
 
 const hotspotsStore = useHotspotsStore()
-const { selectedSensor: selectedInstrument } = storeToRefs(hotspotsStore)
+const { selectedSensor: selectedInstrument, filteredHotspots } = storeToRefs(hotspotsStore)
 const activeRoiArea = ref<number | null>(null)
 const filteredCount = computed(() => hotspotsStore.filteredHotspots.length)
-const lastPolygon = shallowRef<Feature<Polygon> | null>(null)
+const activePopup = shallowRef<maplibregl.Popup | null>(null)
 
 const allHotspots = hotspotsStore.hotspots
 
@@ -61,22 +62,15 @@ function buildGeoJson(data: FireHotspot[]): GeoJSON.FeatureCollection<Point> {
   }
 }
 
+watch([filteredHotspots, activeRoiArea], () => {
+  const source = map.value?.getSource('hotspots') as maplibregl.GeoJSONSource | undefined
+  source?.setData(buildGeoJson(filteredHotspots.value))
+  activePopup.value?.remove()
+  emitRoiChange()
+})
+
 function filterByInstrument(inst: 'ALL' | 'MODIS' | 'VIIRS') {
   hotspotsStore.setSensor(inst)
-  emitRoiChange()
-  const m = map.value
-  if (!m) return
-
-  const filterExpr =
-    inst === 'ALL'
-      ? null
-      : (['==', ['get', 'instrument'], inst] as unknown as maplibregl.FilterSpecification)
-  if (m.getLayer('hotspots-glow')) {
-    m.setFilter('hotspots-glow', filterExpr)
-  }
-  if (m.getLayer('hotspots-circle')) {
-    m.setFilter('hotspots-circle', filterExpr)
-  }
 }
 
 function startDrawPolygon() {
@@ -97,7 +91,6 @@ function handleRoiUpdate() {
   }
 
   const polygon = drawnData.features[drawnData.features.length - 1] as Feature<Polygon>
-  lastPolygon.value = polygon
   const areaM2 = turf.area(polygon)
   const areaKm2 = Math.round((areaM2 / 1_000_000) * 100) / 100
   activeRoiArea.value = areaKm2
@@ -109,19 +102,6 @@ function handleRoiUpdate() {
   })
 
   hotspotsStore.setAreaHotspots(matching)
-  emitRoiChange()
-
-  // Automatically log immediate feedback to console
-  console.log(
-    `%c[FIRMS Draw] Area updated: ${areaKm2} km² | Hotspots matched: ${matching.length}`,
-    'color: #f97316;'
-  )
-
-  // Update map source with ROI subset
-  const source = map.value?.getSource('hotspots') as maplibregl.GeoJSONSource | undefined
-  if (source) {
-    source.setData(buildGeoJson(matching))
-  }
 }
 
 function emitRoiChange() {
@@ -138,14 +118,7 @@ function clearRoi() {
 
   drawControl.deleteAll()
   activeRoiArea.value = null
-  lastPolygon.value = null
   hotspotsStore.setAreaHotspots(null)
-
-  const source = map.value?.getSource('hotspots') as maplibregl.GeoJSONSource | undefined
-  if (source) {
-    source.setData(buildGeoJson(allHotspots))
-  }
-  emitRoiChange()
 }
 
 onMounted(() => {
@@ -199,7 +172,7 @@ onMounted(() => {
   mapWithEvents.on('draw.delete', handleRoiUpdate)
 
   m.on('load', () => {
-    const geojsonData = buildGeoJson(allHotspots)
+    const geojsonData = buildGeoJson(filteredHotspots.value)
 
     // Add GeoJSON active fire hotspots source
     m.addSource('hotspots', {
@@ -213,15 +186,7 @@ onMounted(() => {
       type: 'circle',
       source: 'hotspots',
       paint: {
-        'circle-color': [
-          'match',
-          ['get', 'instrument'],
-          'MODIS',
-          '#ff1a1a', // Fiery crimson glow
-          'VIIRS',
-          '#ff9900', // Fiery amber glow
-          '#ff6600',
-        ],
+        'circle-color': '#ef4444',
         'circle-radius': [
           'interpolate',
           ['linear'],
@@ -246,15 +211,7 @@ onMounted(() => {
       type: 'circle',
       source: 'hotspots',
       paint: {
-        'circle-color': [
-          'match',
-          ['get', 'instrument'],
-          'MODIS',
-          '#ef233c', // Vivid MODIS red
-          'VIIRS',
-          '#ffd166', // Bright VIIRS gold/yellow
-          '#ff9f1c',
-        ],
+        'circle-color': '#ef4444',
         'circle-radius': [
           'interpolate',
           ['linear'],
@@ -274,21 +231,14 @@ onMounted(() => {
       },
     })
 
-    filterByInstrument(selectedInstrument.value)
-
     // Auto-fit bounds to frame all hotspots across Nicaragua on initial load
-    const [minX, minY, maxX, maxY] = turf.bbox(geojsonData)
-    m.fitBounds(
-      [
-        [minX, minY],
-        [maxX, maxY],
-      ],
-      {
-        padding: 50,
-        maxZoom: 8.5,
-        duration: 1000,
-      }
-    )
+    if (allHotspots.length) {
+      const [minX, minY, maxX, maxY] = turf.bbox(buildGeoJson(allHotspots))
+      m.fitBounds(
+        [[minX, minY], [maxX, maxY]],
+        { padding: 50, maxZoom: 8.5, duration: 1000 },
+      )
+    }
 
     // Cursor pointer on hover
     m.on('mouseenter', 'hotspots-circle', () => {
@@ -315,10 +265,12 @@ onMounted(() => {
       })
       render(vnode, popupWrapper)
 
-      new maplibregl.Popup({ offset: 12, maxWidth: '280px' })
+      activePopup.value?.remove()
+      activePopup.value = new maplibregl.Popup({ offset: 12, maxWidth: '280px' })
         .setLngLat(coordinates)
         .setDOMContent(popupWrapper)
         .addTo(m)
+      activePopup.value.on('close', () => render(null, popupWrapper))
     })
   })
 
@@ -326,6 +278,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  activePopup.value?.remove()
   map.value?.remove()
 })
 </script>
@@ -342,11 +295,7 @@ onUnmounted(() => {
         class="bg-neutral-900/90 hover:bg-neutral-800 text-neutral-200 hover:text-white px-3 py-1.5 rounded-lg border border-neutral-700/80 shadow-lg flex items-center gap-1.5 text-xs font-medium cursor-pointer transition backdrop-blur-md"
         @click="startDrawPolygon"
       >
-        <svg class="w-3.5 h-3.5 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="12 2 2 7 12 12 22 7 12 2" />
-          <polyline points="2 17 12 22 22 17" />
-          <polyline points="2 12 12 17 22 12" />
-        </svg>
+        <Pentagon aria-hidden="true" class="h-3.5 w-3.5 text-neutral-300" />
         <span>Draw Area</span>
       </button>
 
@@ -366,6 +315,7 @@ onUnmounted(() => {
                 ? 'bg-neutral-700 text-white'
                 : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
             ]"
+            :aria-pressed="selectedInstrument === 'ALL'"
             @click="filterByInstrument('ALL')"
           >
             All
@@ -375,12 +325,12 @@ onUnmounted(() => {
             :class="[
               'px-2 py-0.5 rounded text-[11px] font-medium transition cursor-pointer flex items-center gap-1',
               selectedInstrument === 'MODIS'
-                ? 'bg-red-600 text-white'
+                ? 'bg-neutral-700 text-white'
                 : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
             ]"
+            :aria-pressed="selectedInstrument === 'MODIS'"
             @click="filterByInstrument('MODIS')"
           >
-            <span class="w-2 h-2 rounded-full bg-red-400 inline-block" />
             MODIS
           </button>
           <button
@@ -388,12 +338,12 @@ onUnmounted(() => {
             :class="[
               'px-2 py-0.5 rounded text-[11px] font-medium transition cursor-pointer flex items-center gap-1',
               selectedInstrument === 'VIIRS'
-                ? 'bg-amber-600 text-white'
+                ? 'bg-neutral-700 text-white'
                 : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
             ]"
+            :aria-pressed="selectedInstrument === 'VIIRS'"
             @click="filterByInstrument('VIIRS')"
           >
-            <span class="w-2 h-2 rounded-full bg-amber-400 inline-block" />
             VIIRS
           </button>
         </div>
@@ -419,24 +369,24 @@ onUnmounted(() => {
 
         <button
           type="button"
-          class="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs transition cursor-pointer border border-neutral-700"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs transition cursor-pointer border border-neutral-700"
           @click="clearRoi"
         >
+          <Trash2 aria-hidden="true" class="h-3.5 w-3.5" />
           Clear Area
         </button>
       </div>
     </div>
 
+    <div v-if="!filteredCount" role="status" class="pointer-events-none absolute inset-x-4 bottom-16 z-10 mx-auto max-w-sm rounded-lg border border-neutral-700 bg-neutral-900/95 p-4 text-center text-sm text-neutral-300">
+      No hotspots match these filters. Try another date range, area, or sensor.
+    </div>
+
     <!-- Map Legend -->
     <div class="absolute bottom-4 right-4 z-10 bg-neutral-900/90 backdrop-blur-md px-3 py-2 rounded-lg border border-neutral-700/80 shadow-lg text-[11px] space-y-1.5 text-neutral-300 pointer-events-none">
-      <div class="font-semibold text-neutral-200">Active Hotspots ({{ filteredCount.toLocaleString() }})</div>
       <div class="flex items-center gap-2">
-        <span class="w-3 h-3 rounded-full bg-[#ef233c] border border-white shadow-[0_0_6px_#ff1a1a]" />
-        <span>MODIS (~1 km)</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="w-3 h-3 rounded-full bg-[#ffd166] border border-white shadow-[0_0_6px_#ff9900]" />
-        <span>VIIRS (375m)</span>
+        <span class="w-3 h-3 rounded-full bg-red-500 border border-white" />
+        <span>Hotspots ({{ filteredCount.toLocaleString() }})</span>
       </div>
     </div>
   </div>
