@@ -23,8 +23,3 @@ app = FastAPI(
 )
 
 app.include_router(hostpot_router)
-
-
-@app.get("/")
-async def root():
-    return {"message": "Servidor funcionando"}
