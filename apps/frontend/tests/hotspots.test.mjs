@@ -222,3 +222,15 @@ test('CSV control disables export when the active query has no results', async (
   assert(html.includes('disabled'))
   assert(html.includes('Download 0 filtered hotspots as CSV'))
 })
+
+test('space backdrop is decorative and exposes no keyboard interaction', async () => {
+  const { default: Background } = await server.ssrLoadModule(
+    '/src/components/common/SpaceBackground.vue',
+  )
+  const html = await renderToString(
+    createSSRApp({ render: () => h(Background, { visible: true }) }),
+  )
+  assert(html.includes('<canvas'))
+  assert(html.includes('aria-hidden="true"'))
+  assert(!html.includes('tabindex'))
+})

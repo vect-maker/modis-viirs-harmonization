@@ -14,6 +14,7 @@ import type { FireHotspot } from '@/types/hotspot'
 import { storeToRefs } from 'pinia'
 import { useHotspotsStore } from '@/stores/hotspots'
 import FirePopup from './FirePopup.vue'
+import SpaceBackground from '@/components/common/SpaceBackground.vue'
 
 // Vite must bundle the worker and its dependencies before MapLibre creates a map.
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
@@ -62,6 +63,7 @@ const activePopup = shallowRef<maplibregl.Popup | null>(null)
 const allHotspots = hotspotsStore.hotspots
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const reducedMotion = usePreferredReducedMotion()
+const spaceVisible = shallowRef(true)
 useResizeObserver(mapContainer, () => map.value?.resize())
 
 function getViewportPadding() {
@@ -231,6 +233,11 @@ onMounted(() => {
 
   // Position the globe before the first frame, leaving room for the floating panels.
   m.jumpTo(getGlobeView())
+  const updateSpaceVisibility = () => {
+    spaceVisible.value = m.getZoom() < 5
+  }
+  updateSpaceVisibility()
+  m.on('zoom', updateSpaceVisibility)
 
   // Add standard navigation controls (zoom, compass)
   m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left')
@@ -334,6 +341,7 @@ onUnmounted(() => {
     class="fire-map relative h-full w-full overflow-hidden bg-neutral-950"
     :style="{ '--map-bottom-inset': `${bottomInset + 8}px` }"
   >
+    <SpaceBackground :visible="spaceVisible" />
     <div ref="mapContainer" class="fire-map__canvas" />
 
     <slot
@@ -356,6 +364,10 @@ onUnmounted(() => {
 </template>
 
 <style>
+.fire-map {
+  background-color: #020409;
+}
+
 /* MapLibre's unlayered position: relative overrides Tailwind's absolute utility.
    Explicit dimensions keep the canvas sized to the full map workspace. */
 .fire-map > .fire-map__canvas {
@@ -363,15 +375,7 @@ onUnmounted(() => {
   inset: 0;
   width: 100%;
   height: 100%;
-  background-color: #020409;
-  background-image:
-    radial-gradient(1px 1px at 22px 38px, #cbd5e180 90%, transparent),
-    radial-gradient(1px 1px at 110px 90px, #cbd5e140 90%, transparent),
-    radial-gradient(1.5px 1.5px at 195px 160px, #e2e8f066 90%, transparent);
-  background-size:
-    253px 227px,
-    379px 347px,
-    467px 419px;
+  background: transparent;
 }
 .fire-map .maplibregl-ctrl-top-left {
   top: 0.75rem;
