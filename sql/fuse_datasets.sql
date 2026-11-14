@@ -27,10 +27,10 @@ COPY (
         strptime(p.acq_date || ' ' || p.acq_time, '%Y-%m-%d %H%M')::TIMESTAMP AS acq_datetime,
         p.satellite,
         p.instrument,
-        p.confidence,
+        try_cast(p.confidence AS INTEGER) AS confidence,
         CASE
-            WHEN p.confidence::BIGINT < 30 THEN 'l'
-            WHEN p.confidence::BIGINT < 80 THEN 'n'
+            WHEN try_cast(p.confidence AS INTEGER) < 30 THEN 'l'
+            WHEN try_cast(p.confidence AS INTEGER) < 80 THEN 'n'
             ELSE 'h'
         END AS confidence_class,
         p.version,
@@ -60,8 +60,13 @@ COPY (
             ELSE p.satellite
         END AS satellite,
         p.instrument,
-        p.confidence,
-        p.confidence AS confidence_class,
+        CASE lower(p.confidence)
+            WHEN 'l' THEN 20
+            WHEN 'n' THEN 50
+            WHEN 'h' THEN 90
+            ELSE NULL
+        END::INTEGER AS confidence,
+        lower(p.confidence) AS confidence_class,
         p.version,
         p.bright_ti5 AS bright_tir,
         p.frp,

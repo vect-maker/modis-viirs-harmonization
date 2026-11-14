@@ -17,7 +17,7 @@ CREATE TABLE hotspots (
     acq_datetime TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     satellite VARCHAR(50),
     instrument VARCHAR(20) NOT NULL,
-    confidence VARCHAR(20),
+    confidence INTEGER,
     confidence_class VARCHAR(20),
     version VARCHAR(20),
     bright_tir DOUBLE PRECISION,
