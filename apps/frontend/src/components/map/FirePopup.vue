@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SunMedium, Moon } from '@lucide/vue'
 import type { FireHotspot } from '@/types/hotspot'
 
 defineProps<{
@@ -13,18 +14,13 @@ const emit = defineEmits<{
 <template>
   <div class="p-3.5 bg-neutral-900 text-white rounded-lg shadow-xl text-xs min-w-[220px] font-sans border border-neutral-700">
     <div class="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-neutral-800">
-      <span
-        :class="[
-          'px-2 py-0.5 rounded font-semibold text-[11px] tracking-wide uppercase',
-          hotspot.instrument === 'MODIS'
-            ? 'bg-red-950 text-red-400 border border-red-800/60'
-            : 'bg-amber-950 text-amber-400 border border-amber-800/60'
-        ]"
-      >
+      <span class="px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700 font-semibold text-[11px] tracking-wide uppercase">
         {{ hotspot.instrument }} ({{ hotspot.satellite }})
       </span>
-      <span class="text-[10px] text-neutral-400 font-mono">
-        {{ hotspot.daynight === 'D' ? '☀️ Day' : '🌙 Night' }}
+      <span class="inline-flex items-center gap-1 text-[10px] text-neutral-400 font-mono">
+        <SunMedium v-if="hotspot.daynight === 'D'" aria-hidden="true" class="h-3.5 w-3.5" />
+        <Moon v-else aria-hidden="true" class="h-3.5 w-3.5" />
+        {{ hotspot.daynight === 'D' ? 'Day' : 'Night' }}
       </span>
     </div>
 

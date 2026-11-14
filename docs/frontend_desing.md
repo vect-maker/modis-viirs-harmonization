@@ -252,3 +252,24 @@ apps/frontend/src/
 ├── App.vue                  # Main application shell
 └── main.ts                  # App initialization (Pinia, Router)
 ```
+
+## Historical calendar (stage 2)
+
+The Activity dock contains Daily Activity and Historical Calendar tabs (Reka UI).
+`stores/calendar.ts` uses `src/data/historical_monthly.json`, a national Nicaragua
+aggregate from the processed Parquet. Its sensor and month selections are independent
+of the daily map query in `stores/hotspots.ts`. Selecting a historical month inspects
+its aggregate; it does not load historical points or change the map CSV export.
+
+To regenerate the static aggregate, run from `apps/pipeline`:
+
+```sh
+duckdb -f sql/export_nicaragua_calendar.sql
+```
+
+The SQL uses `data/processed/hotspots.parquet` by default. To read another local copy,
+set DuckDB variable `source_path` with `-cmd` before running the SQL file. No backend
+is required. Aggregates retain raw detection counts, sensor provenance, observed
+record days and source date bounds. They are not harmonized or coverage-normalized.
+Absent months/sensors remain unknown (null), not zero detections or zero fires.
+The number of days with records does not establish satellite observation coverage.
