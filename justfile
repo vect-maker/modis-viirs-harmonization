@@ -24,7 +24,7 @@ reset-db:
 fetch-data *args:
     uv run pipeline/fetcher.py {{args}}
 
-# Fuse raw archive Parquet files into consolidated MODIS and VIIRS datasets
+# Fuse raw archive Parquet files into a unified Silver dataset
 fuse-data:
     mkdir -p data/processed
     duckdb -dark-mode -f sql/fuse_datasets.sql

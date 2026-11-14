@@ -1,5 +1,6 @@
--- 1. MODIS consolidated dataset
+-- Consolidate MODIS and VIIRS archive datasets into a unified Silver dataset
 COPY (
+    -- 1. MODIS Hotspots
     SELECT
         f.country,
         p.latitude,
@@ -25,11 +26,10 @@ COPY (
     JOIN sqlite_scan('data/pipeline.db', 'archive_files') f
       ON p.filename = f.local_path
     WHERE f.status = 'completed'
-    ORDER BY f.country, acq_datetime
-) TO 'data/processed/modis.parquet' (FORMAT PARQUET, COMPRESSION SNAPPY);
 
--- 2. VIIRS consolidated dataset
-COPY (
+    UNION ALL
+
+    -- 2. VIIRS Hotspots
     SELECT
         f.country,
         p.latitude,
@@ -56,5 +56,6 @@ COPY (
     JOIN sqlite_scan('data/pipeline.db', 'archive_files') f
       ON p.filename = f.local_path
     WHERE f.status = 'completed'
-    ORDER BY f.country, acq_datetime
-) TO 'data/processed/viirs.parquet' (FORMAT PARQUET, COMPRESSION SNAPPY);
+
+    ORDER BY country, acq_datetime
+) TO 'data/processed/hotspots.parquet' (FORMAT PARQUET, COMPRESSION SNAPPY);
