@@ -41,15 +41,12 @@ const formatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
   timeZone: 'UTC',
 })
-const label = computed(() =>
-  props.modelValue
-    ? `${formatDate(props.modelValue.start)} – ${formatDate(props.modelValue.end)}`
-    : 'All dates',
-)
-
-function formatDate(date: string) {
-  return formatter.format(parseDate(date).toDate('UTC'))
-}
+const label = computed(() => {
+  if (!props.modelValue) return 'All available dates'
+  const start = parseDate(props.modelValue.start).toDate('UTC')
+  const end = parseDate(props.modelValue.end).toDate('UTC')
+  return formatter.formatRange(start, end)
+})
 
 function onOpenChange(value: boolean) {
   if (value) {
@@ -77,7 +74,7 @@ function resetRange() {
   <PopoverRoot :open="open" @update:open="onOpenChange">
     <PopoverTrigger
       type="button"
-      class="flex w-full items-center justify-between gap-3 rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-100 hover:border-neutral-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
+      class="flex w-full items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#101619] px-3 py-2.5 text-xs text-neutral-100 hover:border-neutral-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
       :aria-label="`Filter by date: ${label}`"
     >
       <CalendarRange aria-hidden="true" class="h-4 w-4 text-neutral-400" />
@@ -89,7 +86,7 @@ function resetRange() {
         align="start"
         :side-offset="8"
         aria-label="Choose a date range"
-        class="z-50 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-neutral-700 bg-neutral-900 p-4 text-neutral-100 shadow-2xl"
+        class="z-50 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-white/15 bg-[#141a1e] p-4 text-neutral-100 shadow-2xl"
       >
         <div class="mb-3 flex items-center justify-between gap-3">
           <p class="text-sm font-semibold">Date Range</p>

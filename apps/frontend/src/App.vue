@@ -1,17 +1,23 @@
 <script setup lang="ts">
-import { shallowRef, watch } from 'vue'
+import { computed, shallowRef, watch, useTemplateRef } from 'vue'
 import { FlameKindling, MapPin } from '@lucide/vue'
-import { useMediaQuery } from '@vueuse/core'
+import { useMediaQuery, useElementSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import FireMap from '@/components/map/FireMap.vue'
 import HotspotDetails from '@/components/map/HotspotDetails.vue'
 import HotspotControlPanel from '@/components/features/HotspotControlPanel.vue'
+import HotspotTimeline from '@/components/features/HotspotTimeline.vue'
+import MapActionBar from '@/components/common/MapActionBar.vue'
 import type { FireHotspot } from '@/types/hotspot'
 import { useHotspotsStore } from '@/stores/hotspots'
 
 const { filteredHotspots } = storeToRefs(useHotspotsStore())
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const panelOpen = shallowRef(isDesktop.value)
+const timelineOpen = shallowRef(false)
+const timelineElement = useTemplateRef<HTMLDivElement>('timelineElement')
+const { height: timelineHeight } = useElementSize(timelineElement)
+const mapBottomInset = computed(() => timelineHeight.value + 24)
 const selectedHotspot = shallowRef<FireHotspot | null>(null)
 const areaKm2 = shallowRef<number | null>(null)
 
@@ -28,7 +34,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
     class="flex h-dvh min-h-0 flex-col overflow-hidden bg-neutral-950 font-sans text-neutral-100 selection:bg-red-600 selection:text-white"
   >
     <header
-      class="relative z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-neutral-950 px-4 sm:px-5"
+      class="relative z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#11171b] px-4 sm:px-5"
     >
       <div class="flex min-w-0 items-center gap-2.5">
         <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-600">
@@ -52,9 +58,29 @@ function onRoiChange(payload: { areaKm2: number | null }) {
       <div class="absolute inset-0">
         <FireMap
           :side-panel-open="panelOpen"
+          :bottom-inset="mapBottomInset"
           @hotspot-select="selectedHotspot = $event"
           @roi-change="onRoiChange"
-        />
+        >
+          <template #dock="{ drawArea, clearArea, resetView }">
+            <div
+              ref="timelineElement"
+              class="absolute bottom-3 left-3 right-3 z-20 md:bottom-5 md:left-5"
+              :class="panelOpen ? 'md:right-[22.5rem]' : 'md:right-5'"
+            >
+              <HotspotTimeline v-model:open="timelineOpen">
+                <template #tools>
+                  <MapActionBar
+                    :has-area="areaKm2 !== null"
+                    @draw="drawArea"
+                    @recenter="resetView"
+                    @clear="clearArea"
+                  />
+                </template>
+              </HotspotTimeline>
+            </div>
+          </template>
+        </FireMap>
       </div>
       <aside
         class="pointer-events-none absolute right-3 top-3 z-20 w-[min(20rem,calc(100%_-_4.5rem))] md:right-5 md:top-5"
@@ -69,7 +95,8 @@ function onRoiChange(payload: { areaKm2: number | null }) {
       <HotspotDetails
         v-if="selectedHotspot"
         :hotspot="selectedHotspot"
-        class="absolute bottom-24 left-3 right-3 z-20 md:bottom-14 md:left-5 md:right-auto md:w-80"
+        class="absolute left-3 right-3 z-20 md:left-5 md:right-auto md:w-80"
+        :style="{ bottom: `${mapBottomInset + 64}px` }"
         @close="selectedHotspot = null"
       />
     </main>

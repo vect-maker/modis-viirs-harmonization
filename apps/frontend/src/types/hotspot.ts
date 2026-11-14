@@ -10,3 +10,8 @@ export interface FireHotspot {
   bright_mir: number
   daynight: 'D' | 'N'
 }
+
+export interface DailyHotspotActivity {
+  date: string
+  count: number
+}

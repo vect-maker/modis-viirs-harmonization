@@ -1,6 +1,7 @@
 import { computed, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
 import { parseDate } from '@internationalized/date'
+import { aggregateDailyActivity } from '@/utils/hotspotActivity'
 import type { HotspotDateRange } from '@/types/filters'
 import sampleHotspots from '@/data/sample_hotspots.json'
 import type { FireHotspot } from '@/types/hotspot'
@@ -20,18 +21,25 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     return start && end ? { start, end } : null
   })
 
-  const filteredHotspots = computed(() => {
+  // This context stays independent of date selection so the timeline never loses its other days.
+  const contextHotspots = computed(() => {
     const candidates = areaHotspots.value ?? hotspots.value
-    return candidates.filter((hotspot) => {
-      const date = hotspot.acq_datetime.slice(0, 10)
-      const matchesSensor =
-        selectedSensor.value === 'ALL' || hotspot.instrument === selectedSensor.value
-      // FIRMS acquisition dates are UTC. Compare calendar dates to include both full days.
-      const matchesDate =
-        !dateRange.value || (date >= dateRange.value.start && date <= dateRange.value.end)
-      return matchesSensor && matchesDate
-    })
+    return selectedSensor.value === 'ALL'
+      ? candidates
+      : candidates.filter((hotspot) => hotspot.instrument === selectedSensor.value)
   })
+
+  const dailyActivity = computed(() =>
+    aggregateDailyActivity(contextHotspots.value, availableDates.value),
+  )
+
+  const filteredHotspots = computed(() =>
+    contextHotspots.value.filter((hotspot) => {
+      const date = hotspot.acq_datetime.slice(0, 10)
+      // Inclusive calendar dates preserve the whole UTC end day.
+      return !dateRange.value || (date >= dateRange.value.start && date <= dateRange.value.end)
+    }),
+  )
 
   const stats = computed(() => {
     const visible = filteredHotspots.value
@@ -70,6 +78,8 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     areaHotspots,
     dateRange,
     availableDates,
+    contextHotspots,
+    dailyActivity,
     filteredHotspots,
     stats,
     setSensor,

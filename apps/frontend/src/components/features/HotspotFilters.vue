@@ -10,10 +10,10 @@ const { dateRange, availableDates, selectedSensor } = storeToRefs(store)
 </script>
 
 <template>
-  <section class="space-y-5" aria-label="Hotspot filters">
+  <section class="space-y-4 border-t border-white/10 pt-4" aria-label="Hotspot filters">
     <div class="space-y-2">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-xs font-medium text-neutral-400">Date Range</h3>
+        <h3 class="text-[11px] font-medium text-neutral-400">Date Range</h3>
         <button
           v-if="dateRange"
           type="button"
@@ -31,7 +31,7 @@ const { dateRange, availableDates, selectedSensor } = storeToRefs(store)
       />
     </div>
     <div class="space-y-2">
-      <h3 class="text-xs font-medium text-neutral-400">Sensor</h3>
+      <h3 class="text-[11px] font-medium text-neutral-400">Sensor</h3>
       <BaseSensorFilter :model-value="selectedSensor" @update:model-value="store.setSensor" />
     </div>
   </section>

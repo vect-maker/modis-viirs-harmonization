@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, watch, ref, onMounted, onUnmounted, h, render, shallowRef } from 'vue'
-import { Pentagon, Trash2, LocateFixed } from '@lucide/vue'
 import { useMediaQuery, usePreferredReducedMotion, useResizeObserver } from '@vueuse/core'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
@@ -24,17 +23,23 @@ const props = withDefaults(
     initialCenter?: [number, number]
     initialZoom?: number
     sidePanelOpen?: boolean
+    bottomInset?: number
   }>(),
   {
     initialCenter: () => [-85.2072, 12.8654], // Nicaragua centroid
     initialZoom: 7,
     sidePanelOpen: false,
+    bottomInset: 24,
   }
 )
 
 const emit = defineEmits<{
   (e: 'hotspot-select', hotspot: FireHotspot): void
   (e: 'roi-change', payload: { count: number; areaKm2: number | null; filtered: FireHotspot[] }): void
+}>()
+
+defineSlots<{
+  dock?(props: { drawArea: () => void; clearArea: () => void; resetView: () => void }): unknown
 }>()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
@@ -59,7 +64,7 @@ function fitNicaragua() {
   m.fitBounds([[west, south], [east, north]], {
     padding: {
       top: 56,
-      bottom: 100,
+      bottom: Math.min(props.bottomInset + 76, (mapContainer.value?.clientHeight ?? 600) * 0.5),
       left: 64,
       right: isDesktop.value && props.sidePanelOpen ? 360 : 48,
     },
@@ -296,31 +301,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="fire-map relative h-full w-full overflow-hidden bg-neutral-950">
+  <div class="fire-map relative h-full w-full overflow-hidden bg-neutral-950" :style="{ '--map-bottom-inset': `${bottomInset + 8}px` }">
     <div ref="mapContainer" class="fire-map__canvas" />
 
-    <div class="absolute bottom-7 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-white/10 bg-neutral-950/90 p-1.5 text-neutral-200 shadow-xl backdrop-blur-md md:bottom-5" role="group" aria-label="Map tools">
-      <button type="button" class="map-tool" @click="startDrawPolygon">
-        <Pentagon aria-hidden="true" class="h-4 w-4" />
-        <span>Draw Area</span>
-      </button>
-      <button type="button" class="map-tool" aria-label="Show all Nicaragua hotspots" title="Show Nicaragua" @click="fitNicaragua">
-        <LocateFixed aria-hidden="true" class="h-4 w-4" />
-        <span class="hidden sm:inline">Nicaragua</span>
-      </button>
-      <button v-if="activeRoiArea !== null" type="button" class="map-tool" aria-label="Clear selected area" title="Clear selected area" @click="clearRoi">
-        <Trash2 aria-hidden="true" class="h-4 w-4" />
-        <span class="hidden sm:inline">Clear Area</span>
-      </button>
-    </div>
+    <slot name="dock" :draw-area="startDrawPolygon" :clear-area="clearRoi" :reset-view="fitNicaragua" />
 
-    <div v-if="!filteredCount" role="status" class="pointer-events-none absolute inset-x-4 bottom-24 z-10 mx-auto max-w-sm rounded-lg border border-white/10 bg-neutral-950/95 p-4 text-center text-sm text-neutral-300">
+    <div v-if="!filteredCount" role="status" :style="{ bottom: `${bottomInset + 80}px` }" class="pointer-events-none absolute inset-x-4 z-10 mx-auto max-w-sm rounded-lg border border-white/10 bg-neutral-950/95 p-4 text-center text-sm text-neutral-300">
       No hotspots match these filters. Try another date range, area, or sensor.
     </div>
 
-    <div class="pointer-events-none absolute bottom-14 right-3 z-10 hidden items-center gap-2 rounded-lg border border-white/10 bg-neutral-950/85 px-3 py-2 text-xs text-neutral-300 backdrop-blur-md sm:flex md:bottom-9 md:right-5">
-      <span aria-hidden="true" class="h-2 w-2 rounded-full bg-red-500" />Hotspots
-    </div>
+
   </div>
 </template>
 
@@ -332,27 +322,6 @@ onUnmounted(() => {
   inset: 0;
   width: 100%;
   height: 100%;
-}
-.fire-map .map-tool {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: 2.5rem;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.fire-map .map-tool:hover {
-  background: #262626;
-  color: white;
-}
-.fire-map .map-tool:focus-visible {
-  outline: 2px solid #f87171;
-  outline-offset: 2px;
 }
 .fire-map .maplibregl-ctrl-top-left { top: 0.75rem; left: 0.75rem; }
 .fire-map .maplibregl-ctrl-top-left .maplibregl-ctrl { margin: 0; }
@@ -367,6 +336,7 @@ onUnmounted(() => {
 .fire-map .maplibregl-ctrl-group button:hover { background-color: #262626; }
 .fire-map .maplibregl-ctrl-group button + button { border-top-color: #ffffff1a; }
 .fire-map .maplibregl-ctrl-icon { filter: invert(1); }
+.fire-map .maplibregl-ctrl-bottom-left { bottom: var(--map-bottom-inset); }
 .fire-map .maplibregl-ctrl-scale {
   border-color: #ffffff99;
   background: #0a0a0abf;
