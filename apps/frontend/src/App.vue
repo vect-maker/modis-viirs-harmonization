@@ -1,28 +1,17 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import FireMap from '@/components/map/FireMap.vue'
 import type { FireHotspot } from '@/types/hotspot'
-import rawHotspots from '@/data/sample_hotspots.json'
+import { useHotspotsStore } from '@/stores/hotspots'
+
+const hotspotsStore = useHotspotsStore()
+const { stats } = storeToRefs(hotspotsStore)
 
 const selectedHotspot = ref<FireHotspot | null>(null)
 const roiData = ref<{ count: number; areaKm2: number | null }>({
-  count: rawHotspots.length,
+  count: hotspotsStore.hotspots.length,
   areaKm2: null,
-})
-
-const allHotspots = rawHotspots as FireHotspot[]
-
-const stats = computed(() => {
-  const modis = allHotspots.filter((h) => h.instrument === 'MODIS').length
-  const viirs = allHotspots.filter((h) => h.instrument === 'VIIRS').length
-  const avgFrp = (allHotspots.reduce((acc, h) => acc + h.frp, 0) / allHotspots.length).toFixed(1)
-
-  return {
-    total: allHotspots.length,
-    modis,
-    viirs,
-    avgFrp,
-  }
 })
 
 function onHotspotSelect(hotspot: FireHotspot) {
@@ -56,25 +45,11 @@ function onRoiChange(payload: { count: number; areaKm2: number | null }) {
             </span>
           </h1>
           <p class="text-xs text-neutral-400">
-            Harmonized Active Fire Hotspot Explorer & Burning Activity Calendar
+            Explore fire detections by area and sensor
           </p>
         </div>
       </div>
 
-      <div class="flex items-center gap-4 text-xs">
-        <div class="hidden sm:flex items-center gap-2 text-neutral-400">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Local DuckDB Sample (March–May 2024)</span>
-        </div>
-        <a
-          href="https://github.com/casey/just"
-          target="_blank"
-          rel="noopener"
-          class="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded border border-neutral-700 transition"
-        >
-          CLI Justfiles
-        </a>
-      </div>
     </header>
 
     <!-- Main Dashboard Workspace -->
@@ -82,9 +57,8 @@ function onRoiChange(payload: { count: number; areaKm2: number | null }) {
       <!-- Quick Metric Cards -->
       <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-neutral-900/80 border border-neutral-800 p-4 rounded-xl shadow-sm">
-          <p class="text-xs text-neutral-400">Total Loaded Hotspots</p>
+          <p class="text-xs text-neutral-400">Matching Hotspots</p>
           <p class="text-2xl font-bold font-mono text-white mt-1">{{ stats.total.toLocaleString() }}</p>
-          <p class="text-[11px] text-neutral-500 mt-0.5">Sample slice (Nicaragua)</p>
         </div>
 
         <div class="bg-neutral-900/80 border border-neutral-800 p-4 rounded-xl shadow-sm">
@@ -108,7 +82,6 @@ function onRoiChange(payload: { count: number; areaKm2: number | null }) {
         <div class="bg-neutral-900/80 border border-neutral-800 p-4 rounded-xl shadow-sm">
           <p class="text-xs text-neutral-400">Average Radiative Power</p>
           <p class="text-2xl font-bold font-mono text-orange-400 mt-1">{{ stats.avgFrp }} <span class="text-sm font-sans text-neutral-400">MW</span></p>
-          <p class="text-[11px] text-neutral-500 mt-0.5">Mean FRP fire intensity</p>
         </div>
       </section>
 
@@ -116,12 +89,12 @@ function onRoiChange(payload: { count: number; areaKm2: number | null }) {
       <section class="flex-1 flex flex-col gap-3 min-h-[600px]">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <h2 class="text-sm font-semibold text-neutral-200">High-Resolution Satellite Hotspot Map (Esri)</h2>
-            <span class="text-xs text-neutral-400">• Use polygon tool (top left) to draw an Area of Interest</span>
+            <h2 class="text-sm font-semibold text-neutral-200">Fire Map</h2>
+            <span class="text-xs text-neutral-400">Draw an area to filter detections</span>
           </div>
 
           <div v-if="roiData.areaKm2 !== null" class="text-xs text-neutral-300">
-            Filtered: <span class="font-bold text-orange-400 font-mono">{{ roiData.count }}</span> / {{ stats.total }}
+            Filtered: <span class="font-bold text-orange-400 font-mono">{{ roiData.count }}</span> / {{ hotspotsStore.hotspots.length }}
           </div>
         </div>
 

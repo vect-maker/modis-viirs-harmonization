@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, h, render, shallowRef } from 'vue'
+import { computed, ref, onMounted, onUnmounted, h, render, shallowRef } from 'vue'
 import * as maplibregl from 'maplibre-gl'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import type { MapLayerMouseEvent } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
@@ -9,8 +10,12 @@ import * as turf from '@turf/turf'
 import type { Feature, Point, Polygon } from 'geojson'
 
 import type { FireHotspot } from '@/types/hotspot'
-import rawHotspots from '@/data/sample_hotspots.json'
+import { storeToRefs } from 'pinia'
+import { useHotspotsStore } from '@/stores/hotspots'
 import FirePopup from './FirePopup.vue'
+
+// Vite must bundle the worker and its dependencies before MapLibre creates a map.
+maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
 const props = withDefaults(
   defineProps<{
@@ -32,14 +37,13 @@ const mapContainer = ref<HTMLDivElement | null>(null)
 const map = shallowRef<maplibregl.Map | null>(null)
 const draw = shallowRef<MapboxDraw | null>(null)
 
-const selectedInstrument = ref<'ALL' | 'MODIS' | 'VIIRS'>('ALL')
+const hotspotsStore = useHotspotsStore()
+const { selectedSensor: selectedInstrument } = storeToRefs(hotspotsStore)
 const activeRoiArea = ref<number | null>(null)
-const filteredCount = ref<number>(rawHotspots.length)
+const filteredCount = computed(() => hotspotsStore.filteredHotspots.length)
 const lastPolygon = shallowRef<Feature<Polygon> | null>(null)
-const currentMatching = shallowRef<FireHotspot[]>(rawHotspots as FireHotspot[])
-const hasConsulted = ref(false)
 
-const allHotspots = rawHotspots as FireHotspot[]
+const allHotspots = hotspotsStore.hotspots
 
 // Convert raw JSON data to GeoJSON Point FeatureCollection
 function buildGeoJson(data: FireHotspot[]): GeoJSON.FeatureCollection<Point> {
@@ -58,7 +62,8 @@ function buildGeoJson(data: FireHotspot[]): GeoJSON.FeatureCollection<Point> {
 }
 
 function filterByInstrument(inst: 'ALL' | 'MODIS' | 'VIIRS') {
-  selectedInstrument.value = inst
+  hotspotsStore.setSensor(inst)
+  emitRoiChange()
   const m = map.value
   if (!m) return
 
@@ -81,47 +86,13 @@ function startDrawPolygon() {
   ;(drawControl as any).changeMode('draw_polygon')
 }
 
-function consultRoi() {
-  if (!lastPolygon.value) return
-  const polygon = lastPolygon.value
-  const bbox = turf.bbox(polygon)
-  const matching = currentMatching.value
-
-  console.group('%c🔥 [FIRMS Spatial Query - Area of Interest Consulted]', 'color: #f97316; font-weight: bold; font-size: 13px;')
-  console.log('%cSelected Polygon GeoJSON:', 'color: #38bdf8; font-weight: bold;', polygon)
-  console.log('%cBounding Box [west, south, east, north]:', 'color: #38bdf8; font-weight: bold;', bbox)
-  console.log('%cCalculated Area:', 'color: #38bdf8; font-weight: bold;', `${activeRoiArea.value?.toLocaleString()} km²`)
-  console.log('%cMatching Active Fire Hotspots:', 'color: #4ade80; font-weight: bold;', matching.length)
-  console.log('%cFull API Query Payload:', 'color: #fb923c; font-weight: bold;', {
-    type: 'Feature',
-    geometry: polygon.geometry,
-    bbox,
-    properties: {
-      areaKm2: activeRoiArea.value,
-      hotspotCount: matching.length,
-      sensors: ['MODIS', 'VIIRS'],
-    },
-    sampleHotspots: matching.slice(0, 50),
-  })
-  console.groupEnd()
-
-  hasConsulted.value = true
-  setTimeout(() => {
-    hasConsulted.value = false
-  }, 3500)
-}
-
 function handleRoiUpdate() {
   const drawControl = draw.value
   if (!drawControl) return
 
   const drawnData = drawControl.getAll()
   if (!drawnData.features.length) {
-    activeRoiArea.value = null
-    lastPolygon.value = null
-    currentMatching.value = allHotspots
-    filteredCount.value = allHotspots.length
-    emit('roi-change', { count: allHotspots.length, areaKm2: null, filtered: allHotspots })
+    clearRoi()
     return
   }
 
@@ -137,9 +108,8 @@ function handleRoiUpdate() {
     return turf.booleanPointInPolygon(pt, polygon)
   })
 
-  currentMatching.value = matching
-  filteredCount.value = matching.length
-  emit('roi-change', { count: matching.length, areaKm2, filtered: matching })
+  hotspotsStore.setAreaHotspots(matching)
+  emitRoiChange()
 
   // Automatically log immediate feedback to console
   console.log(
@@ -154,6 +124,14 @@ function handleRoiUpdate() {
   }
 }
 
+function emitRoiChange() {
+  emit('roi-change', {
+    count: filteredCount.value,
+    areaKm2: activeRoiArea.value,
+    filtered: hotspotsStore.filteredHotspots,
+  })
+}
+
 function clearRoi() {
   const drawControl = draw.value
   if (!drawControl) return
@@ -161,14 +139,13 @@ function clearRoi() {
   drawControl.deleteAll()
   activeRoiArea.value = null
   lastPolygon.value = null
-  currentMatching.value = allHotspots
-  filteredCount.value = allHotspots.length
+  hotspotsStore.setAreaHotspots(null)
 
   const source = map.value?.getSource('hotspots') as maplibregl.GeoJSONSource | undefined
   if (source) {
     source.setData(buildGeoJson(allHotspots))
   }
-  emit('roi-change', { count: allHotspots.length, areaKm2: null, filtered: allHotspots })
+  emitRoiChange()
 }
 
 onMounted(() => {
@@ -207,13 +184,9 @@ onMounted(() => {
   // Add standard navigation controls (zoom, compass)
   m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
 
-  // Add drawing controls (Polygon, Trash) for Area of Interest (ROI) selection
+  // Keep drawing behavior; the toolbar provides the visible controls.
   const drawControl = new MapboxDraw({
     displayControlsDefault: false,
-    controls: {
-      polygon: true,
-      trash: true,
-    },
   })
   m.addControl(drawControl as unknown as maplibregl.IControl, 'top-left')
   draw.value = drawControl
@@ -301,6 +274,8 @@ onMounted(() => {
       },
     })
 
+    filterByInstrument(selectedInstrument.value)
+
     // Auto-fit bounds to frame all hotspots across Nicaragua on initial load
     const [minX, minY, maxX, maxY] = turf.bbox(geojsonData)
     m.fitBounds(
@@ -361,7 +336,7 @@ onUnmounted(() => {
     <div ref="mapContainer" class="w-full h-full min-h-[550px]" />
 
     <!-- Draw & Area Selection Toolbar -->
-    <div class="absolute top-4 left-14 z-10 flex items-center gap-2">
+    <div class="absolute top-4 left-4 z-10 flex items-center gap-2">
       <button
         type="button"
         class="bg-neutral-900/90 hover:bg-neutral-800 text-neutral-200 hover:text-white px-3 py-1.5 rounded-lg border border-neutral-700/80 shadow-lg flex items-center gap-1.5 text-xs font-medium cursor-pointer transition backdrop-blur-md"
@@ -375,25 +350,10 @@ onUnmounted(() => {
         <span>Draw Area</span>
       </button>
 
-      <button
-        v-if="activeRoiArea !== null"
-        type="button"
-        class="bg-neutral-900/90 hover:bg-red-950/80 text-neutral-300 hover:text-red-300 px-2.5 py-1.5 rounded-lg border border-neutral-700/80 shadow-lg text-xs font-medium cursor-pointer transition backdrop-blur-md"
-        @click="clearRoi"
-      >
-        Clear
-      </button>
     </div>
 
-    <!-- Map UI Overlay: Satellite Provider Badge & Sensor Filters -->
+    <!-- Sensor Filters -->
     <div class="absolute top-4 right-14 z-10 flex flex-col gap-2">
-      <!-- Satellite Attribution Badge -->
-      <div class="bg-neutral-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-neutral-700/80 shadow-lg flex items-center gap-2 text-xs">
-        <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-        <span class="text-neutral-200 font-semibold">Esri World Imagery</span>
-        <span class="text-[10px] text-neutral-400 font-mono">High-Res</span>
-      </div>
-
       <!-- Sensor Filter Group -->
       <div class="bg-neutral-900/90 backdrop-blur-md p-1.5 rounded-lg border border-neutral-700/80 shadow-lg flex items-center justify-between gap-1 text-xs">
         <span class="text-[11px] text-neutral-400 font-medium px-2">Sensors:</span>
@@ -408,7 +368,7 @@ onUnmounted(() => {
             ]"
             @click="filterByInstrument('ALL')"
           >
-            All ({{ allHotspots.length }})
+            All
           </button>
           <button
             type="button"
@@ -447,13 +407,7 @@ onUnmounted(() => {
     >
       <div>
         <div class="flex items-center gap-2">
-          <p class="font-bold text-orange-400">Area of Interest Defined</p>
-          <span
-            v-if="hasConsulted"
-            class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 text-[10px] font-mono animate-pulse"
-          >
-            ✓ Printed to Console!
-          </span>
+          <p class="font-bold text-orange-400">Selected Area</p>
         </div>
         <p class="text-[11px] text-neutral-400 mt-0.5">
           Area: <span class="font-mono text-white font-semibold">{{ activeRoiArea.toLocaleString() }} km²</span> |
@@ -462,30 +416,20 @@ onUnmounted(() => {
       </div>
 
       <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-semibold rounded-lg text-xs shadow-lg shadow-orange-600/30 transition cursor-pointer flex items-center gap-1.5"
-          @click="consultRoi"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <span>Consult Area</span>
-        </button>
 
         <button
           type="button"
           class="px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs transition cursor-pointer border border-neutral-700"
           @click="clearRoi"
         >
-          Clear
+          Clear Area
         </button>
       </div>
     </div>
 
     <!-- Map Legend -->
     <div class="absolute bottom-4 right-4 z-10 bg-neutral-900/90 backdrop-blur-md px-3 py-2 rounded-lg border border-neutral-700/80 shadow-lg text-[11px] space-y-1.5 text-neutral-300 pointer-events-none">
-      <div class="font-semibold text-neutral-200">Active Hotspots (All Data)</div>
+      <div class="font-semibold text-neutral-200">Active Hotspots ({{ filteredCount.toLocaleString() }})</div>
       <div class="flex items-center gap-2">
         <span class="w-3 h-3 rounded-full bg-[#ef233c] border border-white shadow-[0_0_6px_#ff1a1a]" />
         <span>MODIS (~1 km)</span>
