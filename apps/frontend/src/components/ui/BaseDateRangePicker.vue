@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
+import { useMediaQuery } from '@vueuse/core'
 import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight, FilterX, X } from '@lucide/vue'
 import { parseDate } from '@internationalized/date'
 import type { DateRange } from 'reka-ui'
@@ -32,6 +33,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: HotspotDateRange | null]
 }>()
 const open = shallowRef(false)
+const wideViewport = useMediaQuery('(min-width: 768px)')
 const draft = shallowRef<DateRange>({ start: undefined, end: undefined })
 const minDate = computed(() => parseDate(props.availableDates.start))
 const maxDate = computed(() => parseDate(props.availableDates.end))
@@ -83,10 +85,24 @@ function resetRange() {
     </PopoverTrigger>
     <PopoverPortal>
       <PopoverContent
-        align="start"
-        :side-offset="8"
+        :side="wideViewport ? 'left' : 'bottom'"
+        align="center"
+        position-strategy="fixed"
+        :side-offset="12"
+        :collision-padding="12"
+        :avoid-collisions="true"
+        prioritize-position
+        sticky="always"
         aria-label="Choose a date range"
-        class="z-50 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-white/15 bg-[#141a1e] p-4 text-neutral-100 shadow-2xl"
+        :style="{
+          boxSizing: 'border-box',
+          width: '20rem',
+          maxWidth: 'calc(100vw - 24px)',
+          maxHeight: 'min(28rem, calc(100dvh - 24px))',
+          overflowX: 'hidden',
+          overflowY: 'auto',
+        }"
+        class="z-50 overflow-y-auto overscroll-contain rounded-xl border border-white/15 bg-[#141a1e] p-4 text-neutral-100 shadow-2xl"
       >
         <div class="mb-3 flex items-center justify-between gap-3">
           <p class="text-sm font-semibold">Date Range</p>
@@ -107,7 +123,6 @@ function resetRange() {
           :max-value="maxDate"
           locale="en-US"
           weekday-format="short"
-          fixed-weeks
           initial-focus
           prevent-deselect
           @update:model-value="updateRange"
@@ -155,7 +170,7 @@ function resetRange() {
                   <RangeCalendarCellTrigger
                     :day="day"
                     :month="month.value"
-                    class="flex h-9 w-full items-center justify-center rounded-md text-sm outline-offset-2 hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-red-400 data-[disabled]:pointer-events-none data-[disabled]:opacity-25 data-[outside-view]:text-neutral-600 data-[selected]:bg-red-500/20 data-[selected]:text-red-100 data-[selection-start]:bg-red-600 data-[selection-end]:bg-red-600 data-[highlighted]:bg-red-500/15"
+                    class="flex h-9 w-full items-center justify-center rounded-md text-sm outline-offset-2 hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-red-400 data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[outside-view]:text-neutral-600 data-[selected]:bg-red-500/20 data-[selected]:text-red-100 data-[selection-start]:bg-red-600 data-[selection-end]:bg-red-600 data-[highlighted]:bg-red-500/15"
                   />
                 </RangeCalendarCell>
               </RangeCalendarGridRow>

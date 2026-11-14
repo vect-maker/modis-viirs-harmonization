@@ -2,7 +2,7 @@
 import { ChartColumn, ChevronUp } from '@lucide/vue'
 import { CollapsibleRoot, CollapsibleTrigger, CollapsibleContent } from 'reka-ui'
 
-defineProps<{ summary?: string }>()
+defineProps<{ summary?: string; large?: boolean }>()
 const open = defineModel<boolean>('open', { required: true })
 </script>
 
@@ -35,6 +35,7 @@ const open = defineModel<boolean>('open', { required: true })
       </CollapsibleTrigger>
     </div>
     <CollapsibleContent
+      :data-large="large || undefined"
       class="timeline-content overflow-y-auto overscroll-contain border-t border-white/10 bg-[#10161a]/80"
     >
       <slot />
@@ -45,5 +46,8 @@ const open = defineModel<boolean>('open', { required: true })
 <style scoped>
 .timeline-content {
   max-height: min(38dvh, 18rem);
+}
+.timeline-content[data-large] {
+  max-height: min(60dvh, 36rem);
 }
 </style>
