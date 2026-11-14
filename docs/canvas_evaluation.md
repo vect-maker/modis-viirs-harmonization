@@ -1,4 +1,4 @@
-# Business Model Canvas Evaluation: FIRMS Wildfire Harmonizer
+# Business Model Canvas Evaluation: PyroTrace
 
 > **Scope:** Evaluation of the `MODELO CANVAS` against the [NASA Space Apps Challenge 2026](hackathon_challenge.md) requirements, the [video transcript](video_transcript.md), and the current codebase in `apps/`. Evaluated for both **short-term hackathon viability** and **long-term NGO/open-source operation**.
 
@@ -109,7 +109,7 @@ Before evaluating the Canvas claims, here is how the **actual repository** compa
 > *Simulated council — each take is built from the advisor's published frameworks and positions, not their actual review.*
 
 ### The Question Before the Council
-How should **FIRMS Wildfire Harmonizer** sharpen its positioning, target audience, and channels so it is credible to both NASA Space Apps judges and real fire-management institutions?
+How should **PyroTrace** sharpen its positioning, target audience, and channels so it is credible to both NASA Space Apps judges and real fire-management institutions?
 
 ### Seated: April Dunford, Seth Godin, Byron Sharp (Dissenter), Rory Sutherland
 

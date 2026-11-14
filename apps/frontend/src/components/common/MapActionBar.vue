@@ -6,7 +6,7 @@ defineProps<{ hasArea: boolean }>()
 const emit = defineEmits<{ draw: []; recenter: []; clear: []; globe: [] }>()
 
 const actionClass =
-  'inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-[7px] px-2.5 py-2 text-xs font-medium whitespace-nowrap text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-400 disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer'
+  'inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-[7px] px-2.5 py-2 text-xs font-medium whitespace-nowrap text-ink-muted hover:bg-white/[0.04] hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer'
 </script>
 
 <template>
@@ -14,7 +14,7 @@ const actionClass =
     <BaseTooltip text="Draw an area to filter hotspots">
       <button
         type="button"
-        class="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-[7px] border border-red-500/20 bg-red-500/[0.07] px-2.5 py-2 text-xs font-medium whitespace-nowrap text-red-200 hover:bg-red-500/[0.14] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-400 cursor-pointer"
+        class="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-[7px] border border-accent/35 bg-accent/10 px-2.5 py-2 text-xs font-medium whitespace-nowrap text-accent-bright hover:bg-accent/20 hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus cursor-pointer"
         aria-label="Draw an area to filter hotspots"
         @click="emit('draw')"
       >

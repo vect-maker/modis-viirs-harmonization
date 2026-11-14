@@ -1,9 +1,45 @@
 @import "tailwindcss";
 
+@theme {
+  /* Sober Charcoal Surfaces */
+  --color-surface-base: #0f1216;
+  --color-surface-panel: #181e24;
+  --color-surface-elevated: #212932;
+  --color-surface-input: #12171c;
+
+  /* Borders */
+  --color-border-subtle: rgba(255, 255, 255, 0.10);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
+
+  /* Typography (WCAG AA compliant against surface-panel) */
+  --color-ink-primary: #f3f4f6;
+  --color-ink-secondary: #cbd5e1;
+  --color-ink-muted: #94a3b8;
+
+  /* Sober Thermal Inferno Accents */
+  --color-accent: #e69f00;
+  --color-accent-bright: #ffe066;
+  --color-accent-soft: #f59e0b;
+  --color-accent-muted: #b84a39;
+  --color-telemetry: #38bdf8;
+  --color-focus: #ffe066;
+
+  /* Colorblind-Safe 5-Step Thermal Ramp (Low -> Peak) */
+  --color-thermal-0: #1f2730;
+  --color-thermal-1: #2d1e3e;
+  --color-thermal-2: #6b2d5c;
+  --color-thermal-3: #b84a39;
+  --color-thermal-4: #e69f00;
+  --color-thermal-5: #ffe066;
+}
+
 :root {
   color-scheme: dark;
 }
-html, body, #app {
+
+html,
+body,
+#app {
   width: 100%;
   height: 100%;
   margin: 0;

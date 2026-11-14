@@ -1,4 +1,5 @@
 import type { CalendarCell, CalendarSensor, HistoricalMonth } from '@/types/calendar'
+import { getThermalPalette, getThermalZeroColor } from './themeColors.ts'
 
 export function calendarCount(
   month: HistoricalMonth | undefined,
@@ -28,8 +29,8 @@ export function buildCalendarRows(
 /** Shared logarithmic scale per sensor: the same count always gets the same color. */
 export function calendarColor(count: number | null, maxCount: number): string {
   if (count === null) return 'transparent'
-  if (count === 0) return '#273038'
-  const palette = ['#482425', '#76332c', '#a74832', '#d96b40', '#ffa66a']
+  if (count === 0) return getThermalZeroColor()
+  const palette = getThermalPalette()
   const level = Math.min(4, Math.floor((Math.log1p(count) / Math.log1p(Math.max(1, maxCount))) * 5))
   return palette[level] ?? palette[0]!
 }

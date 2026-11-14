@@ -1,6 +1,6 @@
-# FIRMS Wildfire Harmonizer Monorepo
+# PyroTrace Monorepo
 
-Monorepo hosting the NASA FIRMS active fire data pipeline, future backend API, and visualization frontend.
+Monorepo hosting **PyroTrace** — the NASA FIRMS active fire data pipeline, backend API, technical report, and visualization frontend.
 
 ## Monorepo Layout
 

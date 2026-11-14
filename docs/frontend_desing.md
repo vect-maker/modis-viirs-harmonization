@@ -1,6 +1,6 @@
 # Frontend Architecture & Design Guide
 
-This document outlines the core frontend architecture, library stack, component guidelines, and implementation hierarchy for the **FIRMS Wildfire Harmonizer** web application.
+This document outlines the core frontend architecture, library stack, component guidelines, and implementation hierarchy for the **PyroTrace** web application.
 
 ---
 

@@ -38,11 +38,11 @@ const rows = computed(() =>
         Monthly observed hotspot detections in Nicaragua. Missing records do not indicate zero
         fires.
       </caption>
-      <thead class="sticky top-0 z-10 bg-[#141a1e]">
+      <thead class="sticky top-0 z-10 bg-surface-panel">
         <tr>
           <th
             scope="col"
-            class="sticky left-0 bg-[#141a1e] p-2 text-left font-medium text-neutral-500"
+            class="sticky left-0 bg-surface-panel p-2 text-left font-medium text-ink-muted"
           >
             Year
           </th>
@@ -50,7 +50,7 @@ const rows = computed(() =>
             v-for="month in months"
             :key="month"
             scope="col"
-            class="py-2 font-normal text-neutral-400"
+            class="py-2 font-normal text-ink-muted"
           >
             {{ month }}
           </th>
@@ -60,7 +60,7 @@ const rows = computed(() =>
         <tr v-for="row in rows" :key="row.year">
           <th
             scope="row"
-            class="sticky left-0 bg-[#141a1e] px-2 text-left font-mono font-normal text-neutral-400"
+            class="sticky left-0 bg-surface-panel px-2 text-left font-mono font-normal text-ink-secondary"
           >
             {{ row.year }}
           </th>

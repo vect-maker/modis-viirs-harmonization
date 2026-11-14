@@ -24,7 +24,7 @@ withDefaults(
         :side="side"
         :side-offset="sideOffset"
         :collision-padding="12"
-        class="z-50 rounded-md border border-white/15 bg-[#141a1e]/95 px-2.5 py-1.5 text-xs font-medium text-neutral-100 shadow-lg backdrop-blur-md select-none"
+        class="z-50 rounded-md border border-border-strong bg-surface-panel/95 px-2.5 py-1.5 text-xs font-medium text-ink-primary shadow-lg backdrop-blur-md select-none"
       >
         {{ text }}
       </TooltipContent>

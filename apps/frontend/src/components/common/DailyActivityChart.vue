@@ -3,6 +3,9 @@ import { computed } from 'vue'
 import { parseDate } from '@internationalized/date'
 import type { DailyHotspotActivity } from '@/types/hotspot'
 import type { HotspotDateRange } from '@/types/filters'
+import { getChartColors } from '@/utils/themeColors'
+
+const chartColors = computed(() => getChartColors())
 
 const props = defineProps<{
   days: DailyHotspotActivity[]
@@ -32,7 +35,7 @@ const bars = computed(() =>
   <div v-if="days.length" class="flex gap-2">
     <div
       aria-hidden="true"
-      class="flex w-10 shrink-0 flex-col justify-between pb-7 pt-5 text-right font-mono text-[10px] text-neutral-500"
+      class="flex w-10 shrink-0 flex-col justify-between pb-7 pt-5 text-right font-mono text-[10px] text-ink-muted"
     >
       <span>{{ maxCount.toLocaleString() }}</span
       ><span>0</span>
@@ -50,21 +53,21 @@ const bars = computed(() =>
           v-for="bar in bars"
           :key="bar.date"
           type="button"
-          class="group flex min-w-0 flex-col items-center rounded-md px-0.5 py-1 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-400"
-          :class="bar.selected && 'bg-red-500/10 ring-1 ring-inset ring-red-500/25'"
+          class="group flex min-w-0 flex-col items-center rounded-md px-0.5 py-1 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus"
+          :class="bar.selected && 'bg-accent/10 ring-1 ring-inset ring-accent/30'"
           :aria-pressed="bar.selected"
           :aria-label="`${bar.date}: ${bar.count.toLocaleString()} detections. Select this day.`"
           :title="`${bar.label}: ${bar.count.toLocaleString()} detections`"
           @click="emit('select', bar.date)"
         >
-          <span class="h-4 font-mono text-[10px] tabular-nums text-neutral-400">{{
+          <span class="h-4 font-mono text-[10px] tabular-nums text-ink-muted">{{
             bar.count.toLocaleString()
           }}</span>
           <svg
             aria-hidden="true"
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
-            class="h-24 w-full overflow-visible border-b border-white/10"
+            class="h-24 w-full overflow-visible border-b border-border-subtle"
           >
             <rect
               x="22"
@@ -72,16 +75,16 @@ const bars = computed(() =>
               width="56"
               :height="bar.height"
               rx="3"
-              class="group-hover:fill-red-300"
-              :fill="selectedRange && !bar.selected ? '#7f1d1d' : '#ef4444'"
+              class="group-hover:fill-accent-bright"
+              :fill="selectedRange && !bar.selected ? chartColors.barDimmed : chartColors.barActive"
             />
           </svg>
-          <span class="mt-1.5 whitespace-nowrap text-[10px] text-neutral-400">{{ bar.label }}</span>
+          <span class="mt-1.5 whitespace-nowrap text-[10px] text-ink-muted">{{ bar.label }}</span>
         </button>
       </div>
     </div>
   </div>
-  <p v-else role="status" class="py-5 text-center text-sm text-neutral-400">
+  <p v-else role="status" class="py-5 text-center text-sm text-ink-muted">
     No dated records are available.
   </p>
 </template>

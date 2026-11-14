@@ -76,12 +76,12 @@ function resetRange() {
   <PopoverRoot :open="open" @update:open="onOpenChange">
     <PopoverTrigger
       type="button"
-      class="flex w-full items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#101619] px-3 py-2.5 text-xs text-neutral-100 hover:border-neutral-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
+      class="flex w-full items-center justify-between gap-3 rounded-lg border border-border-subtle bg-surface-input px-3 py-2.5 text-xs text-ink-primary hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       :aria-label="`Filter by date: ${label}`"
     >
-      <CalendarRange aria-hidden="true" class="h-4 w-4 text-neutral-400" />
+      <CalendarRange aria-hidden="true" class="h-4 w-4 text-ink-muted" />
       <span>{{ label }}</span>
-      <ChevronDown aria-hidden="true" class="h-4 w-4 text-neutral-500" />
+      <ChevronDown aria-hidden="true" class="h-4 w-4 text-ink-muted" />
     </PopoverTrigger>
     <PopoverPortal>
       <PopoverContent
@@ -102,19 +102,19 @@ function resetRange() {
           overflowX: 'hidden',
           overflowY: 'auto',
         }"
-        class="z-50 overflow-y-auto overscroll-contain rounded-xl border border-white/15 bg-[#141a1e] p-4 text-neutral-100 shadow-2xl"
+        class="z-50 overflow-y-auto overscroll-contain rounded-xl border border-border-strong bg-surface-panel p-4 text-ink-primary shadow-2xl"
       >
         <div class="mb-3 flex items-center justify-between gap-3">
           <p class="text-sm font-semibold">Date Range</p>
           <PopoverClose
             type="button"
             aria-label="Close calendar"
-            class="rounded px-2 py-1 text-neutral-400 hover:bg-neutral-800 hover:text-white focus-visible:outline-2 focus-visible:outline-red-400"
+            class="rounded px-2 py-1 text-ink-muted hover:bg-surface-elevated hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-focus"
           >
             <X aria-hidden="true" class="h-4 w-4" />
           </PopoverClose>
         </div>
-        <p class="mb-3 text-xs text-neutral-400">Select a start and end date (UTC).</p>
+        <p class="mb-3 text-xs text-ink-muted">Select a start and end date (UTC).</p>
         <RangeCalendarRoot
           v-slot="{ grid, weekDays }"
           :model-value="draft"
@@ -131,7 +131,7 @@ function resetRange() {
             <RangeCalendarPrev
               type="button"
               aria-label="Previous month"
-              class="rounded p-2 hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-red-400 disabled:opacity-30"
+              class="rounded p-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-30"
             >
               <ChevronLeft aria-hidden="true" class="h-4 w-4" />
             </RangeCalendarPrev>
@@ -139,7 +139,7 @@ function resetRange() {
             <RangeCalendarNext
               type="button"
               aria-label="Next month"
-              class="rounded p-2 hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-red-400 disabled:opacity-30"
+              class="rounded p-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-30"
             >
               <ChevronRight aria-hidden="true" class="h-4 w-4" />
             </RangeCalendarNext>
@@ -154,7 +154,7 @@ function resetRange() {
                 <RangeCalendarHeadCell
                   v-for="day in weekDays"
                   :key="day"
-                  class="pb-2 text-[11px] font-normal text-neutral-500"
+                  class="pb-2 text-[11px] font-normal text-ink-muted"
                   >{{ day }}</RangeCalendarHeadCell
                 >
               </RangeCalendarGridRow>
@@ -170,17 +170,17 @@ function resetRange() {
                   <RangeCalendarCellTrigger
                     :day="day"
                     :month="month.value"
-                    class="flex h-9 w-full items-center justify-center rounded-md text-sm outline-offset-2 hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-red-400 data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[outside-view]:text-neutral-600 data-[selected]:bg-red-500/20 data-[selected]:text-red-100 data-[selection-start]:bg-red-600 data-[selection-end]:bg-red-600 data-[highlighted]:bg-red-500/15"
+                    class="flex h-9 w-full items-center justify-center rounded-md text-sm outline-offset-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[outside-view]:text-ink-muted/50 data-[selected]:bg-accent/20 data-[selected]:text-accent-bright data-[selection-start]:bg-accent data-[selection-start]:text-surface-base data-[selection-end]:bg-accent data-[selection-end]:text-surface-base data-[highlighted]:bg-accent/15"
                   />
                 </RangeCalendarCell>
               </RangeCalendarGridRow>
             </RangeCalendarGridBody>
           </RangeCalendarGrid>
         </RangeCalendarRoot>
-        <div class="mt-3 border-t border-neutral-800 pt-3">
+        <div class="mt-3 border-t border-border-subtle pt-3">
           <button
             type="button"
-            class="inline-flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-white focus-visible:outline-2 focus-visible:outline-red-400"
+            class="inline-flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm text-ink-secondary hover:bg-surface-elevated hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-focus"
             @click="resetRange"
           >
             <FilterX aria-hidden="true" class="h-3.5 w-3.5" />

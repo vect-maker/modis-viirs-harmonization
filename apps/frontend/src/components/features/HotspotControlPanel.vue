@@ -12,35 +12,35 @@ const { stats } = storeToRefs(useHotspotsStore())
 </script>
 
 <template>
-  <BaseMapPanel v-model:open="open" title="Fire Activity">
+  <BaseMapPanel v-model:open="open" title="PyroTrace · Fire Activity" home-to="/">
     <div class="space-y-4 p-4">
-      <div class="flex items-center gap-2 text-xs text-neutral-300">
-        <Pentagon v-if="areaKm2 !== null" aria-hidden="true" class="h-3.5 w-3.5 text-neutral-500" />
-        <MapPin v-else aria-hidden="true" class="h-3.5 w-3.5 text-neutral-500" />
+      <div class="flex items-center gap-2 text-xs text-ink-secondary">
+        <Pentagon v-if="areaKm2 !== null" aria-hidden="true" class="h-3.5 w-3.5 text-ink-muted" />
+        <MapPin v-else aria-hidden="true" class="h-3.5 w-3.5 text-ink-muted" />
         <span>{{ areaKm2 !== null ? 'Selected area' : 'Nicaragua' }}</span>
-        <span v-if="areaKm2 !== null" class="ml-auto font-mono text-neutral-400"
+        <span v-if="areaKm2 !== null" class="ml-auto font-mono text-ink-muted"
           >{{ areaKm2.toLocaleString(undefined, { maximumFractionDigits: 1 }) }} km²</span
         >
       </div>
       <div class="grid grid-cols-2 gap-2.5" role="status" aria-label="Filtered hotspot metrics">
-        <div class="rounded-lg border border-white/5 bg-white/[0.035] p-3">
-          <p class="mb-2 text-[11px] text-neutral-400">Hotspots</p>
-          <p class="font-mono text-[26px] leading-none font-medium tabular-nums text-red-400">
+        <div class="rounded-lg border border-border-subtle bg-white/[0.03] p-3">
+          <p class="mb-2 text-[11px] text-ink-muted">Hotspots</p>
+          <p class="font-mono text-[26px] leading-none font-medium tabular-nums text-accent-bright">
             {{ stats.total.toLocaleString() }}
           </p>
         </div>
-        <div class="rounded-lg border border-white/5 bg-white/[0.035] p-3">
-          <p class="mb-2 text-[11px] text-neutral-400">Average FRP</p>
-          <p class="font-mono text-[26px] leading-none font-medium tabular-nums">
-            {{ stats.avgFrp }}<span class="ml-1 text-xs font-normal text-neutral-500">MW</span>
+        <div class="rounded-lg border border-border-subtle bg-white/[0.03] p-3">
+          <p class="mb-2 text-[11px] text-ink-muted">Average FRP</p>
+          <p class="font-mono text-[26px] leading-none font-medium tabular-nums text-ink-primary">
+            {{ stats.avgFrp }}<span class="ml-1 text-xs font-normal text-ink-muted">MW</span>
           </p>
         </div>
       </div>
       <HotspotFilters />
       <HotspotCsvExport />
-      <p class="border-t border-white/10 pt-3 text-[11px] leading-relaxed text-neutral-400">
+      <p class="border-t border-border-subtle pt-3 text-[11px] leading-relaxed text-ink-muted">
         Imagery: Esri, Maxar, Earthstar Geographics ·
-        <a href="https://maplibre.org/" target="_blank" rel="noopener noreferrer" class="rounded hover:text-neutral-300 focus-visible:outline-2 focus-visible:outline-red-400">MapLibre</a>
+        <a href="https://maplibre.org/" target="_blank" rel="noopener noreferrer" class="rounded hover:text-ink-secondary focus-visible:outline-2 focus-visible:outline-focus">MapLibre</a>
       </p>
     </div>
   </BaseMapPanel>

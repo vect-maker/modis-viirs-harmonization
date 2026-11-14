@@ -1,4 +1,4 @@
-# FIRMS Wildfire Harmonizer — Frontend
+# PyroTrace — Frontend
 
 Interactive web application for the **NASA Space Apps Challenge 2026: Harmonization of MODIS and VIIRS Hot Spots**. Built with Vue 3, MapLibre GL, and Tailwind CSS.
 

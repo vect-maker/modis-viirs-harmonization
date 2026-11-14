@@ -27,10 +27,10 @@ async function exportCsv() {
 </script>
 
 <template>
-  <div class="space-y-2 border-t border-white/10 pt-4">
+  <div class="space-y-2 border-t border-border-subtle pt-4">
     <button
       type="button"
-      class="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-[#242d33] px-3 text-xs font-medium text-neutral-200 hover:border-neutral-500 hover:text-white focus-visible:outline-2 focus-visible:outline-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+      class="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-border-strong bg-surface-elevated px-3 text-xs font-medium text-ink-secondary hover:border-accent/60 hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40"
       :disabled="!filteredHotspots.length || isPreparing"
       :aria-label="`Download ${filteredHotspots.length.toLocaleString()} filtered hotspots as CSV`"
       @click="exportCsv"
@@ -39,6 +39,6 @@ async function exportCsv() {
         isPreparing ? 'Preparing CSV…' : 'Download CSV'
       }}
     </button>
-    <p role="status" class="text-[11px] text-neutral-400">{{ error || message }}</p>
+    <p role="status" class="text-[11px] text-ink-muted">{{ error || message }}</p>
   </div>
 </template>

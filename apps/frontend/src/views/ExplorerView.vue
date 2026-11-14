@@ -31,10 +31,10 @@ function onRoiChange(payload: { areaKm2: number | null }) {
 
 <template>
   <div
-    class="flex h-dvh min-h-0 flex-col overflow-hidden bg-neutral-950 font-sans text-neutral-100 selection:bg-red-600 selection:text-white"
+    class="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface-base font-sans text-ink-primary selection:bg-accent selection:text-surface-base"
   >
-    <main class="relative min-h-0 flex-1" aria-label="Nicaragua hotspot map">
-      <h1 class="sr-only">Nicaragua Fire Activity</h1>
+    <main class="relative min-h-0 flex-1" aria-label="PyroTrace Nicaragua hotspot map">
+      <h1 class="sr-only">PyroTrace — Nicaragua Fire Activity</h1>
       <div class="absolute inset-0">
         <FireMap
           :side-panel-open="panelOpen"

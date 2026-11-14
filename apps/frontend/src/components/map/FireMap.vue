@@ -15,6 +15,7 @@ import { storeToRefs } from 'pinia'
 import { useHotspotsStore } from '@/stores/hotspots'
 import FirePopup from './FirePopup.vue'
 import SpaceBackground from '@/components/common/SpaceBackground.vue'
+import { getMapColors } from '@/utils/themeColors'
 
 // Vite must bundle the worker and its dependencies before MapLibre creates a map.
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
@@ -259,6 +260,7 @@ onMounted(() => {
 
   m.on('load', () => {
     const geojsonData = buildGeoJson(filteredHotspots.value)
+    const mapColors = getMapColors()
 
     // Add GeoJSON active fire hotspots source
     m.addSource('hotspots', {
@@ -272,7 +274,7 @@ onMounted(() => {
       type: 'circle',
       source: 'hotspots',
       paint: {
-        'circle-color': '#ef4444',
+        'circle-color': mapColors.hotspotGlow,
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 3.5, 7, 7, 10, 11, 14, 16],
         'circle-blur': 0.75,
         'circle-opacity': 0.65,
@@ -285,11 +287,11 @@ onMounted(() => {
       type: 'circle',
       source: 'hotspots',
       paint: {
-        'circle-color': '#ef4444',
+        'circle-color': mapColors.hotspotCore,
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2.5, 7, 4.5, 10, 7, 14, 10],
         'circle-opacity': 0.95,
         'circle-stroke-width': 1,
-        'circle-stroke-color': '#ffffff',
+        'circle-stroke-color': mapColors.hotspotStroke,
       },
     })
 
@@ -338,7 +340,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fire-map relative h-full w-full overflow-hidden bg-neutral-950"
+    class="fire-map relative h-full w-full overflow-hidden bg-surface-base"
     :style="{ '--map-bottom-inset': `${bottomInset + 8}px` }"
   >
     <SpaceBackground :visible="spaceVisible" />
@@ -356,7 +358,7 @@ onUnmounted(() => {
       v-if="!filteredCount"
       role="status"
       :style="{ bottom: `${bottomInset + 80}px` }"
-      class="pointer-events-none absolute inset-x-4 z-10 mx-auto max-w-sm rounded-lg border border-white/10 bg-neutral-950/95 p-4 text-center text-sm text-neutral-300"
+      class="pointer-events-none absolute inset-x-4 z-10 mx-auto max-w-sm rounded-lg border border-border-subtle bg-surface-panel/95 p-4 text-center text-sm text-ink-secondary"
     >
       No hotspots match these filters. Try another date range, area, or sensor.
     </div>
@@ -386,9 +388,9 @@ onUnmounted(() => {
 }
 .fire-map .maplibregl-ctrl-group {
   overflow: hidden;
-  border: 1px solid #ffffff26;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.625rem;
-  background: #0a0a0aeb;
+  background: color-mix(in srgb, var(--color-surface-panel) 92%, transparent);
   box-shadow: 0 4px 12px #0004;
 }
 .fire-map .maplibregl-ctrl-group button {
@@ -396,10 +398,10 @@ onUnmounted(() => {
   height: 36px;
 }
 .fire-map .maplibregl-ctrl-group button:hover {
-  background-color: #262626;
+  background-color: var(--color-surface-elevated);
 }
 .fire-map .maplibregl-ctrl-group button + button {
-  border-top-color: #ffffff1a;
+  border-top-color: var(--color-border-subtle);
 }
 .fire-map .maplibregl-ctrl-icon {
   filter: invert(1);
@@ -408,9 +410,9 @@ onUnmounted(() => {
   bottom: var(--map-bottom-inset);
 }
 .fire-map .maplibregl-ctrl-scale {
-  border-color: #ffffff99;
-  background: #0a0a0abf;
-  color: #e5e5e5;
+  border-color: var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-surface-panel) 85%, transparent);
+  color: var(--color-ink-secondary);
   font-size: 10px;
 }
 
@@ -422,16 +424,16 @@ onUnmounted(() => {
 }
 
 .maplibregl-popup-anchor-top .maplibregl-popup-tip {
-  border-bottom-color: #171717 !important;
+  border-bottom-color: var(--color-surface-panel) !important;
 }
 .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-  border-top-color: #171717 !important;
+  border-top-color: var(--color-surface-panel) !important;
 }
 .maplibregl-popup-anchor-left .maplibregl-popup-tip {
-  border-right-color: #171717 !important;
+  border-right-color: var(--color-surface-panel) !important;
 }
 .maplibregl-popup-anchor-right .maplibregl-popup-tip {
-  border-left-color: #171717 !important;
+  border-left-color: var(--color-surface-panel) !important;
 }
 .maplibregl-popup-close-button {
   color: #a3a3a3 !important;
