@@ -1,3 +1,5 @@
+import os
+
 import httpx
 from fastapi import FastAPI, Depends
 from sqlmodel import Session
@@ -11,7 +13,9 @@ app = FastAPI(
     description="API para detección y monitoreo de incendios",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc")
+    redoc_url="/redoc",
+    root_path=os.getenv("ROOT_PATH", ""),
+)
 
 @app.get("/")
 async def root():
