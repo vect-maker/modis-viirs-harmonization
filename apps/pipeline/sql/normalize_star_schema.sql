@@ -32,7 +32,7 @@ COPY (
     SELECT DISTINCT
         firms_uuid5('country:' || lower(trim(country))) AS id,
         trim(country) AS name
-    FROM read_parquet('data/processed/hotspots.parquet')
+    FROM read_parquet('data/processed/hotspots_harmonized.parquet')
     WHERE country IS NOT NULL
     ORDER BY name
 ) TO 'data/processed/star/dim_country.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
@@ -45,7 +45,7 @@ COPY (
         firms_uuid5('platform:' || lower(trim(satellite)) || ':' || lower(trim(instrument))) AS id,
         trim(satellite) AS satellite,
         trim(instrument) AS instrument
-    FROM read_parquet('data/processed/hotspots.parquet')
+    FROM read_parquet('data/processed/hotspots_harmonized.parquet')
     WHERE satellite IS NOT NULL AND instrument IS NOT NULL
     ORDER BY instrument, satellite
 ) TO 'data/processed/star/dim_platform.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
@@ -77,6 +77,10 @@ COPY (
         frp,
         daynight,
         type,
-        version
-    FROM read_parquet('data/processed/hotspots.parquet')
+        version,
+        overpass_window,
+        harmonization_category,
+        harmonized_weight,
+        harmonized_frp
+    FROM read_parquet('data/processed/hotspots_harmonized.parquet')
 ) TO 'data/processed/star/fact_hotspots.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);

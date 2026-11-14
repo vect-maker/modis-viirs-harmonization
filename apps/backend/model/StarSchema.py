@@ -56,6 +56,10 @@ class FactHotspotBase(SQLModel):
     daynight: str | None = Field(default=None, max_length=5)
     type: int | None = Field(default=None)
     version: str | None = Field(default=None, max_length=20)
+    overpass_window: str | None = Field(default=None, max_length=30)
+    harmonization_category: str | None = Field(default=None, max_length=40)
+    harmonized_weight: float | None = Field(default=None)
+    harmonized_frp: float | None = Field(default=None)
 
 
 class FactHotspot(FactHotspotBase, table=True):

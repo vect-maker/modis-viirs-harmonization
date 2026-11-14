@@ -49,7 +49,11 @@ CREATE TABLE fact_hotspots (
     frp DOUBLE PRECISION,
     daynight VARCHAR(5),
     type INTEGER,
-    version VARCHAR(20)
+    version VARCHAR(20),
+    overpass_window VARCHAR(30),
+    harmonization_category VARCHAR(40),
+    harmonized_weight DOUBLE PRECISION,
+    harmonized_frp DOUBLE PRECISION
 );
 
 -- Spatial and relational performance indexes
@@ -81,7 +85,11 @@ SELECT
     f.bright_tir,
     f.frp,
     f.daynight,
-    f.type
+    f.type,
+    f.overpass_window,
+    f.harmonization_category,
+    f.harmonized_weight,
+    f.harmonized_frp
 FROM fact_hotspots f
 JOIN dim_country c ON f.country_id = c.id
 JOIN dim_platform p ON f.platform_id = p.id;

@@ -45,7 +45,11 @@ SELECT
     frp,
     daynight,
     type,
-    version
+    version,
+    overpass_window,
+    harmonization_category,
+    harmonized_weight,
+    harmonized_frp
 FROM read_parquet('data/processed/star/fact_hotspots.parquet');
 
 .print 'Data ingestion into PostgreSQL completed successfully!'

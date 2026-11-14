@@ -36,14 +36,15 @@ fuse-data:
     mkdir -p data/processed data/temp/duckdb
     duckdb -dark-mode -f sql/fuse_datasets.sql
 
-# Normalize Silver dataset into Star Schema Gold Parquet datasets with deterministic UUIDv5 keys
+# Apply universal spatio-temporal MODIS-VIIRS harmonization to Silver dataset
+harmonize-data:
+    mkdir -p data/processed data/temp/duckdb
+    duckdb -dark-mode -f sql/harmonize_hotspots.sql
+
+# Normalize harmonized Silver dataset into Star Schema Gold Parquet datasets with deterministic UUIDv5 keys
 normalize-data:
     mkdir -p data/processed/star data/temp/duckdb
     duckdb -dark-mode -f sql/normalize_star_schema.sql
-
-# Run spatial harmonization feasibility benchmark
-benchmark-spatial:
-    duckdb -dark-mode -f sql/test_spatial_harmonization.sql
 
 # Export a sample slice of Nicaragua 2024 hotspots as JSON for the frontend
 export-sample limit="5000":
