@@ -1,6 +1,6 @@
 import httpx
 from fastapi import FastAPI, Depends
-from requests import Session
+from sqlmodel import Session
 
 from database.session import get_session
 from enviromental.RequestWeather import RequestWeather

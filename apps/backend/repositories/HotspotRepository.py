@@ -1,5 +1,4 @@
-from requests import Session
-from sqlmodel import SQLModel, select
+from sqlmodel import Session, SQLModel, select
 
 from model import Hotspots
 
