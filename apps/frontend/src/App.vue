@@ -1,128 +1,77 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { FlameKindling, X } from '@lucide/vue'
+import { shallowRef, watch } from 'vue'
+import { FlameKindling, MapPin } from '@lucide/vue'
+import { useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import FireMap from '@/components/map/FireMap.vue'
-import HotspotFilters from '@/components/features/HotspotFilters.vue'
+import HotspotDetails from '@/components/map/HotspotDetails.vue'
+import HotspotControlPanel from '@/components/features/HotspotControlPanel.vue'
 import type { FireHotspot } from '@/types/hotspot'
 import { useHotspotsStore } from '@/stores/hotspots'
 
-const hotspotsStore = useHotspotsStore()
-const { stats, filteredHotspots } = storeToRefs(hotspotsStore)
-
-const selectedHotspot = ref<FireHotspot | null>(null)
-const roiData = ref<{ count: number; areaKm2: number | null }>({
-  count: hotspotsStore.hotspots.length,
-  areaKm2: null,
-})
+const { filteredHotspots } = storeToRefs(useHotspotsStore())
+const isDesktop = useMediaQuery('(min-width: 768px)')
+const panelOpen = shallowRef(isDesktop.value)
+const selectedHotspot = shallowRef<FireHotspot | null>(null)
+const areaKm2 = shallowRef<number | null>(null)
 
 watch(filteredHotspots, () => {
   selectedHotspot.value = null
 })
-
-function onHotspotSelect(hotspot: FireHotspot) {
-  selectedHotspot.value = hotspot
-}
-
-function onRoiChange(payload: { count: number; areaKm2: number | null }) {
-  roiData.value = {
-    count: payload.count,
-    areaKm2: payload.areaKm2,
-  }
+function onRoiChange(payload: { areaKm2: number | null }) {
+  areaKm2.value = payload.areaKm2
 }
 </script>
 
 <template>
-  <div class="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-orange-500 selection:text-white">
-    <!-- Top Navigation Header -->
-    <header class="border-b border-neutral-800 bg-neutral-900/60 backdrop-blur-md sticky top-0 z-20 px-6 py-3.5 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-orange-600 via-red-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-600/30">
+  <div
+    class="flex h-dvh min-h-0 flex-col overflow-hidden bg-neutral-950 font-sans text-neutral-100 selection:bg-red-600 selection:text-white"
+  >
+    <header
+      class="relative z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-neutral-950 px-4 sm:px-5"
+    >
+      <div class="flex min-w-0 items-center gap-2.5">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-600">
           <FlameKindling aria-hidden="true" class="h-5 w-5 text-white" />
         </div>
-        <div>
-          <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
-            FIRMS Wildfire Harmonizer
-            <span class="text-[10px] font-mono uppercase bg-orange-950 text-orange-400 border border-orange-800/60 px-2 py-0.5 rounded-full">
-              NASA Space Apps 2026
-            </span>
-          </h1>
-          <p class="text-xs text-neutral-400">
-            Explore fire activity by area and date
-          </p>
-        </div>
+        <h1 class="truncate text-sm font-semibold tracking-tight sm:text-base">
+          FIRMS <span class="font-normal text-neutral-400">Wildfire Harmonizer</span>
+        </h1>
       </div>
-
-    </header>
-
-    <!-- Main Dashboard Workspace -->
-    <main class="flex-1 p-6 flex flex-col gap-6 max-w-7xl mx-auto w-full">
-      <HotspotFilters />
-
-      <!-- Quick Metric Cards -->
-      <section class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="bg-neutral-900/80 border border-neutral-800 p-4 rounded-xl shadow-sm">
-          <p class="text-xs text-neutral-400">Hotspots</p>
-          <p class="text-2xl font-bold font-mono text-red-400 mt-1">{{ stats.total.toLocaleString() }}</p>
-        </div>
-
-        <div class="bg-neutral-900/80 border border-neutral-800 p-4 rounded-xl shadow-sm">
-          <p class="text-xs text-neutral-400">Average Radiative Power</p>
-          <p class="text-2xl font-bold font-mono text-orange-400 mt-1">{{ stats.avgFrp }} <span class="text-sm font-sans text-neutral-400">MW</span></p>
-        </div>
-      </section>
-
-      <!-- Map & Interactive Workspace -->
-      <section class="flex-1 flex flex-col gap-3 min-h-[600px]">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <h2 class="text-sm font-semibold text-neutral-200">Fire Map</h2>
-            <span class="text-xs text-neutral-400">Draw an area to filter detections</span>
-          </div>
-
-          <div v-if="roiData.areaKm2 !== null" class="text-xs text-neutral-300">
-            Filtered: <span class="font-bold text-orange-400 font-mono">{{ stats.total }}</span> / {{ hotspotsStore.hotspots.length }}
-          </div>
-        </div>
-
-        <!-- The MapLibre Component -->
-        <div class="flex-1 min-h-[580px]">
-          <FireMap
-            @hotspot-select="onHotspotSelect"
-            @roi-change="onRoiChange"
-          />
-        </div>
-      </section>
-
-      <!-- Selected Hotspot Detail Drawer (when clicked) -->
-      <section
-        v-if="selectedHotspot"
-        class="bg-neutral-900 border border-neutral-800 p-4 rounded-xl flex items-center justify-between text-xs animate-in fade-in"
-      >
-        <div class="flex items-center gap-4">
-          <div class="px-2 py-1 rounded bg-neutral-800 text-neutral-300 font-bold text-xs uppercase">
-            {{ selectedHotspot.instrument }}
-          </div>
-          <div>
-            <p class="font-semibold text-white">
-              Satellite {{ selectedHotspot.satellite }} • {{ selectedHotspot.acq_datetime }}
-            </p>
-            <p class="text-neutral-400">
-              Coordinates: {{ selectedHotspot.latitude.toFixed(4) }}, {{ selectedHotspot.longitude.toFixed(4) }} |
-              Radiative Power: <span class="text-orange-400 font-mono">{{ selectedHotspot.frp }} MW</span> |
-              Brightness: <span class="font-mono">{{ selectedHotspot.bright_mir }} K</span>
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded cursor-pointer transition"
-          @click="selectedHotspot = null"
+      <div class="flex shrink-0 items-center gap-4">
+        <span
+          class="hidden text-[10px] font-medium uppercase tracking-wider text-neutral-500 lg:inline"
+          >NASA Space Apps 2026</span
         >
-          <X aria-hidden="true" class="h-3.5 w-3.5" />
-          Dismiss
-        </button>
-      </section>
+        <span class="flex items-center gap-1.5 text-xs text-neutral-300"
+          ><MapPin aria-hidden="true" class="h-3.5 w-3.5 text-neutral-500" />Nicaragua</span
+        >
+      </div>
+    </header>
+    <main class="relative min-h-0 flex-1" aria-label="Nicaragua hotspot map">
+      <div class="absolute inset-0">
+        <FireMap
+          :side-panel-open="panelOpen"
+          @hotspot-select="selectedHotspot = $event"
+          @roi-change="onRoiChange"
+        />
+      </div>
+      <aside
+        class="pointer-events-none absolute right-3 top-3 z-20 w-[min(20rem,calc(100%_-_4.5rem))] md:right-5 md:top-5"
+        aria-label="Map filters and results"
+      >
+        <HotspotControlPanel
+          v-model:open="panelOpen"
+          :area-km2="areaKm2"
+          class="pointer-events-auto"
+        />
+      </aside>
+      <HotspotDetails
+        v-if="selectedHotspot"
+        :hotspot="selectedHotspot"
+        class="absolute bottom-24 left-3 right-3 z-20 md:bottom-14 md:left-5 md:right-auto md:w-80"
+        @close="selectedHotspot = null"
+      />
     </main>
   </div>
 </template>

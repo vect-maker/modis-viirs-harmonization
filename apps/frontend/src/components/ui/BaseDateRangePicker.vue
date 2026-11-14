@@ -77,7 +77,7 @@ function resetRange() {
   <PopoverRoot :open="open" @update:open="onOpenChange">
     <PopoverTrigger
       type="button"
-      class="flex w-full items-center justify-between gap-3 rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-100 hover:border-neutral-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400 sm:w-auto"
+      class="flex w-full items-center justify-between gap-3 rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-100 hover:border-neutral-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
       :aria-label="`Filter by date: ${label}`"
     >
       <CalendarRange aria-hidden="true" class="h-4 w-4 text-neutral-400" />

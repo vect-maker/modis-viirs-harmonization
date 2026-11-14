@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, watch, ref, onMounted, onUnmounted, h, render, shallowRef } from 'vue'
-import { Pentagon, Trash2 } from '@lucide/vue'
+import { Pentagon, Trash2, LocateFixed } from '@lucide/vue'
+import { useMediaQuery, usePreferredReducedMotion, useResizeObserver } from '@vueuse/core'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import type { MapLayerMouseEvent } from 'maplibre-gl'
@@ -22,10 +23,12 @@ const props = withDefaults(
   defineProps<{
     initialCenter?: [number, number]
     initialZoom?: number
+    sidePanelOpen?: boolean
   }>(),
   {
     initialCenter: () => [-85.2072, 12.8654], // Nicaragua centroid
     initialZoom: 7,
+    sidePanelOpen: false,
   }
 )
 
@@ -39,12 +42,31 @@ const map = shallowRef<maplibregl.Map | null>(null)
 const draw = shallowRef<MapboxDraw | null>(null)
 
 const hotspotsStore = useHotspotsStore()
-const { selectedSensor: selectedInstrument, filteredHotspots } = storeToRefs(hotspotsStore)
+const { filteredHotspots } = storeToRefs(hotspotsStore)
 const activeRoiArea = ref<number | null>(null)
 const filteredCount = computed(() => hotspotsStore.filteredHotspots.length)
 const activePopup = shallowRef<maplibregl.Popup | null>(null)
 
 const allHotspots = hotspotsStore.hotspots
+const isDesktop = useMediaQuery('(min-width: 768px)')
+const reducedMotion = usePreferredReducedMotion()
+useResizeObserver(mapContainer, () => map.value?.resize())
+
+function fitNicaragua() {
+  const m = map.value
+  if (!m || !allHotspots.length) return
+  const [west, south, east, north] = turf.bbox(buildGeoJson(allHotspots))
+  m.fitBounds([[west, south], [east, north]], {
+    padding: {
+      top: 56,
+      bottom: 100,
+      left: 64,
+      right: isDesktop.value && props.sidePanelOpen ? 360 : 48,
+    },
+    maxZoom: 8.5,
+    duration: reducedMotion.value === 'reduce' ? 0 : 700,
+  })
+}
 
 // Convert raw JSON data to GeoJSON Point FeatureCollection
 function buildGeoJson(data: FireHotspot[]): GeoJSON.FeatureCollection<Point> {
@@ -68,10 +90,6 @@ watch([filteredHotspots, activeRoiArea], () => {
   activePopup.value?.remove()
   emitRoiChange()
 })
-
-function filterByInstrument(inst: 'ALL' | 'MODIS' | 'VIIRS') {
-  hotspotsStore.setSensor(inst)
-}
 
 function startDrawPolygon() {
   const drawControl = draw.value
@@ -155,7 +173,8 @@ onMounted(() => {
   })
 
   // Add standard navigation controls (zoom, compass)
-  m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
+  m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left')
+  m.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left')
 
   // Keep drawing behavior; the toolbar provides the visible controls.
   const drawControl = new MapboxDraw({
@@ -231,14 +250,7 @@ onMounted(() => {
       },
     })
 
-    // Auto-fit bounds to frame all hotspots across Nicaragua on initial load
-    if (allHotspots.length) {
-      const [minX, minY, maxX, maxY] = turf.bbox(buildGeoJson(allHotspots))
-      m.fitBounds(
-        [[minX, minY], [maxX, maxY]],
-        { padding: 50, maxZoom: 8.5, duration: 1000 },
-      )
-    }
+    fitNicaragua()
 
     // Cursor pointer on hover
     m.on('mouseenter', 'hotspots-circle', () => {
@@ -284,115 +296,84 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="relative w-full h-full min-h-[550px] rounded-xl overflow-hidden shadow-2xl border border-neutral-800 bg-neutral-950">
-    <!-- Map Container Target -->
-    <div ref="mapContainer" class="w-full h-full min-h-[550px]" />
+  <div class="fire-map relative h-full w-full overflow-hidden bg-neutral-950">
+    <div ref="mapContainer" class="fire-map__canvas" />
 
-    <!-- Draw & Area Selection Toolbar -->
-    <div class="absolute top-4 left-4 z-10 flex items-center gap-2">
-      <button
-        type="button"
-        class="bg-neutral-900/90 hover:bg-neutral-800 text-neutral-200 hover:text-white px-3 py-1.5 rounded-lg border border-neutral-700/80 shadow-lg flex items-center gap-1.5 text-xs font-medium cursor-pointer transition backdrop-blur-md"
-        @click="startDrawPolygon"
-      >
-        <Pentagon aria-hidden="true" class="h-3.5 w-3.5 text-neutral-300" />
+    <div class="absolute bottom-7 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-white/10 bg-neutral-950/90 p-1.5 text-neutral-200 shadow-xl backdrop-blur-md md:bottom-5" role="group" aria-label="Map tools">
+      <button type="button" class="map-tool" @click="startDrawPolygon">
+        <Pentagon aria-hidden="true" class="h-4 w-4" />
         <span>Draw Area</span>
       </button>
-
+      <button type="button" class="map-tool" aria-label="Show all Nicaragua hotspots" title="Show Nicaragua" @click="fitNicaragua">
+        <LocateFixed aria-hidden="true" class="h-4 w-4" />
+        <span class="hidden sm:inline">Nicaragua</span>
+      </button>
+      <button v-if="activeRoiArea !== null" type="button" class="map-tool" aria-label="Clear selected area" title="Clear selected area" @click="clearRoi">
+        <Trash2 aria-hidden="true" class="h-4 w-4" />
+        <span class="hidden sm:inline">Clear Area</span>
+      </button>
     </div>
 
-    <!-- Sensor Filters -->
-    <div class="absolute top-4 right-14 z-10 flex flex-col gap-2">
-      <!-- Sensor Filter Group -->
-      <div class="bg-neutral-900/90 backdrop-blur-md p-1.5 rounded-lg border border-neutral-700/80 shadow-lg flex items-center justify-between gap-1 text-xs">
-        <span class="text-[11px] text-neutral-400 font-medium px-2">Sensors:</span>
-        <div class="flex items-center gap-1">
-          <button
-            type="button"
-            :class="[
-              'px-2 py-0.5 rounded text-[11px] font-medium transition cursor-pointer',
-              selectedInstrument === 'ALL'
-                ? 'bg-neutral-700 text-white'
-                : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-            ]"
-            :aria-pressed="selectedInstrument === 'ALL'"
-            @click="filterByInstrument('ALL')"
-          >
-            All
-          </button>
-          <button
-            type="button"
-            :class="[
-              'px-2 py-0.5 rounded text-[11px] font-medium transition cursor-pointer flex items-center gap-1',
-              selectedInstrument === 'MODIS'
-                ? 'bg-neutral-700 text-white'
-                : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-            ]"
-            :aria-pressed="selectedInstrument === 'MODIS'"
-            @click="filterByInstrument('MODIS')"
-          >
-            MODIS
-          </button>
-          <button
-            type="button"
-            :class="[
-              'px-2 py-0.5 rounded text-[11px] font-medium transition cursor-pointer flex items-center gap-1',
-              selectedInstrument === 'VIIRS'
-                ? 'bg-neutral-700 text-white'
-                : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-            ]"
-            :aria-pressed="selectedInstrument === 'VIIRS'"
-            @click="filterByInstrument('VIIRS')"
-          >
-            VIIRS
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Active Area-of-Interest (ROI) Drawer Banner -->
-    <div
-      v-if="activeRoiArea !== null"
-      class="absolute bottom-4 left-4 z-10 bg-neutral-900/95 backdrop-blur-md px-4 py-3 rounded-xl border border-orange-500/50 shadow-2xl text-xs flex flex-wrap items-center gap-4 text-neutral-200"
-    >
-      <div>
-        <div class="flex items-center gap-2">
-          <p class="font-bold text-orange-400">Selected Area</p>
-        </div>
-        <p class="text-[11px] text-neutral-400 mt-0.5">
-          Area: <span class="font-mono text-white font-semibold">{{ activeRoiArea.toLocaleString() }} km²</span> |
-          Hotspots: <span class="font-mono text-white font-semibold">{{ filteredCount.toLocaleString() }}</span>
-        </p>
-      </div>
-
-      <div class="flex items-center gap-2">
-
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs transition cursor-pointer border border-neutral-700"
-          @click="clearRoi"
-        >
-          <Trash2 aria-hidden="true" class="h-3.5 w-3.5" />
-          Clear Area
-        </button>
-      </div>
-    </div>
-
-    <div v-if="!filteredCount" role="status" class="pointer-events-none absolute inset-x-4 bottom-16 z-10 mx-auto max-w-sm rounded-lg border border-neutral-700 bg-neutral-900/95 p-4 text-center text-sm text-neutral-300">
+    <div v-if="!filteredCount" role="status" class="pointer-events-none absolute inset-x-4 bottom-24 z-10 mx-auto max-w-sm rounded-lg border border-white/10 bg-neutral-950/95 p-4 text-center text-sm text-neutral-300">
       No hotspots match these filters. Try another date range, area, or sensor.
     </div>
 
-    <!-- Map Legend -->
-    <div class="absolute bottom-4 right-4 z-10 bg-neutral-900/90 backdrop-blur-md px-3 py-2 rounded-lg border border-neutral-700/80 shadow-lg text-[11px] space-y-1.5 text-neutral-300 pointer-events-none">
-      <div class="flex items-center gap-2">
-        <span class="w-3 h-3 rounded-full bg-red-500 border border-white" />
-        <span>Hotspots ({{ filteredCount.toLocaleString() }})</span>
-      </div>
+    <div class="pointer-events-none absolute bottom-14 right-3 z-10 hidden items-center gap-2 rounded-lg border border-white/10 bg-neutral-950/85 px-3 py-2 text-xs text-neutral-300 backdrop-blur-md sm:flex md:bottom-9 md:right-5">
+      <span aria-hidden="true" class="h-2 w-2 rounded-full bg-red-500" />Hotspots
     </div>
   </div>
 </template>
 
 <style>
+/* MapLibre's unlayered position: relative overrides Tailwind's absolute utility.
+   Explicit dimensions keep the canvas sized to the full map workspace. */
+.fire-map > .fire-map__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.fire-map .map-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.fire-map .map-tool:hover {
+  background: #262626;
+  color: white;
+}
+.fire-map .map-tool:focus-visible {
+  outline: 2px solid #f87171;
+  outline-offset: 2px;
+}
+.fire-map .maplibregl-ctrl-top-left { top: 0.75rem; left: 0.75rem; }
+.fire-map .maplibregl-ctrl-top-left .maplibregl-ctrl { margin: 0; }
+.fire-map .maplibregl-ctrl-group {
+  overflow: hidden;
+  border: 1px solid #ffffff26;
+  border-radius: 0.625rem;
+  background: #0a0a0aeb;
+  box-shadow: 0 4px 12px #0004;
+}
+.fire-map .maplibregl-ctrl-group button { width: 36px; height: 36px; }
+.fire-map .maplibregl-ctrl-group button:hover { background-color: #262626; }
+.fire-map .maplibregl-ctrl-group button + button { border-top-color: #ffffff1a; }
+.fire-map .maplibregl-ctrl-icon { filter: invert(1); }
+.fire-map .maplibregl-ctrl-scale {
+  border-color: #ffffff99;
+  background: #0a0a0abf;
+  color: #e5e5e5;
+  font-size: 10px;
+}
+
 /* Custom overrides for MapLibre Popups to match dark theme */
 .maplibregl-popup-content {
   background: transparent !important;
