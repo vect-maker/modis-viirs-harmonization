@@ -7,8 +7,6 @@ COPY (
         p.brightness AS bright_mir,
         p.scan,
         p.track,
-        p.acq_date::DATE AS acq_date,
-        p.acq_time,
         strptime(p.acq_date || ' ' || p.acq_time, '%Y-%m-%d %H%M')::TIMESTAMP AS acq_datetime,
         p.satellite,
         p.instrument,
@@ -27,7 +25,7 @@ COPY (
     JOIN sqlite_scan('data/pipeline.db', 'archive_files') f
       ON p.filename = f.local_path
     WHERE f.status = 'completed'
-    ORDER BY f.country, p.acq_date, p.acq_time
+    ORDER BY f.country, acq_datetime
 ) TO 'data/processed/modis.parquet' (FORMAT PARQUET, COMPRESSION SNAPPY);
 
 -- 2. VIIRS consolidated dataset
@@ -39,8 +37,6 @@ COPY (
         p.bright_ti4 AS bright_mir,
         p.scan,
         p.track,
-        p.acq_date::DATE AS acq_date,
-        p.acq_time,
         strptime(p.acq_date || ' ' || p.acq_time, '%Y-%m-%d %H%M')::TIMESTAMP AS acq_datetime,
         CASE p.satellite
             WHEN 'N' THEN 'Suomi-NPP'
@@ -60,5 +56,5 @@ COPY (
     JOIN sqlite_scan('data/pipeline.db', 'archive_files') f
       ON p.filename = f.local_path
     WHERE f.status = 'completed'
-    ORDER BY f.country, p.acq_date, p.acq_time
+    ORDER BY f.country, acq_datetime
 ) TO 'data/processed/viirs.parquet' (FORMAT PARQUET, COMPRESSION SNAPPY);
