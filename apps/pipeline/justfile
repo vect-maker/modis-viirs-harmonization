@@ -38,8 +38,17 @@ fuse-data:
 
 # Apply universal spatio-temporal MODIS-VIIRS harmonization to Silver dataset
 harmonize-data:
-    mkdir -p data/processed data/temp/duckdb
-    duckdb -dark-mode -f sql/harmonize_hotspots.sql
+    mkdir -p data/processed data/temp/duckdb data/temp/harmonize
+    for f in sql/harmonize/*.sql; do \
+        echo "Running $f..."; \
+        duckdb -dark-mode -f "$f" || exit 1; \
+    done
+    rm -rf data/temp/harmonize
+
+# Run a single harmonization step by filename prefix (e.g. just harmonize-step 01)
+harmonize-step step:
+    mkdir -p data/processed data/temp/duckdb data/temp/harmonize
+    duckdb -dark-mode -f sql/harmonize/{{step}}*.sql
 
 # Normalize harmonized Silver dataset into Star Schema Gold Parquet datasets with deterministic UUIDv5 keys
 normalize-data:
