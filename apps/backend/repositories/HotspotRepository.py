@@ -1,12 +1,19 @@
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
-from model import Hotspots
+from model.StarSchema import FactHotspot, HotspotPublic
+from repositories.pagination import paginate_statement
+from schemas.pagination import PaginatedResponse, PaginationParams
+
 
 class HotspotRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_hotspots(self):
-        statement = select(Hotspots).offset(0).limit(50)
-
-        return self.session.exec(statement).all()
+    def get_hotspots(
+        self, pagination: PaginationParams
+    ) -> PaginatedResponse[HotspotPublic]:
+        statement = select(FactHotspot).order_by(
+            col(FactHotspot.acq_datetime).desc(),
+            col(FactHotspot.id),
+        )
+        return paginate_statement(self.session, statement, pagination, HotspotPublic)
