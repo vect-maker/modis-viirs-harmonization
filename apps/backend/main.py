@@ -10,6 +10,7 @@ from api.dashboard import router as dashboard_router
 from api.environmental_records import router as environmental_records_router
 from api.fact_hotspots import router as fact_hotspots_router
 from api.fire_analysis import router as fire_analysis_router
+from api.fire_calendar import router as fire_calendar_router
 from api.fire_cluster_forecast import router as fire_cluster_forecast_router
 from api.hotspots import router as hotspots_router
 from api.platforms import router as platforms_router
@@ -44,6 +45,7 @@ app.include_router(fact_hotspots_router)
 app.include_router(fire_cluster_forecast_router)
 app.include_router(fire_analysis_router)
 app.include_router(dashboard_router)
+app.include_router(fire_calendar_router)
 
 
 @app.get("/")

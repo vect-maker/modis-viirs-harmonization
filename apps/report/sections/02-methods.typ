@@ -86,3 +86,20 @@ To serve live PostGIS queries and analyze fire propagation without loading large
   - `/dashboard/monthly-comparison`: Compares a target year against the historic monthly baseline (`mean`, `median`, `std`, `p25`, `p75`, `anomaly_abs`, `anomaly_pct`, `z_score`).
   - `/dashboard/spatial-anomalies`: Runs `IsolationForest` over `(latitude, longitude)` NumPy arrays returning anomaly counts, score statistics, and prioritized outlier points.
   - `/dashboard/monthly-forecast`: Trains a seasonal autoregressive `Ridge` model (lags 1, 2, 12, seasonal harmonics, and trend) on SQL-aggregated monthly series with 80%/95% prediction intervals and `MAE`, `MSE`, `RMSE`, `MAPE`, `SMAPE`, `R^2`, and `MBE`.
++ *Fire Calendar Aggregation (`FireCalendarRepository.py`, `FireCalendarService.py`, `api/fire_calendar.py`):* Exposes `GET /fire-calendar` with strict Pydantic validation (`FireCalendarQuery`: `year`, `month`, `start_date`, `end_date`, `country`, `min_confidence`, `confidence_class`, `satellite`, `instrument`, `daynight`, `min_frp`, `max_frp`, `cluster_id`, `aggregation` in `{day, week, month}`). Applies filters prior to PostgreSQL `DATE_TRUNC` grouping, tracks `new_fires` and `active_fires` from `FireCluster` lifespans (`datetimeStart`, `datetimeEnd`), and zero-fills intervals without detections.
+
+#figure(
+  table(
+    columns: 4,
+    table.header([*Module*], [*Statistical / ML Model*], [*Inputs & Features*], [*Outputs & Evaluation Metrics*]),
+    [`FireClusterer`], [DBSCAN (`haversine`, `ball_tree`) + dynamic window ($24–72 "h"$)], [Radians `(lat, lon)`, `acq_datetime`], [Cluster labels, noise (`-1`)],
+    [`DashboardRepository` / `dbscan`], [SQL `GROUP BY` + 1D `DBSCAN`], [Unique mapped `confidence` (`l/n/h`, int)], [Anomaly counts & percentages],
+    [`DashboardRepository` / `corr`], [SQL Pearson $r$ & $R^2$], [`frp`, `confidence`, `bright_tir`, `bright_mir`], [$r$, $R^2$, $n$, mean, std],
+    [`DashboardRepository` / `annual`], [SQL `PERCENTILE_CONT` & moments], [`frp`, `confidence`, `bright_tir`, `bright_mir`], [Count, sum, mean, std, `P25/P50/P75/P90`, `IQR`],
+    [`DashboardAnalytics` / `iforest`], [`IsolationForest` (`n_estimators = 300`)], [`(latitude, longitude)`], [Outlier flags (`-1`/`1`), `decision_function` stats],
+    [`DashboardAnalytics` / `forecast`], [Seasonal AR `Ridge` (lags 1, 2, 12 + harmonics)], [SQL monthly hotspot counts], [80%/95% PI, `MAE`, `MSE`, `RMSE`, `MAPE`, `SMAPE`, $R^2$, `MBE`],
+    [`FirePredictor`], [Multi-output `RandomForestRegressor`], [10 historical & NASA POWER wind/weather features], [`east_km`, `north_km`, `MAE`, `RMSE`, $R^2$, angular error],
+    [`FireCalendarService`], [SQL `DATE_TRUNC` + cluster overlap], [`hotspots`, `firecluster`], [`hotspot_count`, `new_fires`, `active_fires`, FRP & day/night],
+  ),
+  caption: [Summary of statistical and machine-learning models implemented in `apps/backend`.],
+) <tab:backend-models>
