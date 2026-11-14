@@ -2,14 +2,21 @@
 default:
     @just --list
 
-# Compile the Typst report to PDF
+# Compile the Typst report to PDF inside output/
 build:
-    typst compile main.typ report.pdf
+    mkdir -p output
+    typst compile main.typ output/report.pdf
+
+# Export page PNGs to output/temp/ for visual layout inspection
+preview:
+    mkdir -p output/temp
+    typst compile main.typ "output/temp/page-{p}.png" -f png
 
 # Watch and recompile on changes
 watch:
-    typst watch main.typ report.pdf
+    mkdir -p output
+    typst watch main.typ output/report.pdf
 
-# Remove generated PDF output
+# Remove generated output artifacts
 clean:
-    rm -f report.pdf
+    rm -rf output report.pdf

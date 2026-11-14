@@ -11,7 +11,7 @@ This work is developed for the *2026 NASA Space Apps Challenge* ("Harmonization 
 + Giglio, L., Schroeder, W., & Justice, C. O. (2016). "The collection 6 MODIS active fire detection algorithm and fire products." *Remote Sensing of Environment*, 178, 31–41.
 + Schroeder, W., et al. (2014). "The New VIIRS 375 m active fire detection data product: Algorithm description and initial assessment." *Remote Sensing of Environment*, 143, 85–96.
 
-#pagebreak()
+#v(0.6em)
 #set heading(numbering: "A.1")
 #counter(heading).update(0)
 

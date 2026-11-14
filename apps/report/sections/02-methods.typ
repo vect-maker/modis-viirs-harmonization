@@ -14,17 +14,19 @@ We access NASA FIRMS country-level yearly archive files (`modis`, `viirs-snpp`, 
 
 `sql/fuse_datasets.sql` executes in DuckDB (configured with `max_memory = '10GB'`, `threads = 8`, `preserve_insertion_order = false`) to consolidate all `completed` archive files into a unified Silver dataset (`data/processed/hotspots.parquet`, ZSTD-compressed).
 
-#table(
-  columns: (auto, auto, auto),
-  align: (left, left, left),
-  table.header([Unified Column], [MODIS Mapping], [VIIRS Mapping]),
-  [`bright_mir`], [`brightness`], [`bright_ti4`],
-  [`bright_tir`], [`bright_t31`], [`bright_ti5`],
-  [`acq_datetime`], [`strptime(acq_date || ' ' || acq_time, '%Y-%m-%d %H%M')`], [Same],
-  [`satellite`], [`Terra` / `Aqua`], [`N` $->$ `Suomi-NPP`, `N20` $->$ `NOAA-20`, `N21` $->$ `NOAA-21`],
-  [`confidence`], [`try_cast(confidence AS INTEGER)`], [`l` $->$ `20`, `n` $->$ `50`, `h` $->$ `90`],
-  [`confidence_class`], [`<30` $->$ `l`, `<80` $->$ `n`, `>=80` $->$ `h`], [`lower(confidence)`],
-)
+#text(size: 8.5pt)[
+  #table(
+    columns: (30%, 35%, 35%),
+    align: (left, left, left),
+    table.header([Column], [MODIS Mapping], [VIIRS Mapping]),
+    [`bright_mir`], [`brightness`], [`bright_ti4`],
+    [`bright_tir`], [`bright_t31`], [`bright_ti5`],
+    [`acq_datetime`], [`strptime(acq_date || ' ' || acq_time, '%Y-%m-%d %H%M')`], [Same],
+    [`satellite`], [`Terra` / `Aqua`], [`N` $->$ `Suomi-NPP`, `N20` $->$ `NOAA-20`, `N21` $->$ `NOAA-21`],
+    [`confidence`], [`try_cast(confidence AS INT)`], [`l` $->$ `20`, `n` $->$ `50`, `h` $->$ `90`],
+    [`confidence_class`], [`<30` $->$ `l`, `<80` $->$ `n`, `>=80` $->$ `h`], [`lower(confidence)`],
+  )
+]
 #v(0.3em)
 
 == Gold-Layer Star Schema and Deterministic Identity
