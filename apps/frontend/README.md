@@ -1,48 +1,68 @@
-# frontend
+# FIRMS Wildfire Harmonizer — Frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+Interactive web application for the **NASA Space Apps Challenge 2026: Harmonization of MODIS and VIIRS Hot Spots**. Built with Vue 3, MapLibre GL, and Tailwind CSS.
 
-## Recommended IDE Setup
+---
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## 🛠️ Stack Quick Reference
 
-## Recommended Browser Setup
+* **Framework:** [Vue 3](https://vuejs.org/) (Composition API with `<script setup lang="ts">`)
+* **State Management:** [Pinia](https://pinia.vuejs.org/)
+* **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
+* **UI Primitives:** [Reka UI](https://reka-ui.com/) (accessible headless components)
+* **Composables:** [VueUse](https://vueuse.org/) (`@vueuse/core`)
+* **Map & Spatial:** [MapLibre GL JS](https://maplibre.org/) + `@mapbox/mapbox-gl-draw` + `@turf/turf`
+* **Satellite Imagery:** Esri World Imagery (high-resolution optical basemap)
+* **Build Tool:** [Vite](https://vite.dev/)
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+> [!IMPORTANT]
+> **Architecture & Design Guide:** Before creating new components or utilities, read [docs/frontend_desing.md](../../docs/frontend_desing.md) for the mandatory implementation hierarchy (Check VueUse first ➔ Check Reka UI second ➔ Custom component only as last resort) and dumb vs. logic component separation rules.
+>
+> **Spatial Queries Note:** In the future, spatial filtering will run on a backend API powered by PostgreSQL + PostGIS. Currently, spatial queries are mocked client-side using Turf.js over a local DuckDB sample dataset.
 
-## Type Support for `.vue` Imports in TS
+---
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+## 🚀 Getting Started
 
-## Customize configuration
+From the monorepo root:
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+```bash
+# 1. Export sample dataset from DuckDB pipeline
+just sample-data
 
-## Project Setup
+# 2. Install dependencies
+just frontend install
 
-```sh
-npm install
+# 3. Start development server
+just frontend dev
+
+# 4. Run typecheck & build
+just frontend build
 ```
 
-### Compile and Hot-Reload for Development
+Or directly inside `apps/frontend`:
 
-```sh
+```bash
+npm install
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+---
 
-```sh
-npm run build
-```
+## 📜 Available Scripts
 
-### Lint with [ESLint](https://eslint.org/)
+| Command | Description |
+| :--- | :--- |
+| `npm run dev` | Starts the Vite dev server with HMR at `http://localhost:5173` |
+| `npm run build` | Full production build with `vue-tsc` type-checking |
+| `npm run type-check` | Runs `vue-tsc --build` |
+| `npm run lint` | Runs `oxlint` (Rust-speed linter) and `eslint` |
+| `npm run format` | Auto-formats code with Prettier |
 
-```sh
-npm run lint
-```
+---
+
+## 🧩 Component Standards
+
+* **Dumb Components (`src/components/common/`, `src/components/ui/`):** Purely presentational, accepts props, emits events, zero direct store/API imports.
+* **Logic Components (`src/components/features/`, `src/views/`):** Connects to Pinia stores, coordinates state, handles map/query events.
+* **Reka UI Wrappers (`src/components/ui/`):** Never scatter unstyled Reka UI primitives across features; wrap them in dedicated UI components styled with Tailwind CSS v4.
