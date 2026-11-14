@@ -12,9 +12,12 @@
     "lint": "run-s \"lint:*\"",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs"
   },
   "dependencies": {
+    "@internationalized/date": "^3.12.4",
+    "@lucide/vue": "^1.72.0",
     "@mapbox/mapbox-gl-draw": "^1.5.2",
     "@tailwindcss/vite": "^4.3.5",
     "@turf/turf": "^7.4.0",
