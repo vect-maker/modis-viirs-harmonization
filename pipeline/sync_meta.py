@@ -5,14 +5,14 @@ from api import check_budget, fetch_and_save_csv
 from config import (
     COUNTRY_SUMMARY_INDEX_PATH,
     FIRMS_MAP_KEY,
-    META_DIR,
+    RAW_META_DIR,
 )
 
 
 async def main() -> None:
-    META_DIR.mkdir(parents=True, exist_ok=True)
-    summaries_path = META_DIR / "yearly_summary_files.csv"
-    avail_path = META_DIR / "data_availability.csv"
+    RAW_META_DIR.mkdir(parents=True, exist_ok=True)
+    summaries_path = RAW_META_DIR / "yearly_summary_files.csv"
+    avail_path = RAW_META_DIR / "data_availability.csv"
 
     async with httpx2.AsyncClient(
         headers={"User-Agent": "firms-pipeline/1.0"},
@@ -23,7 +23,7 @@ async def main() -> None:
         budget = await check_budget(client)
         print("Initial MAP_KEY budget:", budget)
 
-        # Sync metadata CSV files using FIRMS subpaths
+        # Sync raw metadata CSV files to temp storage using FIRMS subpaths
         await asyncio.gather(
             fetch_and_save_csv(client, COUNTRY_SUMMARY_INDEX_PATH, summaries_path),
             fetch_and_save_csv(
