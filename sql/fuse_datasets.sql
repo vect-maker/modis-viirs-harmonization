@@ -1,3 +1,19 @@
+-- Execution and memory optimizations
+SET max_memory = '10GB';
+SET temp_directory = 'data/temp/duckdb';
+SET threads = 8;
+SET preserve_insertion_order = false;
+
+-- Enable live progress reporting in terminal
+SET enable_progress_bar = true;
+SET progress_bar_time = 500;
+
+-- Pre-materialize completed files to avoid repeated SQLite table scans during parallel reading
+CREATE OR REPLACE TEMP TABLE completed_files AS
+SELECT local_path, country
+FROM sqlite_scan('data/pipeline.db', 'archive_files')
+WHERE status = 'completed';
+
 -- Consolidate MODIS and VIIRS archive datasets into a unified Silver dataset
 COPY (
     -- 1. MODIS Hotspots
@@ -23,9 +39,8 @@ COPY (
         p.daynight,
         p.type::INTEGER AS type
     FROM read_parquet('data/raw/modis/*/*.parquet', filename=true) p
-    JOIN sqlite_scan('data/pipeline.db', 'archive_files') f
+    JOIN completed_files f
       ON p.filename = f.local_path
-    WHERE f.status = 'completed'
 
     UNION ALL
 
@@ -53,9 +68,6 @@ COPY (
         p.daynight,
         p.type::INTEGER AS type
     FROM read_parquet('data/raw/viirs*/*/*.parquet', filename=true) p
-    JOIN sqlite_scan('data/pipeline.db', 'archive_files') f
+    JOIN completed_files f
       ON p.filename = f.local_path
-    WHERE f.status = 'completed'
-
-    ORDER BY country, acq_datetime
-) TO 'data/processed/hotspots.parquet' (FORMAT PARQUET, COMPRESSION SNAPPY);
+) TO 'data/processed/hotspots.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);

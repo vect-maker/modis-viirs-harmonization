@@ -26,7 +26,7 @@ fetch-data *args:
 
 # Fuse raw archive Parquet files into a unified Silver dataset
 fuse-data:
-    mkdir -p data/processed
+    mkdir -p data/processed data/temp/duckdb
     duckdb -dark-mode -f sql/fuse_datasets.sql
 
 # Auto-format and auto-fix pipeline code
