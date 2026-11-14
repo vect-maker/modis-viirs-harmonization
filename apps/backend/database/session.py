@@ -1,6 +1,9 @@
 from sqlmodel import Session
 
-from connection import engine
+try:
+    from .connection import engine
+except ImportError:
+    from connection import engine
 
 
 async def get_session():

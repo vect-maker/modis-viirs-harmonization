@@ -3,11 +3,18 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from model.ClusterStatus import ClusterStatus
+try:
+    from .ClusterStatus import ClusterStatus
+except ImportError:
+    from model.ClusterStatus import ClusterStatus
 
 if TYPE_CHECKING:
-    from model.ClusterHotspot import ClusterHotspots
-    from model.EnvironmentalRecord import EnvironmentalRecord
+    try:
+        from .ClusterHotspot import ClusterHotspots
+        from .EnvironmentalRecord import EnvironmentalRecord
+    except ImportError:
+        from model.ClusterHotspot import ClusterHotspots
+        from model.EnvironmentalRecord import EnvironmentalRecord
 
 
 class FireCluster(SQLModel, table=True):

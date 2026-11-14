@@ -3,8 +3,12 @@ from typing import TYPE_CHECKING
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from model.FireCluster import FireCluster
-    from model.Hotspots import Hotspots
+    try:
+        from .FireCluster import FireCluster
+        from .Hotspots import Hotspots
+    except ImportError:
+        from model.FireCluster import FireCluster
+        from model.Hotspots import Hotspots
 
 
 class ClusterHotspots(SQLModel, table=True):

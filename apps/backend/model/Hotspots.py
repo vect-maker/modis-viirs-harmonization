@@ -4,7 +4,10 @@ from typing import TYPE_CHECKING
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from model.ClusterHotspot import ClusterHotspots
+    try:
+        from .ClusterHotspot import ClusterHotspots
+    except ImportError:
+        from model.ClusterHotspot import ClusterHotspots
 
 
 class Hotspots(SQLModel, table=True):
