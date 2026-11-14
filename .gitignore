@@ -18,8 +18,8 @@ __pycache__/
 *.tmp
 
 # Pipeline data
-/data/*
-!/data/.gitignore
+apps/pipeline/data/*
+!apps/pipeline/data/.gitignore
 
 # IDEs and editors
 .vscode/
