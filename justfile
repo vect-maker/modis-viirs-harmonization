@@ -1,3 +1,5 @@
+set dotenv-load
+
 # List available recipes
 default:
     @just --list
@@ -45,9 +47,20 @@ db-down:
 db-logs:
     podman compose logs -f db
 
-# Open interactive psql shell inside PostGIS container
-db-psql:
-    podman compose exec db psql -U postgres -d firms
+# Open psql shell using DATABASE_URL (local or remote Azure DB)
+db-psql *cmd:
+    psql "$DATABASE_URL" {{cmd}}
+
+# Apply PostGIS schema to PostgreSQL database using DATABASE_URL
+db-schema:
+    psql "$DATABASE_URL" -f sql/schema_postgis.sql
+
+# Ingest Nicaragua dev dataset from Parquet into PostGIS via DuckDB
+db-load-nicaragua:
+    duckdb -dark-mode -f sql/load_nicaragua_sample.sql
+
+# Full reset and reload of dev database
+db-reset-load: db-schema db-load-nicaragua
 
 # Auto-format and auto-fix pipeline code
 format:
