@@ -30,3 +30,6 @@ apps/pipeline/data/*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Repomix
+repomix-output.xml
