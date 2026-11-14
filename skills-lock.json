@@ -1,0 +1,89 @@
+{
+  "version": 2,
+  "skills": {
+    "create-adaptable-composable": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/create-adaptable-composable/SKILL.md",
+      "computedHash": "7e2a1f90dc400bfee0067e0c9fb74180be650765a93088918456cd9fdedad635"
+    },
+    "cypress-author": {
+      "source": "cypress-io/ai-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/cypress-author/SKILL.md",
+      "computedHash": "39385327183b4844648bbede1b71da899aecb614d553c2e0df3fb7015c21751a"
+    },
+    "cypress-cloud-cli": {
+      "source": "cypress-io/ai-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/cypress-cloud-cli/SKILL.md",
+      "computedHash": "0a462a882a32e04ecbb53f4c2fe250c367f3171a811a9d608ed2e1a0922e20ad"
+    },
+    "cypress-docs": {
+      "source": "cypress-io/ai-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/cypress-docs/SKILL.md",
+      "computedHash": "2d3807e315cb1b54f4669eac2424abb6b1f22b06f203467ed22980295f1c465b"
+    },
+    "cypress-explain": {
+      "source": "cypress-io/ai-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/cypress-explain/SKILL.md",
+      "computedHash": "7e8ed1d597f2d1615942f1ceaa607f7890bac09f6eae711573e144f6d84a6fb2"
+    },
+    "cypress-tap": {
+      "source": "cypress-io/ai-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/cypress-tap/SKILL.md",
+      "computedHash": "4e36fe8bd60bdbffb86e186da45478ba1cd757801c81dcf9e6ecefb50c5f632d"
+    },
+    "vue-best-practices": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vue-best-practices/SKILL.md",
+      "computedHash": "2b4ee45c8b9d77d99896c510ca1c0ecb56914b7bdda84dcbd872f3941d3b9f54"
+    },
+    "vue-debug-guides": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vue-debug-guides/SKILL.md",
+      "computedHash": "ede183882859cc9abf9425590a8adc66823879dd70484d0ea197cfcf6b3fbba4"
+    },
+    "vue-jsx-best-practices": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vue-jsx-best-practices/SKILL.md",
+      "computedHash": "517d9776075b40a2d3e0b5100d712310bc1aab7071341860a0f406d2ba2cf496"
+    },
+    "vue-options-api-best-practices": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vue-options-api-best-practices/SKILL.md",
+      "computedHash": "8700f2d8b4c0751a707d2a74000ab6c58087f455a90c5d86e00af0e1fca0961c"
+    },
+    "vue-pinia-best-practices": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vue-pinia-best-practices/SKILL.md",
+      "computedHash": "3f7ab354e80570361571e9dbb6d90b9495d2d214c15fca788da6b8a181cd1cff"
+    },
+    "vue-router-best-practices": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vue-router-best-practices/SKILL.md",
+      "computedHash": "6618c4b95765c4777de9d1d6500b372836c73ecc5ad0f4134ac65f71fb06513f"
+    },
+    "vue-testing-best-practices": {
+      "source": "vuejs-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vue-testing-best-practices/SKILL.md",
+      "computedHash": "f4dc766acbf3883e5840669dbc347d519b084f559db6704ea6257b8e2443cdec"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "4f68ae07187fb0d1fb78c88b503d089da4cf5a9d9625d1f2e425b1590bf96d92"
+    }
+  }
+}

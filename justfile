@@ -13,6 +13,14 @@ mod frontend 'apps/frontend/justfile'
 sample-data *args:
     just pipeline export-sample {{args}}
 
+# Restore AI agent skills from skills-lock.json
+skills-install:
+    npx -y skills experimental_install -y -a antigravity codex
+
+# Update all AI agent skills to their latest versions
+skills-update:
+    npx -y skills update -y
+
 # Start PostgreSQL + PostGIS via Podman Compose
 db-up:
     podman compose up -d
