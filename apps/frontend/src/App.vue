@@ -41,7 +41,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
           @hotspot-select="selectedHotspot = $event"
           @roi-change="onRoiChange"
         >
-          <template #dock="{ drawArea, clearArea, resetView }">
+          <template #dock="{ drawArea, clearArea, resetView, showGlobe }">
             <div
               ref="timelineElement"
               class="absolute bottom-3 left-3 right-3 z-20 md:bottom-5 md:left-5"
@@ -53,6 +53,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
                     :has-area="areaKm2 !== null"
                     @draw="drawArea"
                     @recenter="resetView"
+                    @globe="showGlobe"
                     @clear="clearArea"
                   />
                 </template>

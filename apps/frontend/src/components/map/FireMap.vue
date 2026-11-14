@@ -27,19 +27,26 @@ const props = withDefaults(
   }>(),
   {
     initialCenter: () => [-85.2072, 12.8654], // Nicaragua centroid
-    initialZoom: 7,
     sidePanelOpen: false,
     bottomInset: 24,
-  }
+  },
 )
 
 const emit = defineEmits<{
   (e: 'hotspot-select', hotspot: FireHotspot): void
-  (e: 'roi-change', payload: { count: number; areaKm2: number | null; filtered: FireHotspot[] }): void
+  (
+    e: 'roi-change',
+    payload: { count: number; areaKm2: number | null; filtered: FireHotspot[] },
+  ): void
 }>()
 
 defineSlots<{
-  dock?(props: { drawArea: () => void; clearArea: () => void; resetView: () => void }): unknown
+  dock?(props: {
+    drawArea: () => void
+    clearArea: () => void
+    resetView: () => void
+    showGlobe: () => void
+  }): unknown
 }>()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
@@ -57,20 +64,57 @@ const isDesktop = useMediaQuery('(min-width: 768px)')
 const reducedMotion = usePreferredReducedMotion()
 useResizeObserver(mapContainer, () => map.value?.resize())
 
+function getViewportPadding() {
+  const height = mapContainer.value?.clientHeight ?? 600
+  return {
+    top: 48,
+    bottom: Math.min(props.bottomInset + 48, height * 0.45),
+    left: 48,
+    right: isDesktop.value && props.sidePanelOpen ? 360 : 48,
+  }
+}
+
+function getGlobeView() {
+  const padding = getViewportPadding()
+  const container = mapContainer.value
+  const width = (container?.clientWidth ?? 1000) - padding.left - padding.right
+  const height = (container?.clientHeight ?? 700) - padding.top - padding.bottom
+  return {
+    center: props.initialCenter,
+    zoom: props.initialZoom ?? Math.max(0, Math.log2(Math.max(160, Math.min(width, height)) / 175)),
+    bearing: 0,
+    pitch: 0,
+    padding,
+  }
+}
+
+function showGlobe() {
+  activePopup.value?.remove()
+  draw.value?.changeMode('simple_select')
+  map.value?.flyTo({
+    ...getGlobeView(),
+    duration: reducedMotion.value === 'reduce' ? 0 : 1100,
+  })
+}
+
 function fitNicaragua() {
   const m = map.value
   if (!m || !allHotspots.length) return
   const [west, south, east, north] = turf.bbox(buildGeoJson(allHotspots))
-  m.fitBounds([[west, south], [east, north]], {
-    padding: {
-      top: 56,
-      bottom: Math.min(props.bottomInset + 76, (mapContainer.value?.clientHeight ?? 600) * 0.5),
-      left: 64,
-      right: isDesktop.value && props.sidePanelOpen ? 360 : 48,
+  m.fitBounds(
+    [
+      [west, south],
+      [east, north],
+    ],
+    {
+      padding: getViewportPadding(),
+      absolutePadding: true,
+      bearing: 0,
+      pitch: 0,
+      maxZoom: 8.5,
+      duration: reducedMotion.value === 'reduce' ? 0 : 700,
     },
-    maxZoom: 8.5,
-    duration: reducedMotion.value === 'reduce' ? 0 : 700,
-  })
+  )
 }
 
 // Convert raw JSON data to GeoJSON Point FeatureCollection
@@ -99,8 +143,8 @@ watch([filteredHotspots, activeRoiArea], () => {
 function startDrawPolygon() {
   const drawControl = draw.value
   if (!drawControl) return
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(drawControl as any).changeMode('draw_polygon')
+  if ((map.value?.getZoom() ?? 0) < 5) fitNicaragua()
+  drawControl.changeMode('draw_polygon')
 }
 
 function handleRoiUpdate() {
@@ -151,16 +195,21 @@ onMounted(() => {
     container: mapContainer.value,
     style: {
       version: 8,
+      projection: { type: 'globe' },
+      sky: {
+        'atmosphere-blend': 0,
+      },
       sources: {
         // High-resolution Esri World Imagery as the sole satellite basemap
         'esri-imagery-src': {
           type: 'raster',
           tiles: [
-            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false',
           ],
           tileSize: 256,
           attribution: 'Esri, Maxar, Earthstar Geographics',
-          maxzoom: 19,
+          // Request real imagery; higher map zooms reuse the last available tiles.
+          maxzoom: 17,
         },
       },
       layers: [
@@ -173,10 +222,15 @@ onMounted(() => {
       ],
     },
     center: props.initialCenter,
-    zoom: props.initialZoom,
+    zoom: props.initialZoom ?? 2,
+    minZoom: 0,
+    maxZoom: 17,
     maxPitch: 60,
     attributionControl: false,
   })
+
+  // Position the globe before the first frame, leaving room for the floating panels.
+  m.jumpTo(getGlobeView())
 
   // Add standard navigation controls (zoom, compass)
   m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left')
@@ -212,19 +266,7 @@ onMounted(() => {
       source: 'hotspots',
       paint: {
         'circle-color': '#ef4444',
-        'circle-radius': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          4,
-          3.5,
-          7,
-          7,
-          10,
-          11,
-          14,
-          16,
-        ],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 3.5, 7, 7, 10, 11, 14, 16],
         'circle-blur': 0.75,
         'circle-opacity': 0.65,
       },
@@ -237,26 +279,12 @@ onMounted(() => {
       source: 'hotspots',
       paint: {
         'circle-color': '#ef4444',
-        'circle-radius': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          4,
-          2.5,
-          7,
-          4.5,
-          10,
-          7,
-          14,
-          10,
-        ],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2.5, 7, 4.5, 10, 7, 14, 10],
         'circle-opacity': 0.95,
         'circle-stroke-width': 1,
         'circle-stroke-color': '#ffffff',
       },
     })
-
-    fitNicaragua()
 
     // Cursor pointer on hover
     m.on('mouseenter', 'hotspots-circle', () => {
@@ -302,16 +330,28 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="fire-map relative h-full w-full overflow-hidden bg-neutral-950" :style="{ '--map-bottom-inset': `${bottomInset + 8}px` }">
+  <div
+    class="fire-map relative h-full w-full overflow-hidden bg-neutral-950"
+    :style="{ '--map-bottom-inset': `${bottomInset + 8}px` }"
+  >
     <div ref="mapContainer" class="fire-map__canvas" />
 
-    <slot name="dock" :draw-area="startDrawPolygon" :clear-area="clearRoi" :reset-view="fitNicaragua" />
+    <slot
+      name="dock"
+      :draw-area="startDrawPolygon"
+      :clear-area="clearRoi"
+      :reset-view="fitNicaragua"
+      :show-globe="showGlobe"
+    />
 
-    <div v-if="!filteredCount" role="status" :style="{ bottom: `${bottomInset + 80}px` }" class="pointer-events-none absolute inset-x-4 z-10 mx-auto max-w-sm rounded-lg border border-white/10 bg-neutral-950/95 p-4 text-center text-sm text-neutral-300">
+    <div
+      v-if="!filteredCount"
+      role="status"
+      :style="{ bottom: `${bottomInset + 80}px` }"
+      class="pointer-events-none absolute inset-x-4 z-10 mx-auto max-w-sm rounded-lg border border-white/10 bg-neutral-950/95 p-4 text-center text-sm text-neutral-300"
+    >
       No hotspots match these filters. Try another date range, area, or sensor.
     </div>
-
-
   </div>
 </template>
 
@@ -323,9 +363,23 @@ onUnmounted(() => {
   inset: 0;
   width: 100%;
   height: 100%;
+  background-color: #020409;
+  background-image:
+    radial-gradient(1px 1px at 22px 38px, #cbd5e180 90%, transparent),
+    radial-gradient(1px 1px at 110px 90px, #cbd5e140 90%, transparent),
+    radial-gradient(1.5px 1.5px at 195px 160px, #e2e8f066 90%, transparent);
+  background-size:
+    253px 227px,
+    379px 347px,
+    467px 419px;
 }
-.fire-map .maplibregl-ctrl-top-left { top: 0.75rem; left: 0.75rem; }
-.fire-map .maplibregl-ctrl-top-left .maplibregl-ctrl { margin: 0; }
+.fire-map .maplibregl-ctrl-top-left {
+  top: 0.75rem;
+  left: 0.75rem;
+}
+.fire-map .maplibregl-ctrl-top-left .maplibregl-ctrl {
+  margin: 0;
+}
 .fire-map .maplibregl-ctrl-group {
   overflow: hidden;
   border: 1px solid #ffffff26;
@@ -333,11 +387,22 @@ onUnmounted(() => {
   background: #0a0a0aeb;
   box-shadow: 0 4px 12px #0004;
 }
-.fire-map .maplibregl-ctrl-group button { width: 36px; height: 36px; }
-.fire-map .maplibregl-ctrl-group button:hover { background-color: #262626; }
-.fire-map .maplibregl-ctrl-group button + button { border-top-color: #ffffff1a; }
-.fire-map .maplibregl-ctrl-icon { filter: invert(1); }
-.fire-map .maplibregl-ctrl-bottom-left { bottom: var(--map-bottom-inset); }
+.fire-map .maplibregl-ctrl-group button {
+  width: 36px;
+  height: 36px;
+}
+.fire-map .maplibregl-ctrl-group button:hover {
+  background-color: #262626;
+}
+.fire-map .maplibregl-ctrl-group button + button {
+  border-top-color: #ffffff1a;
+}
+.fire-map .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+.fire-map .maplibregl-ctrl-bottom-left {
+  bottom: var(--map-bottom-inset);
+}
 .fire-map .maplibregl-ctrl-scale {
   border-color: #ffffff99;
   background: #0a0a0abf;
