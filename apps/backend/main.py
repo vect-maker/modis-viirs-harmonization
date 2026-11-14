@@ -1,12 +1,11 @@
 import os
 from contextlib import asynccontextmanager
-
 from fastapi import Depends, FastAPI
 from sqlmodel import Session
 
 from database.initDb import create_db_and_tables
 from database.session import get_session
-from enviromental.WeatherDataClient import router as weather_router
+from apps.backend.enviromental.WeatherDataClient import router as weather_router
 from repositories.HotspotRepository import HotspotRepository
 
 

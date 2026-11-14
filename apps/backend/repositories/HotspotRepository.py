@@ -10,3 +10,7 @@ class HotspotRepository:
         statement = select(Hotspots).offset(0).limit(50)
 
         return self.session.exec(statement).all()
+
+
+
+    
