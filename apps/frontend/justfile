@@ -1,0 +1,30 @@
+set dotenv-load
+set positional-arguments
+
+# List available frontend recipes
+default:
+    @just --list
+
+# Install npm dependencies
+install:
+    npm install
+
+# Run Vite development server
+dev:
+    npm run dev
+
+# Run full production build with type checking
+build:
+    npm run build
+
+# Run TypeScript type check
+typecheck:
+    npm run type-check
+
+# Run linters (oxlint and eslint)
+lint:
+    npm run lint
+
+# Format code with prettier
+format:
+    npm run format
