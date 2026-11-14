@@ -78,3 +78,48 @@ async def fetch_and_save_csv(
                 raise
 
     raise RuntimeError(f"Failed to fetch {url} after {max_retries} attempts.")
+
+
+async def fetch_csv_bytes(
+    client: httpx2.AsyncClient,
+    subpath: str,
+    max_retries: int = 3,
+) -> bytes:
+    url = f"{BASE_URL}/{subpath.lstrip('/')}"
+
+    for attempt in range(max_retries):
+        try:
+            resp = await client.get(url, timeout=30.0)
+            resp.raise_for_status()
+            content = resp.content
+
+            if b"Invalid MAP_KEY" in content:
+                msg = content[:200].decode("utf-8", errors="replace")
+                raise RuntimeError(f"FIRMS rejected request - invalid map key: {msg}")
+
+            if b"exceeded" in content.lower():
+                print(f"Quota exceeded when requesting {url}. Awaiting budget...")
+                await wait_for_budget(client)
+                continue
+
+            content_type = resp.headers.get("content-type", "")
+            if not content or (
+                "text/html" in content_type and b"<html" in content.lower()
+            ):
+                msg = content[:200].decode("utf-8", errors="replace")
+                raise RuntimeError(f"Unexpected HTML response from {url}: {msg}")
+
+            return content
+
+        except httpx2.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                print(f"HTTP 429 received from {url}. Awaiting budget...")
+                await wait_for_budget(client)
+                continue
+            if attempt == max_retries - 1:
+                raise
+        except Exception:
+            if attempt == max_retries - 1:
+                raise
+
+    raise RuntimeError(f"Failed to fetch {url} after {max_retries} attempts.")

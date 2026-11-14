@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from contextlib import contextmanager
 
 from core.config import DATABASE_URL, DB_PATH
 from sqlmodel import Session, SQLModel, create_engine
@@ -18,6 +19,7 @@ def init_db() -> None:
     SQLModel.metadata.create_all(engine)
 
 
+@contextmanager
 def get_session() -> Generator[Session, None, None]:
     """Yield a database session."""
     with Session(engine) as session:

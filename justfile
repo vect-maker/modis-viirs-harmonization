@@ -15,6 +15,15 @@ sync-meta:
 transform-meta:
     uv run pipeline/transform_meta.py
 
+# Reset database and re-populate metadata from scratch
+reset-db:
+    rm -f data/pipeline.db
+    uv run pipeline/transform_meta.py
+
+# Fetch archive files from NASA FIRMS and convert to Parquet
+fetch-data *args:
+    uv run pipeline/fetcher.py {{args}}
+
 # Auto-format and auto-fix pipeline code
 format:
     uv run ruff format pipeline

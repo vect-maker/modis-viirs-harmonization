@@ -20,6 +20,8 @@ class ArchiveFile(SQLModel, table=True):
 
     # Download tracking
     status: str = Field(default="pending", index=True)
+    local_filename: str | None = Field(default=None, index=True)
+    local_format: str = Field(default="parquet")
     local_path: str | None = None
     local_size: int | None = None
     download_attempts: int = Field(default=0)
