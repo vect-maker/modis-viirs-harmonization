@@ -1,11 +1,15 @@
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
+
+
+from model.ClusterStatus import ClusterStatus
+from model.EnvironmentalRecord import EnvironmentalRecord
 
 from sqlmodel import Field, SQLModel, create_engine, Relationship
 
-from model.ClusterHotspot import ClusterHotspot
-from model.ClusterStatus import ClusterStatus
-from model.EnvironmentalRecord import EnvironmentalRecord
+if TYPE_CHECKING:
+    from model.ClusterHotspot import ClusterHotspot
 
 class FireCluster(SQLModel, table = True):
 
@@ -25,7 +29,13 @@ class FireCluster(SQLModel, table = True):
 
     maxFrp: float= Field(default=None,nullable=True)
 
-    environmentalRecord: EnvironmentalRecord = Field(default=None,nullable=True)
+
+    environmentalRecords: list["EnvironmentalRecord"] = Relationship(
+        back_populates="fireCluster",
+        sa_relationship_kwargs={
+            "foreign_keys": "[EnvironmentalRecord.fireClusterId]"
+        }
+    )
 
     dirExpansion: float= Field(default=None,nullable=True)
 

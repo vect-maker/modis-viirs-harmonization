@@ -1,10 +1,10 @@
-from sqlmodel import Field, SQLModel, Relationship
-
-from model.FireCluster import FireCluster
-from model.Hotspot import Hotspot
-
+from typing import TYPE_CHECKING
 
 from sqlmodel import SQLModel, Field, Relationship
+
+if TYPE_CHECKING:
+    from model.FireCluster import FireCluster
+    from model.Hotspots import Hotspot
 
 class ClusterHotspot(SQLModel, table=True):
 

@@ -1,7 +1,12 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, Relationship
 
+from model import FireCluster
+
+if TYPE_CHECKING:
+    from model.FireCluster import FireCluster
 
 class EnvironmentalRecord(SQLModel, table=True):
 
@@ -25,3 +30,14 @@ class EnvironmentalRecord(SQLModel, table=True):
 
     nubosity: float= Field(default=None,nullable=True)
 
+    fireClusterId: int | None = Field(
+        default=None,
+        foreign_key="firecluster.id"
+    )
+
+    fireCluster: "FireCluster" = Relationship(
+        back_populates="environmentalRecords",
+        sa_relationship_kwargs={
+            "foreign_keys": "[EnvironmentalRecord.fireClusterId]"
+        }
+    )

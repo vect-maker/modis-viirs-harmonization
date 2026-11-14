@@ -1,8 +1,10 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlmodel import Field, SQLModel, Relationship
 
-from model.ClusterHotspot import ClusterHotspot
+if TYPE_CHECKING:
+    from model.ClusterHotspot import ClusterHotspot
 
 class Hotspot(SQLModel, table = True):
 
@@ -41,3 +43,4 @@ class Hotspot(SQLModel, table = True):
     clusters: list["ClusterHotspot"] = Relationship(
         back_populates="hotspot"
     )
+
