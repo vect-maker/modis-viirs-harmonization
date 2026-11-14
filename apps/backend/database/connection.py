@@ -1,15 +1,34 @@
 import os
-
+from pathlib import Path
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 
-server = os.getenv("DB_SERVER", "firms-db-nasa-apps.postgres.database.azure.com")
-database = os.getenv("DB_NAME", "postgres")
-username = os.getenv("DB_USER", "ocelot")
-password = os.getenv("DB_PASSWORD", "Minecraft5")
+# Cargar variables de entorno desde la raíz del proyecto si existe .env
+root_env = Path(__file__).resolve().parents[3] / ".env"
+if root_env.exists():
+    load_dotenv(root_env)
+else:
+    load_dotenv()
 
-connection_string = (
-    f"postgresql+psycopg://{username}:{password}"
-    f"@{server}:5432/{database}?sslmode=require"
-)
+database_url = os.getenv("DATABASE_URL")
+
+if database_url:
+    # Asegurar driver psycopg
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif database_url.startswith("postgresql://") and not database_url.startswith("postgresql+psycopg://"):
+        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    connection_string = database_url
+else:
+    server = os.getenv("DB_SERVER", "localhost")
+    port = os.getenv("DB_PORT", os.getenv("POSTGRES_PORT", "5433"))
+    database = os.getenv("DB_NAME", os.getenv("POSTGRES_DB", "firms"))
+    username = os.getenv("DB_USER", os.getenv("POSTGRES_USER", "postgres"))
+    password = os.getenv("DB_PASSWORD", os.getenv("POSTGRES_PASSWORD", "postgres"))
+    sslmode = os.getenv("DB_SSLMODE", "prefer")
+    connection_string = (
+        f"postgresql+psycopg://{username}:{password}"
+        f"@{server}:{port}/{database}?sslmode={sslmode}"
+    )
 
 engine = create_engine(connection_string)

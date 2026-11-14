@@ -7,7 +7,7 @@ LOAD postgres;
 LOAD spatial;
 
 .print 'Connecting to PostgreSQL/PostGIS database via DATABASE_URL...'
-ATTACH getenv('DATABASE_URL') AS pg (TYPE POSTGRES);
+-- pg is attached via -cmd in justfile using $DATABASE_URL
 
 .print 'Clearing existing data from tables...'
 TRUNCATE pg.fact_hotspots;

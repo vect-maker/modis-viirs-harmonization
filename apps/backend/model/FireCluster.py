@@ -8,6 +8,7 @@ from model.ClusterStatus import ClusterStatus
 if TYPE_CHECKING:
     from model.ClusterHotspot import ClusterHotspots
     from model.EnvironmentalRecord import EnvironmentalRecord
+    from model.FireClusterForecast import FireClusterForecast
 
 
 class FireCluster(SQLModel, table=True):
@@ -28,5 +29,9 @@ class FireCluster(SQLModel, table=True):
         },
     )
 
-    dirExpansion: float | None = Field(default=None, nullable=True)
-    veloExpansion: float | None = Field(default=None, nullable=True)
+    forecasts: list["FireClusterForecast"] = Relationship(
+        back_populates="fireCluster",
+        sa_relationship_kwargs={
+            "foreign_keys": "[FireClusterForecast.fireClusterId]"
+        },
+    )
