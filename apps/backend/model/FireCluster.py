@@ -23,9 +23,7 @@ class FireCluster(SQLModel, table=True):
 
     environmentalRecords: list["EnvironmentalRecord"] = Relationship(
         back_populates="fireCluster",
-        sa_relationship_kwargs={
-            "foreign_keys": "[EnvironmentalRecord.fireClusterId]"
-        },
+        sa_relationship_kwargs={"foreign_keys": "[EnvironmentalRecord.fireClusterId]"},
     )
 
     dirExpansion: float | None = Field(default=None, nullable=True)

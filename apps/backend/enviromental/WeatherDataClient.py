@@ -1,7 +1,7 @@
 import httpx
 from fastapi import APIRouter, HTTPException
 
-from enviromental.RequestWeather import RequestWeather
+from .RequestWeather import RequestWeather
 
 router = APIRouter(prefix="/weather", tags=["Weather"])
 

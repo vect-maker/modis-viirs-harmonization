@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from model import ClusterHotspots
+    from model.ClusterHotspot import ClusterHotspots
 
 
 class Hotspots(SQLModel, table=True):

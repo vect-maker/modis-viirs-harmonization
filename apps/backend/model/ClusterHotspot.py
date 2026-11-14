@@ -4,7 +4,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from model.FireCluster import FireCluster
-    from model import Hotspots
+    from model.Hotspots import Hotspots
 
 
 class ClusterHotspots(SQLModel, table=True):

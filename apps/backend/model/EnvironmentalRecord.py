@@ -26,7 +26,5 @@ class EnvironmentalRecord(SQLModel, table=True):
 
     fireCluster: "FireCluster" = Relationship(
         back_populates="environmentalRecords",
-        sa_relationship_kwargs={
-            "foreign_keys": "[EnvironmentalRecord.fireClusterId]"
-        },
+        sa_relationship_kwargs={"foreign_keys": "[EnvironmentalRecord.fireClusterId]"},
     )

@@ -3,4 +3,3 @@ def clasificar_mes(mes):
         return "Verano"
     elif mes in [5, 6, 7, 8, 9]:
         return "Invierno"
-
