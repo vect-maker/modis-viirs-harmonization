@@ -28,3 +28,11 @@ lint:
 # Format code with prettier
 format:
     npm run format
+
+# Build production static frontend container image
+build-prod:
+    podman build -t localhost/firms-frontend:prod -f prod.containerfile .
+
+# Build debug/dev frontend container image (expects source mounted at /app)
+build-debug:
+    podman build -t localhost/firms-frontend:debug -f debug.containerfile .

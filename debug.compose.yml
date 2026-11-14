@@ -1,0 +1,8 @@
+services:
+  frontend:
+    build:
+      context: apps/frontend
+      dockerfile: debug.containerfile
+    image: localhost/firms-frontend:debug
+    volumes:
+      - ./apps/frontend:/app:Z
