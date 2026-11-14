@@ -1,0 +1,3 @@
+# Ignore all pipeline output data and cache files
+*
+!.gitignore
