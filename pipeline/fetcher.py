@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import io
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import httpx2
 import pandas as pd
@@ -11,6 +12,16 @@ from core.utils import save_atomic_parquet
 from db import ArchiveFile, engine, init_db
 from sqlalchemy import func
 from sqlmodel import Session, col, select
+
+CSV_DTYPES: dict[str, str] = {
+    "acq_time": "str",
+    "version": "str",
+    "confidence": "str",
+    "satellite": "str",
+    "instrument": "str",
+    "daynight": "str",
+    "type": "Int64",
+}
 
 
 async def fetch_archive_files(
@@ -109,7 +120,7 @@ async def fetch_archive_files(
 
                 try:
                     content = await fetch_csv_bytes(client, record.remote_subpath)
-                    df = pd.read_csv(io.BytesIO(content))
+                    df = pd.read_csv(io.BytesIO(content), dtype=cast(Any, CSV_DTYPES))
                     save_atomic_parquet(df, dest_path)
 
                     db_record.status = "completed"
