@@ -1,0 +1,28 @@
+set dotenv-load
+set positional-arguments
+
+# List available backend recipes
+default:
+    @just --list
+
+# Create virtual environment with uv and install dependencies
+setup-env:
+    uv venv
+    uv pip install -r requirements.txt
+
+# Run FastAPI development server
+dev:
+    uv run fastapi dev main.py
+
+# Auto-format and auto-fix backend code
+format:
+    uv run ruff format .
+    uv run ruff check --fix .
+
+# Lint backend code with ruff
+lint:
+    uv run ruff check .
+
+# Type-check backend code with basedpyright
+typecheck:
+    uv run basedpyright

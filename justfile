@@ -7,6 +7,7 @@ default:
 
 # Register application submodules
 mod pipeline 'apps/pipeline/justfile'
+mod backend 'apps/backend/justfile'
 mod frontend 'apps/frontend/justfile'
 
 # Generate sample hotspot data for frontend from Parquet using DuckDB

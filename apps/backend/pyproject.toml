@@ -1,0 +1,25 @@
+[project]
+name = "firms-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]",
+    "httpx",
+    "sqlmodel",
+    "ruff",
+    "basedpyright",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["."]
+exclude = [".venv"]
+reportMissingTypeStubs = false
