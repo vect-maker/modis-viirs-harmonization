@@ -27,10 +27,19 @@ reset-db:
 fetch-data *args:
     uv run pipeline/fetcher.py {{args}}
 
+# Synchronize downloaded Parquet files on disk with pipeline tracking database
+sync-local-files:
+    uv run pipeline/sync_local_files.py
+
 # Fuse raw archive Parquet files into a unified Silver dataset
 fuse-data:
     mkdir -p data/processed data/temp/duckdb
     duckdb -dark-mode -f sql/fuse_datasets.sql
+
+# Normalize Silver dataset into Star Schema Gold Parquet datasets with deterministic UUIDv5 keys
+normalize-data:
+    mkdir -p data/processed/star data/temp/duckdb
+    duckdb -dark-mode -f sql/normalize_star_schema.sql
 
 # Run spatial harmonization feasibility benchmark
 benchmark-spatial:
