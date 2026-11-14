@@ -17,6 +17,46 @@ services:
       timeout: 5s
       retries: 5
 
+  frontend:
+    build:
+      context: apps/frontend
+      dockerfile: prod.containerfile
+    image: localhost/firms-frontend:prod
+    container_name: firms-frontend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: apps/backend
+      dockerfile: prod.containerfile
+    image: localhost/firms-backend:prod
+    container_name: firms-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@db:5432/firms}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  caddy:
+    image: docker.io/library/caddy:2.9-alpine
+    container_name: firms-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
 volumes:
   pgdata:
     name: firms_pgdata
+  caddy_data:
+    name: firms_caddy_data
+  caddy_config:
+    name: firms_caddy_config

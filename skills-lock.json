@@ -37,6 +37,12 @@
       "skillPath": "skills/cypress-tap/SKILL.md",
       "computedHash": "4e36fe8bd60bdbffb86e186da45478ba1cd757801c81dcf9e6ecefb50c5f632d"
     },
+    "typst": {
+      "source": "lucifer1004/claude-skill-typst",
+      "sourceType": "github",
+      "skillPath": "skills/typst/SKILL.md",
+      "computedHash": "a755485877daadb6a4bbfa4c19522edd14c76de568e5caf5575dbc92bb43a285"
+    },
     "vue-best-practices": {
       "source": "vuejs-ai/skills",
       "sourceType": "github",
@@ -78,6 +84,12 @@
       "sourceType": "github",
       "skillPath": "skills/vue-testing-best-practices/SKILL.md",
       "computedHash": "f4dc766acbf3883e5840669dbc347d519b084f559db6704ea6257b8e2443cdec"
+    },
+    "vueuse-functions": {
+      "source": "vueuse/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vueuse-functions/SKILL.md",
+      "computedHash": "898b0286e6c5eefab0d5cf010925d3911b2e127ea776adbf17027e2eca059888"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

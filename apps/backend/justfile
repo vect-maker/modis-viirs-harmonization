@@ -26,3 +26,11 @@ lint:
 # Type-check backend code with basedpyright
 typecheck:
     uv run basedpyright
+
+# Build production backend container image
+build-prod:
+    podman build -t localhost/firms-backend:prod -f prod.containerfile .
+
+# Build debug/dev backend container image (expects source mounted at /app)
+build-debug:
+    podman build -t localhost/firms-backend:debug -f debug.containerfile .

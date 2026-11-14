@@ -1,0 +1,30 @@
+{
+	auto_https disable_redirects
+}
+
+(proxy_rules) {
+	handle /health {
+		respond "OK" 200
+	}
+
+	handle /api {
+		redir /api/ 308
+	}
+
+	handle_path /api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle {
+		reverse_proxy frontend:8080
+	}
+}
+
+http://localhost, http://127.0.0.1, http:// {
+	import proxy_rules
+}
+
+https://localhost, https://127.0.0.1, https:// {
+	tls internal
+	import proxy_rules
+}

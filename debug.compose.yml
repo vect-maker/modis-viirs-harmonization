@@ -1,0 +1,30 @@
+services:
+  frontend:
+    build:
+      context: apps/frontend
+      dockerfile: debug.containerfile
+    image: localhost/firms-frontend:debug
+    volumes:
+      - ./apps/frontend:/app:Z
+
+  backend:
+    build:
+      context: apps/backend
+      dockerfile: debug.containerfile
+    image: localhost/firms-backend:debug
+    volumes:
+      - ./apps/backend:/app:Z
+      - backend_venv:/opt/venv
+
+  caddy:
+    ports: !override
+      - "8080:80"
+      - "8443:443"
+    volumes: !override
+      - ./debug.Caddyfile:/etc/caddy/Caddyfile:ro,Z
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  backend_venv:
+    name: firms_backend_venv
