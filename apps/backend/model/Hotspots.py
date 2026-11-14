@@ -1,46 +1,28 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from model.ClusterHotspot import ClusterHotspot
+    from model import ClusterHotspots
 
-class Hotspot(SQLModel, table = True):
 
-    id: int = Field(default=None,primary_key=True)
+class Hotspots(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    latitude: float | None = Field(default=None)
+    longitude: float | None = Field(default=None)
+    bright_mir: float | None = Field(default=None)
+    scan: float | None = Field(default=None)
+    track: float | None = Field(default=None)
+    acq_datetime: datetime | None = Field(default=None, index=True)
+    satellite: str | None = Field(default=None)
+    instrument: str | None = Field(default=None)
+    confidence: str | None = Field(default=None)
+    confidence_class: str | None = Field(default=None)
+    version: str | None = Field(default=None)
+    bright_tir: float | None = Field(default=None)
+    frp: float | None = Field(default=None)
+    daynight: str | None = Field(default=None)
+    type: int | None = Field(default=None)
 
-    latitude: float = Field(default=None)
-
-    longitude: float = Field(default=None)
-
-    bright_mir: float = Field(default=None)
-
-    scan: float = Field(default=None)
-
-    track: float = Field(default=None)
-
-    acq_datetime: datetime = Field(default=None, index=True)
-
-    satellite: str = Field(default=None)
-
-    instrument: str = Field(default=None)
-
-    confidence: int = Field(ge=0, le=100, default=None)
-
-    confidence_class: str = Field(default=None)
-
-    version: str = Field(default=None)
-
-    bright_tir: float = Field(default=None)
-
-    frp: float = Field(default=None)
-
-    daynight: bool= Field(default=None)
-
-    type: bool = Field(default=None)
-
-    clusters: list["ClusterHotspot"] = Relationship(
-        back_populates="hotspot"
-    )
-
+    clusters: list["ClusterHotspots"] = Relationship(back_populates="hotspots")

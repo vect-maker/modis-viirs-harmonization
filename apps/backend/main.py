@@ -1,12 +1,20 @@
 import os
+from contextlib import asynccontextmanager
 
-import httpx
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from sqlmodel import Session
 
+from database.initDb import create_db_and_tables
 from database.session import get_session
-from enviromental.RequestWeather import RequestWeather
+from enviromental.WeatherDataClient import router as weather_router
 from repositories.HotspotRepository import HotspotRepository
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await create_db_and_tables()
+    yield
+
 
 app = FastAPI(
     title="Fire Detection API",
@@ -15,35 +23,18 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     root_path=os.getenv("ROOT_PATH", ""),
+    lifespan=lifespan,
 )
+
+app.include_router(weather_router)
+
 
 @app.get("/")
 async def root():
     return {"message": "Servidor funcionando"}
 
-@app.post("/weather/")
-async def getweatherparams(data: RequestWeather, tags=["Weather"]):
-    params = {
-        "latitude": data.latitude,
-        "longitude": data.longitude,
-        "start": data.start.strftime("%Y%m%d"),
-        "end": data.end.strftime("%Y%m%d"),
-        "parameters": data.parameters,
-        "community": data.community,
-        "format": "JSON"
-    }
 
-    url = "https://power.larc.nasa.gov/api/temporal/daily/point"
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, params=params)
-
-    return response.json()
-
-@app.get("/hotspots")
-async def get_hotspots(
-    session: Session = Depends(get_session)
-):
+@app.get("/hotspots", tags=["Hotspots"])
+async def get_hotspots(session: Session = Depends(get_session)):
     repository = HotspotRepository(session)
-
     return repository.get_hotspots()
