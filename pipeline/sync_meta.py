@@ -1,8 +1,8 @@
 import asyncio
 
 import httpx2
-from api import check_budget, fetch_and_save_csv
-from config import (
+from core.api import check_budget, fetch_and_save_csv
+from core.config import (
     COUNTRY_SUMMARY_INDEX_PATH,
     FIRMS_MAP_KEY,
     RAW_META_DIR,

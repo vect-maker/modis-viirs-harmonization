@@ -2,8 +2,9 @@ import asyncio
 from pathlib import Path
 
 import httpx2
-from config import BASE_URL, FIRMS_MAP_KEY, MAPKEY_STATUS_URL
-from utils import save_atomic_text
+
+from core.config import BASE_URL, FIRMS_MAP_KEY, MAPKEY_STATUS_URL
+from core.utils import save_atomic_text
 
 
 async def check_budget(client: httpx2.AsyncClient) -> dict:

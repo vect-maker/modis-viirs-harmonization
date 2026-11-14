@@ -8,5 +8,9 @@ setup-env:
     uv pip install -r requirements.txt
 
 # Refresh metadata
-run-sync-meta:
+sync-meta:
     uv run pipeline/sync_meta.py
+
+# Transform metdata
+transform-meta:
+    uv run pipeline/transform_meta.py

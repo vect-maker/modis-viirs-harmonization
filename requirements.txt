@@ -1,3 +1,4 @@
 dotenv
 httpx2[http2]
 pandas[parquet,feather,performance]
+sqlmodel
