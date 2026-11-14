@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Pentagon, LocateFixed, Trash2 } from '@lucide/vue'
+import { Pentagon, LocateFixed, Trash2, Globe2 } from '@lucide/vue'
 
 defineProps<{ hasArea: boolean }>()
-const emit = defineEmits<{ draw: []; recenter: []; clear: [] }>()
+const emit = defineEmits<{ draw: []; recenter: []; clear: []; globe: [] }>()
 </script>
 
 <template>
@@ -25,7 +25,17 @@ const emit = defineEmits<{ draw: []; recenter: []; clear: [] }>()
       @click="emit('recenter')"
     >
       <LocateFixed aria-hidden="true" class="h-4 w-4" />
-      <span class="hidden xl:inline">Center Map</span>
+      <span class="hidden xl:inline">Nicaragua</span>
+    </button>
+    <button
+      type="button"
+      class="dock-action"
+      aria-label="Show the satellite globe"
+      title="View globe"
+      @click="emit('globe')"
+    >
+      <Globe2 aria-hidden="true" class="h-4 w-4" />
+      <span class="hidden xl:inline">Globe</span>
     </button>
     <button
       type="button"
