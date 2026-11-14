@@ -1,0 +1,15 @@
+# List available recipes
+default:
+    @just --list
+
+# Compile the Typst report to PDF
+build:
+    typst compile main.typ report.pdf
+
+# Watch and recompile on changes
+watch:
+    typst watch main.typ report.pdf
+
+# Remove generated PDF output
+clean:
+    rm -f report.pdf
