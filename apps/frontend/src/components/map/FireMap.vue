@@ -175,6 +175,7 @@ onMounted(() => {
     center: props.initialCenter,
     zoom: props.initialZoom,
     maxPitch: 60,
+    attributionControl: false,
   })
 
   // Add standard navigation controls (zoom, compass)
