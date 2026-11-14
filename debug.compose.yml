@@ -4,6 +4,8 @@ services:
       context: apps/frontend
       dockerfile: debug.containerfile
     image: localhost/firms-frontend:debug
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
     volumes:
       - ./apps/frontend:/app:Z
 

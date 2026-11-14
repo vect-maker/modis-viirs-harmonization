@@ -31,10 +31,10 @@ fetch-data *args:
 sync-local-files:
     uv run pipeline/sync_local_files.py
 
-# Fuse raw archive Parquet files into a unified Silver dataset
-fuse-data:
+# Fuse raw archive Parquet files into a unified Silver dataset (scope: central_america | all)
+fuse-data scope="central_america":
     mkdir -p data/processed data/temp/duckdb
-    duckdb -dark-mode -f sql/fuse_datasets.sql
+    duckdb -dark-mode -c "SET VARIABLE fuse_scope = '{{scope}}';" -c ".read sql/fuse_datasets.sql"
 
 # Apply universal spatio-temporal MODIS-VIIRS harmonization to Silver dataset
 harmonize-data:

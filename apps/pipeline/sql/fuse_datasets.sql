@@ -9,10 +9,23 @@ SET enable_progress_bar = true;
 SET progress_bar_time = 500;
 
 -- Pre-materialize completed files to avoid repeated SQLite table scans during parallel reading
+-- Scope defaults to 'central_america' for fast local development; set fuse_scope = 'all' for global runs
 CREATE OR REPLACE TEMP TABLE completed_files AS
 SELECT local_path, country
 FROM sqlite_scan('data/pipeline.db', 'archive_files')
-WHERE status = 'completed';
+WHERE status = 'completed'
+  AND (
+      coalesce(getvariable('fuse_scope'), 'central_america') = 'all'
+      OR country IN (
+          'Belize',
+          'Costa_Rica',
+          'El_Salvador',
+          'Guatemala',
+          'Honduras',
+          'Nicaragua',
+          'Panama'
+      )
+  );
 
 -- Consolidate MODIS and VIIRS archive datasets into a unified Silver dataset
 COPY (
