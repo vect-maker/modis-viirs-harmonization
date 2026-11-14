@@ -5,8 +5,13 @@ set positional-arguments
 default:
     @just --list
 
-# Register pipeline application submodule
+# Register application submodules
 mod pipeline 'apps/pipeline/justfile'
+mod frontend 'apps/frontend/justfile'
+
+# Generate sample hotspot data for frontend from Parquet using DuckDB
+sample-data *args:
+    just pipeline export-sample {{args}}
 
 # Start PostgreSQL + PostGIS via Podman Compose
 db-up:

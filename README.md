@@ -65,3 +65,29 @@ cd apps/pipeline
 just sync-meta
 just fuse-data
 ```
+
+### 5. Frontend & Sample Data Workflow
+
+In the current setup without an active backend API, the frontend loads sample active fire hotspots exported directly from the local DuckDB pipeline parquet files.
+
+```bash
+# 1. Export sample dataset (5000 hotspots from Nicaragua 2024 active season)
+just sample-data
+
+# 2. Run frontend development server
+just frontend dev
+
+# 3. Build & Typecheck
+just frontend build
+```
+
+## Frontend Architecture
+
+- **Framework**: Vue 3 (Composition API with `<script setup lang="ts">`)
+- **Map & Spatial Engine**: MapLibre GL JS + `@mapbox/mapbox-gl-draw` + `@turf/turf`
+- **Satellite Layers**: NASA GIBS (MODIS Terra & VIIRS SNPP True Color) + Esri World Imagery (High-Res)
+- **State**: Pinia
+- **Routing**: Vue Router
+- **Styling**: Tailwind CSS v4
+- **Primitives**: Reka UI
+- **Composables**: VueUse
