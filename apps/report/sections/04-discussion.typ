@@ -16,7 +16,7 @@ Our point-grain-preserving harmonization design (@eq:weight) bridges this transi
 
 == Current Limitations and Future Work
 
-+ *Backend API Completion:* `apps/backend` is currently a scaffold (FastAPI + SQLModel + Psycopg 3) and is not yet wired to serve live PostGIS queries; the frontend currently consumes static DuckDB exports (`sample_hotspots.json`, `historical_monthly.json`).
++ *Meteorological & Training Scope:* `WeatherDataClient` currently relies on NASA POWER daily aggregates (`T2M`, `RH2M`, `WS10M`, `WD10M`, `PRECTOTCORR`) rather than sub-daily reanalysis, and `FirePredictor` trains `RandomForestRegressor` on-demand in memory rather than serving versioned pre-trained model artifacts. Additionally, centroid-based velocity represents apparent detection-cluster drift rather than physical flame-front spread rate.
 + *Empirical Calibration Scope:* The default `2.25` MODIS-to-VIIRS multiplicity fallback in `sql/test_spatial_harmonization.sql` requires cross-biome empirical calibration across diverse fire regimes beyond the Chilecito ROI.
 + *Observation Coverage Verification:* Cloud cover and orbital swath gaps are not yet modeled (`coverageVerified: false`), meaning zero-detection calendar cells cannot yet distinguish absence of fire from absence of clear-sky observation.
 + *Near-Real-Time (NRT) Ingestion:* Automated scheduled fetching of daily FIRMS NRT feeds into PostGIS is planned as future work.
