@@ -1,14 +1,21 @@
-import httpx
-from fastapi import FastAPI
+import os
 
+import httpx
+from fastapi import FastAPI, Depends
+from sqlmodel import Session
+
+from database.session import get_session
 from enviromental.RequestWeather import RequestWeather
+from repositories.HotspotRepository import HotspotRepository
 
 app = FastAPI(
     title="Fire Detection API",
     description="API para detección y monitoreo de incendios",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc")
+    redoc_url="/redoc",
+    root_path=os.getenv("ROOT_PATH", ""),
+)
 
 @app.get("/")
 async def root():
@@ -32,3 +39,11 @@ async def getweatherparams(data: RequestWeather, tags=["Weather"]):
         response = await client.get(url, params=params)
 
     return response.json()
+
+@app.get("/hotspots")
+async def get_hotspots(
+    session: Session = Depends(get_session)
+):
+    repository = HotspotRepository(session)
+
+    return repository.get_hotspots()
