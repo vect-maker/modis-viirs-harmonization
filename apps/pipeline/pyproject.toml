@@ -5,7 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "dotenv",
     "httpx2[http2]",
-    "pandas[parquet,feather,performance]",
+    "pandas[parquet,feather]",
     "sqlmodel",
     "ruff",
     "basedpyright",
