@@ -1,8 +1,11 @@
--- Enable PostGIS extension if not already enabled
-CREATE EXTENSION IF NOT EXISTS postgis;
+-- Schema definition for FIRMS active fire hotspots.
+-- Executed directly against the target database (firms) via DATABASE_URL.
+
+-- Drop existing hotspots table and associated objects in default schema
+DROP TABLE IF EXISTS hotspots CASCADE;
 
 -- Hotspots table with native PostGIS Point geometry (WGS 84 / SRID 4326)
-CREATE TABLE IF NOT EXISTS hotspots (
+CREATE TABLE hotspots (
     id BIGINT PRIMARY KEY,
     country VARCHAR(100) NOT NULL,
     latitude DOUBLE PRECISION NOT NULL,
@@ -24,8 +27,8 @@ CREATE TABLE IF NOT EXISTS hotspots (
 );
 
 -- Spatial and relational performance indexes
-CREATE INDEX IF NOT EXISTS idx_hotspots_geom ON hotspots USING GIST (geom);
-CREATE INDEX IF NOT EXISTS idx_hotspots_acq_datetime ON hotspots (acq_datetime);
-CREATE INDEX IF NOT EXISTS idx_hotspots_country ON hotspots (country);
-CREATE INDEX IF NOT EXISTS idx_hotspots_instrument ON hotspots (instrument);
-CREATE INDEX IF NOT EXISTS idx_hotspots_country_dt ON hotspots (country, acq_datetime);
+CREATE INDEX idx_hotspots_geom ON hotspots USING GIST (geom);
+CREATE INDEX idx_hotspots_acq_datetime ON hotspots (acq_datetime);
+CREATE INDEX idx_hotspots_country ON hotspots (country);
+CREATE INDEX idx_hotspots_instrument ON hotspots (instrument);
+CREATE INDEX idx_hotspots_country_dt ON hotspots (country, acq_datetime);

@@ -1,4 +1,5 @@
 set dotenv-load
+set positional-arguments
 
 # List available recipes
 default:
@@ -48,12 +49,18 @@ db-logs:
     podman compose logs -f db
 
 # Open psql shell using DATABASE_URL (local or remote Azure DB)
-db-psql *cmd:
-    psql "$DATABASE_URL" {{cmd}}
+db-psql *args:
+    psql "$DATABASE_URL" "$@"
 
-# Apply PostGIS schema to PostgreSQL database using DATABASE_URL
+# Ensure named 'firms' database and extensions exist on server
+db-setup:
+    @MAINT_URL=$(echo "$DATABASE_URL" | sed -E 's|/[^/?]+(\?.*)?$|/postgres\1|'); \
+    echo "Ensuring 'firms' database and extensions are provisioned..."; \
+    psql "$MAINT_URL" -f sql/setup.sql
+
+# Apply schema to named database using DATABASE_URL
 db-schema:
-    psql "$DATABASE_URL" -f sql/schema_postgis.sql
+    psql "$DATABASE_URL" -f sql/schema.sql
 
 # Ingest Nicaragua dev dataset from Parquet into PostGIS via DuckDB
 db-load-nicaragua:
