@@ -5,11 +5,15 @@ from uuid import UUID
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from model import ClusterHotspots
+    try:
+        from .ClusterHotspot import ClusterHotspots
+    except ImportError:
+        from model.ClusterHotspot import ClusterHotspots
 
 
 class Hotspots(SQLModel, table=True):
     id: UUID | None = Field(default=None, primary_key=True)
+    country: str | None = Field(default=None)
     latitude: float | None = Field(default=None)
     longitude: float | None = Field(default=None)
     bright_mir: float | None = Field(default=None)

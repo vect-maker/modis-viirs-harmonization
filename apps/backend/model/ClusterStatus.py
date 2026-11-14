@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class ClusterStatus(str, Enum):
+class ClusterStatus(StrEnum):
     ACTIVO = "Activo"
     AISLADO = "Aislado"
     FINALIZADO = "Finalizado"

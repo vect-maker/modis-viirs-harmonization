@@ -1,4 +1,3 @@
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -14,6 +13,7 @@ from api.fire_cluster_forecast import router as fire_cluster_forecast_router
 from api.hotspots import router as hotspots_router
 from api.platforms import router as platforms_router
 from api.weather import router as weather_router
+from controller.hostpostController import router as hostpot_router
 from database.initDb import create_db_and_tables
 
 
@@ -25,11 +25,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Fire Detection API",
-    description="API para detección y monitoreo de incendios",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    root_path=os.getenv("ROOT_PATH", ""),
+    description="API para monitoreo y consulta de hotspots de incendios",
     lifespan=lifespan,
 )
 
@@ -44,6 +40,7 @@ app.include_router(fact_hotspots_router)
 app.include_router(fire_cluster_forecast_router)
 app.include_router(fire_analysis_router)
 app.include_router(dashboard_router)
+app.include_router(hostpot_router)
 
 
 @app.get("/")
