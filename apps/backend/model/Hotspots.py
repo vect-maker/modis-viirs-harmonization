@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -8,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class Hotspots(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
+    id: UUID | None = Field(default=None, primary_key=True)
     latitude: float | None = Field(default=None)
     longitude: float | None = Field(default=None)
     bright_mir: float | None = Field(default=None)

@@ -5,6 +5,9 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]",
     "httpx",
+    "numpy",
+    "pytest",
+    "scikit-learn",
     "sqlmodel",
     "ruff",
     "basedpyright",

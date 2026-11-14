@@ -6,8 +6,8 @@
 # Virtual environments
 .venv/
 venv/
-ENV/
-env/
+.env/
+.env/
 
 # Python artifacts
 __pycache__/

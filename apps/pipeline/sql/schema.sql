@@ -1,9 +1,13 @@
--- Schema definition for FIRMS active fire hotspots (Star Schema).
+-- Schema definition for FIRMS active fire hotspots (Star Schema) & Clustering/Environmental models.
 -- Executed directly against the target database (firms) via DATABASE_URL.
 
--- Drop existing views and tables if rebuilding schema
+-- Drop existing views, tables, and types if rebuilding schema
 DROP VIEW IF EXISTS hotspots CASCADE;
 DROP TABLE IF EXISTS hotspots CASCADE;
+DROP TABLE IF EXISTS clusterhotspots CASCADE;
+DROP TABLE IF EXISTS environmentalrecord CASCADE;
+DROP TABLE IF EXISTS firecluster CASCADE;
+DROP TYPE IF EXISTS clusterstatus CASCADE;
 DROP TABLE IF EXISTS fact_hotspots CASCADE;
 DROP TABLE IF EXISTS dim_platform CASCADE;
 DROP TABLE IF EXISTS dim_country CASCADE;
@@ -85,3 +89,44 @@ SELECT
 FROM fact_hotspots f
 JOIN dim_country c ON f.country_id = c.id
 JOIN dim_platform p ON f.platform_id = p.id;
+
+-- ============================================================================
+-- 5. Fire Clusters & Environmental Records (Backend / Analytics Models)
+-- ============================================================================
+CREATE TYPE clusterstatus AS ENUM ('ACTIVO', 'AISLADO', 'FINALIZADO');
+
+CREATE TABLE firecluster (
+    id SERIAL PRIMARY KEY,
+    polygon DOUBLE PRECISION NOT NULL,
+    status clusterstatus NOT NULL DEFAULT 'ACTIVO',
+    "datetimeStart" TIMESTAMP WITH TIME ZONE,
+    "datetimeEnd" TIMESTAMP WITH TIME ZONE,
+    "maxFrp" DOUBLE PRECISION
+);
+
+CREATE INDEX idx_firecluster_status ON firecluster (status);
+CREATE INDEX idx_firecluster_datetime ON firecluster ("datetimeStart", "datetimeEnd");
+
+CREATE TABLE clusterhotspots (
+    "clusterId" INTEGER NOT NULL REFERENCES firecluster (id) ON DELETE CASCADE,
+    "hotspotsId" INTEGER NOT NULL,
+    PRIMARY KEY ("clusterId", "hotspotsId")
+);
+
+CREATE INDEX idx_clusterhotspots_hotspot ON clusterhotspots ("hotspotsId");
+
+CREATE TABLE environmentalrecord (
+    id SERIAL PRIMARY KEY,
+    "datetimeStart" TIMESTAMP WITH TIME ZONE,
+    humidity DOUBLE PRECISION,
+    precipitation DOUBLE PRECISION,
+    temperature DOUBLE PRECISION,
+    "windSpeed" DOUBLE PRECISION,
+    "windDirection" DOUBLE PRECISION,
+    "vegetationType" DOUBLE PRECISION,
+    "densityVegetation" DOUBLE PRECISION,
+    nubosity DOUBLE PRECISION,
+    "fireClusterId" INTEGER REFERENCES firecluster (id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_environmentalrecord_cluster ON environmentalrecord ("fireClusterId");
