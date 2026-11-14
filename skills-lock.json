@@ -37,6 +37,12 @@
       "skillPath": "skills/cypress-tap/SKILL.md",
       "computedHash": "4e36fe8bd60bdbffb86e186da45478ba1cd757801c81dcf9e6ecefb50c5f632d"
     },
+    "marketing-council": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/marketing-council/SKILL.md",
+      "computedHash": "55a4da1a4d3b0c7c3686d63af8b57ac3f7306e1ac306ca1a274b9bc6c74126b0"
+    },
     "typst": {
       "source": "lucifer1004/claude-skill-typst",
       "sourceType": "github",
