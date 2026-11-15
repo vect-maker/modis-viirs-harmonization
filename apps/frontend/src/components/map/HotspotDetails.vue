@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { onKeyStroke } from '@vueuse/core'
 import { X, MapPin, Satellite } from '@lucide/vue'
-import type { FireHotspot } from '@/types/hotspot'
+import type { CountryResponse, HotspotResponse, PlatformResponse } from '@/api'
 
-defineProps<{ hotspot: FireHotspot }>()
+defineProps<{
+  hotspot: HotspotResponse
+  platform?: PlatformResponse
+  country?: CountryResponse
+}>()
 const emit = defineEmits<{ close: [] }>()
 
 onKeyStroke('Escape', () => emit('close'))
@@ -27,25 +31,25 @@ onKeyStroke('Escape', () => emit('close'))
         <X aria-hidden="true" class="h-4 w-4" />
       </button>
     </div>
-    <p class="mb-3 text-xs text-ink-muted">{{ hotspot.acq_datetime }} UTC</p>
+    <p class="mb-3 text-xs text-ink-muted">{{ hotspot.acq_datetime.replace('T', ' ') }} UTC</p>
     <dl class="mb-3 grid grid-cols-2 gap-3 border-b border-border-subtle pb-3">
       <div>
         <dt class="mb-1 text-xs text-ink-muted">Radiative Power</dt>
-        <dd class="font-mono text-sm">{{ hotspot.frp }} MW</dd>
+        <dd class="font-mono text-sm">{{ hotspot.frp ?? '—' }} MW</dd>
       </div>
       <div>
         <dt class="mb-1 text-xs text-ink-muted">Brightness</dt>
-        <dd class="font-mono text-sm">{{ hotspot.bright_mir }} K</dd>
+        <dd class="font-mono text-sm">{{ hotspot.bright_mir ?? '—' }} K</dd>
       </div>
     </dl>
     <p class="mb-2 flex items-center gap-2 text-xs text-ink-muted">
       <MapPin aria-hidden="true" class="h-3.5 w-3.5" /><span class="font-mono"
         >{{ hotspot.latitude.toFixed(4) }}, {{ hotspot.longitude.toFixed(4) }}</span
-      >
+      ><span v-if="country" class="text-ink-secondary">· {{ country.name }}</span>
     </p>
     <p class="flex items-center gap-2 text-xs text-neutral-400">
-      <Satellite aria-hidden="true" class="h-3.5 w-3.5" />{{ hotspot.instrument }} ·
-      {{ hotspot.satellite }}
+      <Satellite aria-hidden="true" class="h-3.5 w-3.5" />{{ platform?.instrument ?? 'Unknown' }} ·
+      {{ platform?.satellite ?? 'Unknown' }}
     </p>
   </section>
 </template>

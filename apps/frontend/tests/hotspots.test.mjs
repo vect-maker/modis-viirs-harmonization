@@ -7,17 +7,32 @@ import { renderToString } from 'vue/server-renderer'
 import { aggregateDailyActivity } from '../src/utils/hotspotActivity.ts'
 import { hotspotsToCsv, hotspotCsvFilename } from '../src/utils/hotspotCsv.ts'
 
-const detection = (date, instrument = 'MODIS', satellite = 'Aqua') => ({
+const MODIS_PLATFORM_ID = '11111111-1111-4111-8111-111111111111'
+const VIIRS_PLATFORM_ID = '22222222-2222-4222-8222-222222222222'
+const COUNTRY_ID = '33333333-3333-4333-8333-333333333333'
+
+const defaultPlatforms = new Map([
+  [MODIS_PLATFORM_ID, { id: MODIS_PLATFORM_ID, satellite: 'Aqua', instrument: 'MODIS' }],
+  [VIIRS_PLATFORM_ID, { id: VIIRS_PLATFORM_ID, satellite: 'Suomi-NPP', instrument: 'VIIRS' }],
+])
+
+const detection = (date, instrument = 'MODIS') => ({
+  id: '44444444-4444-4444-8444-444444444444',
+  country_id: COUNTRY_ID,
+  platform_id: instrument === 'VIIRS' ? VIIRS_PLATFORM_ID : MODIS_PLATFORM_ID,
   latitude: 12.5,
   longitude: -85.5,
   acq_datetime: date,
-  instrument,
-  satellite,
-  confidence_class: 'n',
-  confidence: 50,
-  frp: 10,
   bright_mir: 300,
+  bright_tir: 280,
+  scan: 1.0,
+  track: 1.0,
+  confidence: 50,
+  confidence_class: 'n',
+  frp: 10,
   daynight: 'D',
+  type: 0,
+  version: '6.1',
 })
 let server
 let useHotspotsStore
@@ -53,10 +68,11 @@ test('UTC daily aggregation includes leap day, orders buckets and retains days w
 
 test('selecting a day changes map results but preserves timeline context', () => {
   const store = createStore()
+  store.platformsById = defaultPlatforms
   store.hotspots = [
     detection('2024-05-23 23:59:59'),
     detection('2024-05-24 00:00:00'),
-    detection('2024-05-24 23:59:59', 'VIIRS', 'Suomi-NPP'),
+    detection('2024-05-24 23:59:59', 'VIIRS'),
     detection('2024-05-25 00:00:00'),
   ]
   store.setDateRange({ start: '2024-05-24', end: '2024-05-24' })
@@ -111,6 +127,7 @@ test('date ranges include both complete UTC boundary days and reject invalid ran
 
 test('CSV exports only the filtered records, with a UTC heading and CRLF rows', () => {
   const store = createStore()
+  store.platformsById = defaultPlatforms
   store.hotspots = [
     detection('2024-05-23 10:00:00'),
     detection('2024-05-24 23:59:59'),
@@ -118,7 +135,7 @@ test('CSV exports only the filtered records, with a UTC heading and CRLF rows', 
   ]
   store.setSensor('MODIS')
   store.setDateRange({ start: '2024-05-24', end: '2024-05-24' })
-  const csv = hotspotsToCsv(store.filteredHotspots)
+  const csv = hotspotsToCsv(store.filteredHotspots, store.platformsById, store.countriesById)
   const lines = csv.trimEnd().split('\r\n')
   assert.equal(lines.length - 1, store.stats.total)
   assert(lines[0].includes('acq_datetime_utc'))
@@ -129,9 +146,10 @@ test('CSV exports only the filtered records, with a UTC heading and CRLF rows', 
 })
 
 test('CSV correctly escapes commas, quotes and embedded newlines', () => {
-  const csv = hotspotsToCsv([
-    detection('2024-05-24 12:00:00', 'MODIS', 'Aqua, "test"\nsecond line'),
+  const platforms = new Map([
+    [MODIS_PLATFORM_ID, { id: MODIS_PLATFORM_ID, satellite: 'Aqua, "test"\nsecond line', instrument: 'MODIS' }],
   ])
+  const csv = hotspotsToCsv([detection('2024-05-24 12:00:00', 'MODIS')], platforms)
   assert(csv.includes('"Aqua, ""test""\nsecond line"'))
   assert.equal(hotspotsToCsv([]).trim().split('\n').length, 1)
 })
@@ -235,7 +253,7 @@ test('space backdrop is decorative and exposes no keyboard interaction', async (
   assert(!html.includes('tabindex'))
 })
 
-test('fetchHotspots loads hotspots and resolves platform metadata from the API', async () => {
+test('fetchHotspots loads hotspots, platforms, and countries directly from the API', async () => {
   const previousFetch = globalThis.fetch
   const platformId = '11111111-1111-4111-8111-111111111111'
   const countryId = '22222222-2222-4222-8222-222222222222'
@@ -247,6 +265,17 @@ test('fetchHotspots loads hotspots and resolves platform metadata from the API',
       return new Response(
         JSON.stringify({
           data: [{ id: platformId, satellite: 'NOAA-20', instrument: 'VIIRS' }],
+          total: 1,
+          limit: 100,
+          offset: 0,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    if (href.includes('/countries')) {
+      return new Response(
+        JSON.stringify({
+          data: [{ id: countryId, name: 'Nicaragua' }],
           total: 1,
           limit: 100,
           offset: 0,
@@ -289,18 +318,28 @@ test('fetchHotspots loads hotspots and resolves platform metadata from the API',
     assert.equal(store.error, null)
     assert.deepEqual(store.hotspots, [
       {
+        id: hotspotId,
+        country_id: countryId,
+        platform_id: platformId,
         latitude: 12.5,
         longitude: -85.5,
-        acq_datetime: '2024-05-31 18:44:00',
-        instrument: 'VIIRS',
-        satellite: 'NOAA-20',
-        confidence_class: '',
-        confidence: 0,
+        acq_datetime: '2024-05-31T18:44:00',
+        bright_mir: null,
+        confidence: null,
+        confidence_class: null,
         frp: 4.5,
-        bright_mir: 0,
         daynight: 'N',
       },
     ])
+    assert.deepEqual(store.getPlatform(platformId), {
+      id: platformId,
+      satellite: 'NOAA-20',
+      instrument: 'VIIRS',
+    })
+    assert.deepEqual(store.getCountry(countryId), {
+      id: countryId,
+      name: 'Nicaragua',
+    })
   } finally {
     globalThis.fetch = previousFetch
   }

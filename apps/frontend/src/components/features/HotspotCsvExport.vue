@@ -21,7 +21,7 @@ async function exportCsv() {
     store.areaHotspots !== null,
   )
   message.value = ''
-  if (await download(rows, filename))
+  if (await download(rows, filename, store.platformsById, store.countriesById))
     message.value = `CSV ready: ${rows.length.toLocaleString()} detections.`
 }
 </script>

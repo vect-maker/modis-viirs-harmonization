@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, onMounted, onUnmounted, h, render, shallowRef, useTemplateRef } from 'vue'
-import { useGeolocation, useMediaQuery, usePreferredReducedMotion, useResizeObserver } from '@vueuse/core'
+import { useMediaQuery, usePreferredReducedMotion, useResizeObserver } from '@vueuse/core'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import type { MapLayerMouseEvent } from 'maplibre-gl'
@@ -10,7 +10,7 @@ import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import * as turf from '@turf/turf'
 import type { Feature, Point, Polygon } from 'geojson'
 
-import type { FireHotspot } from '@/types/hotspot'
+import type { HotspotResponse } from '@/api'
 import { storeToRefs } from 'pinia'
 import { useHotspotsStore } from '@/stores/hotspots'
 import FirePopup from './FirePopup.vue'
@@ -26,20 +26,23 @@ const props = withDefaults(
     initialZoom?: number
     sidePanelOpen?: boolean
     bottomInset?: number
+    userLocation?: { latitude: number; longitude: number } | null
   }>(),
   {
     initialCenter: () => [-85.2072, 12.8654], // Nicaragua centroid
     sidePanelOpen: false,
     bottomInset: 24,
+    userLocation: null,
   },
 )
 
 const emit = defineEmits<{
-  (e: 'hotspot-select', hotspot: FireHotspot): void
+  (e: 'hotspot-select', hotspot: HotspotResponse): void
   (
     e: 'roi-change',
-    payload: { count: number; areaKm2: number | null; filtered: FireHotspot[] },
+    payload: { count: number; areaKm2: number | null; filtered: HotspotResponse[] },
   ): void
+  (e: 'request-location'): void
 }>()
 
 defineSlots<{
@@ -66,12 +69,7 @@ const isDesktop = useMediaQuery('(min-width: 768px)')
 const reducedMotion = usePreferredReducedMotion()
 const spaceVisible = shallowRef(true)
 useResizeObserver(mapContainer, () => map.value?.resize())
-const {
-  coords,
-  locatedAt,
-  resume: resumeGeolocation,
-} = useGeolocation({ immediate: false })
-const pendingLocate = shallowRef(false)
+const userMarker = shallowRef<maplibregl.Marker | null>(null)
 
 function flyToCoords(longitude: number, latitude: number) {
   activePopup.value?.remove()
@@ -86,22 +84,49 @@ function flyToCoords(longitude: number, latitude: number) {
   })
 }
 
-watch(locatedAt, () => {
-  if (!pendingLocate.value) return
-  const { latitude, longitude } = coords.value
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return
-  pendingLocate.value = false
-  flyToCoords(longitude, latitude)
-})
+function createUserMarkerElement(): HTMLDivElement {
+  const wrapper = document.createElement('div')
+  wrapper.setAttribute('aria-label', 'Your current location')
+  wrapper.className = 'relative flex h-5 w-5 items-center justify-center'
+
+  const pulse = document.createElement('span')
+  pulse.className = 'absolute inset-0 animate-ping rounded-full bg-sky-400/50'
+
+  const dot = document.createElement('span')
+  dot.className =
+    'relative h-3.5 w-3.5 rounded-full border-2 border-white bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.85)]'
+
+  wrapper.append(pulse, dot)
+  return wrapper
+}
+
+function syncUserMarker() {
+  const m = map.value
+  const loc = props.userLocation
+  if (!m || !loc) {
+    userMarker.value?.remove()
+    userMarker.value = null
+    return
+  }
+
+  if (!userMarker.value) {
+    userMarker.value = new maplibregl.Marker({ element: createUserMarkerElement() })
+      .setLngLat([loc.longitude, loc.latitude])
+      .addTo(m)
+    return
+  }
+
+  userMarker.value.setLngLat([loc.longitude, loc.latitude])
+}
+
+watch([map, () => props.userLocation], syncUserMarker)
 
 function locateUser() {
-  pendingLocate.value = true
-  resumeGeolocation()
-  const { latitude, longitude } = coords.value
-  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-    pendingLocate.value = false
-    flyToCoords(longitude, latitude)
+  if (props.userLocation) {
+    flyToCoords(props.userLocation.longitude, props.userLocation.latitude)
+    return
   }
+  emit('request-location')
 }
 
 function getViewportPadding() {
@@ -157,8 +182,8 @@ function fitNicaragua() {
   )
 }
 
-// Convert raw JSON data to GeoJSON Point FeatureCollection
-function buildGeoJson(data: FireHotspot[]): GeoJSON.FeatureCollection<Point> {
+// Convert API hotspot records to GeoJSON Point FeatureCollection
+function buildGeoJson(data: HotspotResponse[]): GeoJSON.FeatureCollection<Point> {
   return {
     type: 'FeatureCollection',
     features: data.map((item, idx) => ({
@@ -346,11 +371,17 @@ onMounted(() => {
       if (!feature) return
 
       const coordinates = (feature.geometry as Point).coordinates.slice() as [number, number]
-      const hotspotProps = feature.properties as FireHotspot
+      const featureId = feature.properties?.id as string | undefined
+      const hotspot =
+        (featureId
+          ? filteredHotspots.value.find((item) => item.id === featureId)
+          : undefined) ?? (feature.properties as HotspotResponse)
 
       const popupWrapper = document.createElement('div')
       const vnode = h(FirePopup, {
-        hotspot: hotspotProps,
+        hotspot,
+        platform: hotspotsStore.getPlatform(hotspot.platform_id),
+        country: hotspotsStore.getCountry(hotspot.country_id),
         onSelect: (hSpot) => {
           emit('hotspot-select', hSpot)
         },
@@ -370,6 +401,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  userMarker.value?.remove()
   activePopup.value?.remove()
   map.value?.remove()
 })

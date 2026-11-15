@@ -1,10 +1,11 @@
 import { parseDate } from '@internationalized/date'
-import type { FireHotspot, DailyHotspotActivity } from '@/types/hotspot'
+import type { HotspotResponse } from '@/api'
+import type { DailyHotspotActivity } from '@/types/hotspot'
 import type { HotspotDateRange } from '@/types/filters'
 
 /** Counts available records per UTC day; an empty bucket is not evidence of no fires. */
 export function aggregateDailyActivity(
-  hotspots: readonly FireHotspot[],
+  hotspots: readonly HotspotResponse[],
   availableDates: HotspotDateRange | null,
 ): DailyHotspotActivity[] {
   if (!availableDates) return []
