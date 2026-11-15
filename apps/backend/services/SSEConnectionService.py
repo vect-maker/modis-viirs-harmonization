@@ -13,6 +13,7 @@ from sqlmodel import Session
 
 from services.AlertEventPublisher import AlertEventPublisher
 from services.AlertEventSerializer import AlertEventSerializer
+from services.NatsService import NatsService, nats_service
 from services.SSEManager import SSEManager, sse_manager
 
 logger = logging.getLogger("firms.sse.connection")
@@ -49,10 +50,12 @@ class SSEConnectionService:
         self,
         *,
         manager: SSEManager = sse_manager,
+        nats: NatsService = nats_service,
         heartbeat_seconds: float | None = None,
         retry_ms: int | None = None,
     ) -> None:
         self.manager = manager
+        self.nats = nats
         self.heartbeat_seconds = (
             heartbeat_seconds
             if heartbeat_seconds is not None
@@ -71,12 +74,20 @@ class SSEConnectionService:
         session: Session,
         last_event_id: int | None = None,
         max_events: int | None = None,
+        user_id: str | None = None,
+        tenant_id: str | None = None,
+        is_authenticated: bool = False,
     ) -> AsyncIterator[str]:
-        client = self.manager.register()
+        client = self.manager.register(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            is_authenticated=is_authenticated,
+        )
         sent_event_ids: set[int] = set()
         emitted_count = 0
 
         try:
+            await self.nats.register_client_presence(client)
             # Directiva estándar de reconexión para EventSource
             yield f"retry: {self.retry_ms}\n\n"
 
@@ -121,6 +132,7 @@ class SSEConnectionService:
                 except TimeoutError:
                     if await request.is_disconnected():
                         break
+                    await self.nats.refresh_client_presence(client)
                     hb_id = f"hb-{uuid4().hex[:12]}"
                     hb_payload = AlertEventSerializer.build_heartbeat_payload(
                         event_id=hb_id,
@@ -140,6 +152,7 @@ class SSEConnectionService:
         except Exception as exc:
             logger.exception("Error en stream SSE para cliente %s: %s", client.client_id, exc)
         finally:
+            await self.nats.unregister_client_presence(client)
             self.manager.unregister(client.client_id)
 
     @staticmethod

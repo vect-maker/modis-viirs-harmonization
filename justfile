@@ -10,6 +10,7 @@ mod pipeline 'apps/pipeline/justfile'
 mod backend 'apps/backend/justfile'
 mod frontend 'apps/frontend/justfile'
 mod report 'apps/report/justfile'
+mod worker 'apps/worker/justfile'
 
 # Restore AI agent skills from skills-lock.json
 skills-install:

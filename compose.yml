@@ -27,18 +27,59 @@ services:
     container_name: firms-frontend
     restart: unless-stopped
 
+  nats:
+    image: docker.io/library/nats:2.10-alpine
+    container_name: firms-nats
+    restart: unless-stopped
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+      - "${NATS_MONITOR_PORT:-8222}:8222"
+    volumes:
+      - natsdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
-      context: apps/backend
-      dockerfile: prod.containerfile
+      context: .
+      dockerfile: apps/backend/prod.containerfile
     image: localhost/firms-backend:prod
     container_name: firms-backend
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@db:5432/firms}
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      SSE_PRESENCE_TTL_SECONDS: ${SSE_PRESENCE_TTL_SECONDS:-45}
       ROOT_PATH: /api
     depends_on:
       db:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/prod.containerfile
+    image: localhost/firms-worker:prod
+    container_name: firms-worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@db:5432/firms}
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
+      FIRMS_AREA_BBOX: ${FIRMS_AREA_BBOX:--92.3,7.2,-77.1,18.5}
+      FIRMS_COUNTRY_NAME: ${FIRMS_COUNTRY_NAME:-Central_America}
+      CATCHUP_COOLDOWN_SECONDS: ${CATCHUP_COOLDOWN_SECONDS:-610}
+      NRT_POLL_INTERVAL_SECONDS: ${NRT_POLL_INTERVAL_SECONDS:-300}
+    depends_on:
+      db:
+        condition: service_healthy
+      nats:
         condition: service_healthy
 
   caddy:
@@ -61,6 +102,8 @@ services:
 volumes:
   pgdata:
     name: firms_pgdata
+  natsdata:
+    name: firms_natsdata
   caddy_data:
     name: firms_caddy_data
   caddy_config:

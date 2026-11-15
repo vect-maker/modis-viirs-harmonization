@@ -11,14 +11,35 @@ services:
 
   backend:
     build:
-      context: apps/backend
-      dockerfile: debug.containerfile
+      context: .
+      dockerfile: apps/backend/debug.containerfile
     image: localhost/firms-backend:debug
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      SSE_PRESENCE_TTL_SECONDS: ${SSE_PRESENCE_TTL_SECONDS:-45}
     volumes:
-      - ./apps/backend:/app:Z
+      - ./apps/backend:/workspace/apps/backend:Z
+      - ./shared:/workspace/shared:z
       - backend_venv:/opt/venv
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/debug.containerfile
+    image: localhost/firms-worker:debug
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
+      FIRMS_AREA_BBOX: ${FIRMS_AREA_BBOX:--92.3,7.2,-77.1,18.5}
+      FIRMS_COUNTRY_NAME: ${FIRMS_COUNTRY_NAME:-Central_America}
+      CATCHUP_COOLDOWN_SECONDS: ${CATCHUP_COOLDOWN_SECONDS:-610}
+      NRT_POLL_INTERVAL_SECONDS: ${NRT_POLL_INTERVAL_SECONDS:-300}
+    volumes:
+      - ./apps/worker:/workspace/apps/worker:Z
+      - ./shared:/workspace/shared:z
+      - worker_venv:/opt/venv
 
   caddy:
     ports: !override
@@ -32,3 +53,5 @@ services:
 volumes:
   backend_venv:
     name: firms_backend_venv
+  worker_venv:
+    name: firms_worker_venv

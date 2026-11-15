@@ -29,12 +29,14 @@ from schemas.alerts import (
     AlertRuleUpdate,
     AlertStatusUpdate,
 )
+from schemas.sse import NotificationCreateRequest, NotificationDispatchResponse
 from services.AlertDetectionService import AlertDetectionService
 from services.AlertManagementService import AlertManagementService
 from services.AlertRuleService import AlertRuleService
 from services.AlertSchedulerService import alert_scheduler
 from services.NotificationService import ws_manager
 from services.SSEConnectionService import SSEConnectionService, parse_last_event_id
+from services.SSENotificationService import SSENotifierDep
 
 router = APIRouter(prefix="/alerts", tags=["EarlyWarning"])
 
@@ -158,6 +160,33 @@ async def evaluate_alerts(
     service = AlertDetectionService(session)
     result = await service.evaluate_rules(rule_ids=payload.rule_ids)
     return AlertEvaluateResponse(**result)
+
+
+@router.post(
+    "/notify",
+    response_model=NotificationDispatchResponse,
+    status_code=202,
+    summary="Enviar notificación/toast en tiempo real vía SSE",
+)
+async def dispatch_sse_notification(
+    payload: NotificationCreateRequest,
+    notifier: SSENotifierDep,
+):
+    envelope, delivered = notifier.send_notification(
+        title=payload.title,
+        message=payload.message,
+        severity=payload.severity,
+        duration_ms=payload.duration_ms,
+        emitter_service=payload.emitter_service,
+        target_scope=payload.target_scope,
+        target_id=payload.target_id,
+        metadata=payload.metadata,
+    )
+    return NotificationDispatchResponse(
+        event_id=envelope.event_id,
+        delivered_clients=delivered,
+        envelope=envelope,
+    )
 
 
 @router.get(

@@ -1,23 +1,25 @@
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 
-WORKDIR /app
+WORKDIR /workspace/apps/backend
 
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
-COPY pyproject.toml ./
+COPY shared /workspace/shared
+COPY apps/backend/pyproject.toml apps/backend/uv.lock ./
 RUN uv sync --no-install-project
 
-COPY . .
+COPY apps/backend .
 
 FROM docker.io/library/python:3.13-slim-bookworm AS runtime
 
-WORKDIR /app
+WORKDIR /workspace/apps/backend
 
-COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app /app
+COPY --from=builder /workspace/shared /workspace/shared
+COPY --from=builder /workspace/apps/backend/.venv /workspace/apps/backend/.venv
+COPY --from=builder /workspace/apps/backend /workspace/apps/backend
 
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/workspace/apps/backend/.venv/bin:$PATH"
 
 EXPOSE 8080
 
