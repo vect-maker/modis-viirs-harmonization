@@ -15,6 +15,7 @@ import type { HotspotResponse } from '@/api'
 import { Flame } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { useHotspotsStore } from '@/stores/hotspots'
+import { useFeedbackStore } from '@/stores/feedback'
 import FirePopup from './FirePopup.vue'
 import MapLegendTooltip from './MapLegendTooltip.vue'
 import UserLocationMarker from './UserLocationMarker.vue'
@@ -46,6 +47,7 @@ const emit = defineEmits<{
     payload: { count: number; areaKm2: number | null; filtered: HotspotResponse[] },
   ): void
   (e: 'request-location'): void
+  (e: 'open-feedback', hotspot: HotspotResponse): void
 }>()
 
 defineSlots<{
@@ -466,11 +468,14 @@ onMounted(() => {
           ? filteredHotspots.value.find((item) => item.id === featureId)
           : undefined) ?? (feature.properties as HotspotResponse)
 
+      const feedbackStore = useFeedbackStore()
       const popupWrapper = document.createElement('div')
       const vnode = h(FirePopup, {
         hotspot,
         platform: hotspotsStore.getPlatform(hotspot.platform_id),
         country: hotspotsStore.getCountry(hotspot.country_id),
+        feedbackSummary: feedbackStore.summariesByHotspotId[hotspot.id],
+        onOpenFeedback: (targetHotspot: HotspotResponse) => emit('open-feedback', targetHotspot),
       })
       render(vnode, popupWrapper)
 
