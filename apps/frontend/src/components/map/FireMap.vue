@@ -12,9 +12,12 @@ import type { Feature, Point, Polygon } from 'geojson'
 import { GeoJSONPolygonSchema } from 'zod-geojson'
 
 import type { HotspotResponse } from '@/api'
+import { Flame } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { useHotspotsStore } from '@/stores/hotspots'
 import FirePopup from './FirePopup.vue'
+import MapLegendTooltip from './MapLegendTooltip.vue'
+import UserLocationMarker from './UserLocationMarker.vue'
 import SpaceBackground from '@/components/common/SpaceBackground.vue'
 import { getMapColors } from '@/utils/themeColors'
 
@@ -74,6 +77,7 @@ const reducedMotion = usePreferredReducedMotion()
 const spaceVisible = shallowRef(true)
 useResizeObserver(mapContainer, () => map.value?.resize())
 const userMarker = shallowRef<maplibregl.Marker | null>(null)
+const userMarkerContainer = shallowRef<HTMLDivElement | null>(null)
 
 function flyToCoords(longitude: number, latitude: number) {
   activePopup.value?.remove()
@@ -90,26 +94,25 @@ function flyToCoords(longitude: number, latitude: number) {
 
 function createUserMarkerElement(): HTMLDivElement {
   const wrapper = document.createElement('div')
-  wrapper.setAttribute('aria-label', 'Your current location')
-  wrapper.className = 'relative flex h-5 w-5 items-center justify-center'
-
-  const pulse = document.createElement('span')
-  pulse.className = 'absolute inset-0 animate-ping rounded-full bg-sky-400/50'
-
-  const dot = document.createElement('span')
-  dot.className =
-    'relative h-3.5 w-3.5 rounded-full border-2 border-white bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.85)]'
-
-  wrapper.append(pulse, dot)
+  render(h(UserLocationMarker), wrapper)
+  userMarkerContainer.value = wrapper
   return wrapper
+}
+
+function removeUserMarker() {
+  userMarker.value?.remove()
+  userMarker.value = null
+  if (userMarkerContainer.value) {
+    render(null, userMarkerContainer.value)
+    userMarkerContainer.value = null
+  }
 }
 
 function syncUserMarker() {
   const m = map.value
   const loc = props.userLocation
   if (!m || !loc) {
-    userMarker.value?.remove()
-    userMarker.value = null
+    removeUserMarker()
     return
   }
 
@@ -198,7 +201,10 @@ function buildGeoJson(data: HotspotResponse[]): GeoJSON.FeatureCollection<Point>
         type: 'Point',
         coordinates: [item.longitude, item.latitude],
       },
-      properties: { ...item },
+      properties: {
+        ...item,
+        confidence_class: (item.confidence_class ?? 'unknown').toLowerCase(),
+      },
     })),
   }
 }
@@ -350,43 +356,107 @@ onMounted(() => {
       data: geojsonData,
     })
 
-    // Layer 1: Soft glowing heat halo underneath points
+    // Layer 1: Soft glowing heat halo underneath points (colored by confidence)
     m.addLayer({
       id: 'hotspots-glow',
       type: 'circle',
       source: 'hotspots',
       paint: {
-        'circle-color': mapColors.hotspotGlow,
+        'circle-color': [
+          'match',
+          ['get', 'confidence_class'],
+          'high',
+          '#ef4444',
+          'nominal',
+          '#f97316',
+          'low',
+          '#eab308',
+          '#94a3b8',
+        ],
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 3.5, 7, 7, 10, 11, 14, 16],
         'circle-blur': 0.75,
         'circle-opacity': 0.65,
       },
     })
 
-    // Layer 2: High-contrast sharp core dot on top (guaranteeing every point is distinct)
-    m.addLayer({
-      id: 'hotspots-circle',
-      type: 'circle',
-      source: 'hotspots',
-      paint: {
-        'circle-color': mapColors.hotspotCore,
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2.5, 7, 4.5, 10, 7, 14, 10],
-        'circle-opacity': 0.95,
-        'circle-stroke-width': 1,
-        'circle-stroke-color': mapColors.hotspotStroke,
-      },
-    })
+    // Layer 2: Confidence-coded Lucide Flame icons on top of the heat halo
+    const confidenceStyles = [
+      { id: 'hotspot-flame-high', fill: '#ef4444', stroke: '#fef08a' },
+      { id: 'hotspot-flame-nominal', fill: '#f97316', stroke: '#fed7aa' },
+      { id: 'hotspot-flame-low', fill: '#eab308', stroke: '#fef9c3' },
+      { id: 'hotspot-flame-unknown', fill: '#94a3b8', stroke: '#e2e8f0' },
+    ] as const
+
+    let loadedIcons = 0
+    const ensureSymbolLayer = () => {
+      if (!map.value || m.getLayer('hotspots-symbol')) return
+      m.addLayer({
+        id: 'hotspots-symbol',
+        type: 'symbol',
+        source: 'hotspots',
+        layout: {
+          'icon-image': [
+            'match',
+            ['get', 'confidence_class'],
+            'high',
+            'hotspot-flame-high',
+            'nominal',
+            'hotspot-flame-nominal',
+            'low',
+            'hotspot-flame-low',
+            'hotspot-flame-unknown',
+          ],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 4, 0.55, 7, 0.75, 10, 1.0, 14, 1.25],
+          'icon-allow-overlap': true,
+          'icon-anchor': 'bottom',
+        },
+      })
+    }
+
+    for (const style of confidenceStyles) {
+      const svgHost = document.createElement('div')
+      render(
+        h(Flame, {
+          size: 44,
+          strokeWidth: 2,
+          color: style.stroke,
+          fill: style.fill,
+        }),
+        svgHost,
+      )
+      const svgEl = svgHost.querySelector('svg')
+      if (!svgEl) {
+        render(null, svgHost)
+        continue
+      }
+      svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+      const svgMarkup = new XMLSerializer().serializeToString(svgEl)
+      render(null, svgHost)
+
+      const img = new Image(44, 44)
+      img.onload = () => {
+        if (!map.value) return
+        if (!m.hasImage(style.id)) {
+          m.addImage(style.id, img, { pixelRatio: 2 })
+        }
+        loadedIcons += 1
+        if (loadedIcons === confidenceStyles.length) {
+          ensureSymbolLayer()
+        }
+      }
+      img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`
+    }
 
     // Cursor pointer on hover
-    m.on('mouseenter', 'hotspots-circle', () => {
+    m.on('mouseenter', 'hotspots-symbol', () => {
       m.getCanvas().style.cursor = 'pointer'
     })
-    m.on('mouseleave', 'hotspots-circle', () => {
+    m.on('mouseleave', 'hotspots-symbol', () => {
       m.getCanvas().style.cursor = ''
     })
 
     // Hotspot click: Mount reactive Vue FirePopup into MapLibre popup
-    m.on('click', 'hotspots-circle', (e: MapLayerMouseEvent) => {
+    m.on('click', 'hotspots-symbol', (e: MapLayerMouseEvent) => {
       const feature = e.features?.[0]
       if (!feature) return
 
@@ -421,7 +491,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  userMarker.value?.remove()
+  removeUserMarker()
   activePopup.value?.remove()
   map.value?.remove()
 })
@@ -434,6 +504,10 @@ onUnmounted(() => {
   >
     <SpaceBackground :visible="spaceVisible" />
     <div ref="mapContainer" class="fire-map__canvas" />
+
+    <div class="absolute top-3 left-13 z-10">
+      <MapLegendTooltip />
+    </div>
 
     <slot
       name="dock"
