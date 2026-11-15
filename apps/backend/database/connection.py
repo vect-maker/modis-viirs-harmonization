@@ -1,16 +1,10 @@
 import os
-from pathlib import Path
-from dotenv import load_dotenv
+
+from dotenv import find_dotenv, load_dotenv
 from sqlalchemy import create_engine
 
-# Cargar variables de entorno desde el primer .env encontrado en los directorios padre
-for parent in Path(__file__).resolve().parents:
-    env_file = parent / ".env"
-    if env_file.exists():
-        load_dotenv(env_file)
-        break
-else:
-    load_dotenv()
+# Cargar variables de entorno desde la raíz del proyecto si existe .env
+load_dotenv(find_dotenv())
 
 database_url = os.getenv("DATABASE_URL")
 

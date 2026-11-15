@@ -27,16 +27,13 @@ Interactive web application for the **NASA Space Apps Challenge 2026: Harmonizat
 From the monorepo root:
 
 ```bash
-# 1. Export sample dataset from DuckDB pipeline
-just sample-data
-
-# 2. Install dependencies
+# 1. Install dependencies
 just frontend install
 
-# 3. Start development server
+# 2. Start development server
 just frontend dev
 
-# 4. Run typecheck & build
+# 3. Run typecheck & build
 just frontend build
 ```
 

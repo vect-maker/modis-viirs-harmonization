@@ -66,18 +66,13 @@ just sync-meta
 just fuse-data
 ```
 
-### 5. Frontend & Sample Data Workflow
-
-In the current setup without an active backend API, the frontend loads sample active fire hotspots exported directly from the local DuckDB pipeline parquet files.
+### 5. Frontend Workflow
 
 ```bash
-# 1. Export sample dataset (5000 hotspots from Nicaragua 2024 active season)
-just sample-data
-
-# 2. Run frontend development server
+# 1. Run frontend development server
 just frontend dev
 
-# 3. Build & Typecheck
+# 2. Build & Typecheck
 just frontend build
 ```
 

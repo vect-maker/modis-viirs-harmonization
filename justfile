@@ -11,10 +11,6 @@ mod backend 'apps/backend/justfile'
 mod frontend 'apps/frontend/justfile'
 mod report 'apps/report/justfile'
 
-# Generate sample hotspot data for frontend from Parquet using DuckDB
-sample-data *args:
-    just pipeline export-sample {{args}}
-
 # Restore AI agent skills from skills-lock.json
 skills-install:
     npx -y skills experimental_install -y -a antigravity codex
