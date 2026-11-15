@@ -18,6 +18,10 @@ export const HotspotResponseSchema = z.object({
   daynight: z.string().max(5).nullable().optional(),
   type: z.number().int().nullable().optional(),
   version: z.string().max(20).nullable().optional(),
+  overpass_window: z.string().max(30).nullable().optional(),
+  harmonization_category: z.string().max(40).nullable().optional(),
+  harmonized_weight: z.number().nullable().optional(),
+  harmonized_frp: z.number().nullable().optional(),
 });
 
 export const PaginatedHotspotResponseSchema = PaginatedResponseSchema(HotspotResponseSchema);
