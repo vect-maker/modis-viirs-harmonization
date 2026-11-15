@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue'
-import { storeToRefs } from 'pinia'
 import { RotateCw } from '@lucide/vue'
 import { z } from 'zod'
+import type { GeoJSONPolygon } from 'zod-geojson'
 import { useApiFetch } from '@/api/useApiFetch'
-import { useHotspotsStore } from '@/stores/hotspots'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
-import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import MonthlyComparisonChart, {
   MIN_BASELINE_YEARS,
   STATUS_COLORS,
@@ -14,8 +12,11 @@ import MonthlyComparisonChart, {
 } from '@/components/common/MonthlyComparisonChart.vue'
 import MonthlyComparisonTable from '@/components/common/MonthlyComparisonTable.vue'
 
-type Metric = 'raw' | 'harmonized'
-type AreaScope = 'area' | 'all'
+const props = defineProps<{
+  metric: 'raw' | 'harmonized'
+  /** Polígono dibujado en el mapa, o null para todas las regiones. */
+  polygon: GeoJSONPolygon | null
+}>()
 
 const nullableNumber = z.number().nullable()
 const ResponseSchema = z.object({
@@ -45,20 +46,6 @@ const ResponseSchema = z.object({
 })
 type ComparisonResponse = z.infer<typeof ResponseSchema>
 
-const METRIC_OPTIONS = [
-  { value: 'raw', label: 'Detections' },
-  { value: 'harmonized', label: 'Harmonized index' },
-] as const satisfies readonly { value: Metric; label: string }[]
-
-const AREA_OPTIONS = [
-  { value: 'area', label: 'Drawn area' },
-  { value: 'all', label: 'All regions' },
-] as const satisfies readonly { value: AreaScope; label: string }[]
-
-const { selectedPolygon } = storeToRefs(useHotspotsStore())
-
-const metric = shallowRef<Metric>('raw')
-const areaScope = shallowRef<AreaScope>(selectedPolygon.value ? 'area' : 'all')
 /** null = el año más reciente con datos (lo resuelve el backend). */
 const requestedYear = shallowRef<number | null>(null)
 
@@ -67,18 +54,14 @@ const isLoading = shallowRef(false)
 const error = shallowRef<string | null>(null)
 let latestRequest = 0
 
-const activePolygon = computed(() =>
-  areaScope.value === 'area' ? selectedPolygon.value : null,
-)
-
 async function load() {
   const requestId = ++latestRequest
   isLoading.value = true
   error.value = null
 
-  const params = new URLSearchParams({ metric: metric.value })
+  const params = new URLSearchParams({ metric: props.metric })
   if (requestedYear.value !== null) params.set('year', String(requestedYear.value))
-  if (activePolygon.value) params.set('polygon', JSON.stringify(activePolygon.value))
+  if (props.polygon) params.set('polygon', JSON.stringify(props.polygon))
 
   const { data, error: fetchError } = await useApiFetch(
     `/dashboard/monthly-comparison?${params.toString()}`,
@@ -99,10 +82,7 @@ async function load() {
   }
 }
 
-watch([metric, requestedYear, activePolygon], load, { immediate: true })
-watch(selectedPolygon, (polygon) => {
-  if (!polygon) areaScope.value = 'all'
-})
+watch([() => props.metric, requestedYear, () => props.polygon], load, { immediate: true })
 
 const selectedYear = computed<number>({
   get: () => requestedYear.value ?? result.value?.year ?? 0,
@@ -117,9 +97,9 @@ const yearOptions = computed(() =>
     .map((value) => ({ value, label: String(value) })),
 )
 
-const fractionDigits = computed(() => (metric.value === 'harmonized' ? 1 : 0))
+const fractionDigits = computed(() => (props.metric === 'harmonized' ? 1 : 0))
 const valueLabel = computed(() =>
-  metric.value === 'harmonized' ? 'harmonized index' : 'detections',
+  props.metric === 'harmonized' ? 'harmonized index' : 'detections',
 )
 
 const months = computed(() => result.value?.months ?? [])
@@ -160,16 +140,10 @@ const summary = computed(() => {
 const isEmpty = computed(() => result.value !== null && result.value.coverage === null)
 const harmonizedMissing = computed(
   () =>
-    metric.value === 'harmonized' &&
+    props.metric === 'harmonized' &&
     months.value.length > 0 &&
     months.value.every((m) => (m.year_count ?? 0) === 0 && (m.historic.max ?? 0) === 0) &&
     months.value.some((m) => (m.year_raw_count ?? 0) > 0),
-)
-
-const metricHelp = computed(() =>
-  metric.value === 'harmonized'
-    ? 'Weights MODIS detections so years before and after the 2012 VIIRS launch can be compared on one scale. Experimental index, not a fire count.'
-    : 'Raw MODIS and VIIRS detections. VIIRS adds many small fires from 2012 on, so earlier years read low on this scale.',
 )
 
 const chartDescription = computed(() =>
@@ -206,24 +180,10 @@ const legend = computed(() => [
           label="Year to compare"
           :disabled="isLoading && result === null"
         />
-        <BaseToggleGroup v-model="metric" :options="METRIC_OPTIONS" label="Metric" />
-        <BaseToggleGroup
-          v-if="selectedPolygon"
-          v-model="areaScope"
-          :options="AREA_OPTIONS"
-          label="Area"
-        />
       </div>
     </header>
 
     <div class="space-y-4 p-5">
-      <p class="text-xs leading-relaxed text-ink-muted">
-        {{ metricHelp }}
-        <template v-if="!selectedPolygon">
-          Showing all regions. To compare a specific place, collapse this panel and draw an area
-          on the map.
-        </template>
-      </p>
 
       <div
         v-if="error"

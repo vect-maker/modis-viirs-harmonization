@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { nextTick, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { ChartColumn, ChevronDown } from '@lucide/vue'
+import { useHotspotsStore } from '@/stores/hotspots'
+import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
+import AnnualActivityPanel from './AnnualActivityPanel.vue'
 import MonthlyComparisonPanel from './MonthlyComparisonPanel.vue'
 
 defineProps<{
@@ -30,6 +34,41 @@ onKeyStroke('Escape', (event) => {
   if (document.querySelector('[role="listbox"]')) return
   open.value = false
 })
+
+type Metric = 'raw' | 'harmonized'
+type AreaScope = 'area' | 'all'
+
+const METRIC_OPTIONS = [
+  { value: 'raw', label: 'Detections' },
+  { value: 'harmonized', label: 'Harmonized index' },
+] as const satisfies readonly { value: Metric; label: string }[]
+
+const AREA_OPTIONS = [
+  { value: 'area', label: 'Drawn area' },
+  { value: 'all', label: 'All regions' },
+] as const satisfies readonly { value: AreaScope; label: string }[]
+
+// Métrica y área se comparten entre todos los gráficos para que muestren lo mismo.
+const { selectedPolygon } = storeToRefs(useHotspotsStore())
+const metric = shallowRef<Metric>('raw')
+const areaScope = shallowRef<AreaScope>(selectedPolygon.value ? 'area' : 'all')
+const activePolygon = computed(() =>
+  areaScope.value === 'area' ? selectedPolygon.value : null,
+)
+watch(selectedPolygon, (polygon) => {
+  areaScope.value = polygon ? 'area' : 'all'
+})
+
+const metricHelp = computed(() =>
+  metric.value === 'harmonized'
+    ? 'Harmonized index weights MODIS detections so years before and after the 2012 VIIRS launch can be compared on one scale. Experimental index, not a fire count.'
+    : 'Raw MODIS and VIIRS detections. VIIRS adds many small fires from 2012 on, so earlier years read low on this scale.',
+)
+const areaHelp = computed(() =>
+  selectedPolygon.value
+    ? ''
+    : 'Showing all regions. To compare a specific place, collapse this panel and draw an area on the map.',
+)
 
 const triggerClass =
   'flex min-h-14 w-full cursor-pointer items-center gap-2.5 px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-focus'
@@ -85,7 +124,26 @@ const triggerClass =
           <ChevronDown aria-hidden="true" class="h-4 w-4 rotate-180 text-ink-muted" />
         </button>
         <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <MonthlyComparisonPanel />
+          <div
+            class="flex flex-wrap items-center gap-x-5 gap-y-3 border-b border-border-subtle px-5 py-4"
+          >
+            <BaseToggleGroup v-model="metric" :options="METRIC_OPTIONS" label="Metric" />
+            <BaseToggleGroup
+              v-if="selectedPolygon"
+              v-model="areaScope"
+              :options="AREA_OPTIONS"
+              label="Area"
+            />
+            <p class="min-w-0 flex-1 basis-80 text-xs leading-relaxed text-ink-muted">
+              {{ metricHelp }} {{ areaHelp }}
+            </p>
+          </div>
+          <MonthlyComparisonPanel :metric="metric" :polygon="activePolygon" />
+          <AnnualActivityPanel
+            :metric="metric"
+            :polygon="activePolygon"
+            class="border-t border-border-subtle"
+          />
         </div>
       </section>
     </Transition>
