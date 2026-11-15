@@ -22,6 +22,8 @@ class FireCalendarQuery(BaseModel):
     min_frp: float | None = Field(default=None, ge=0.0)
     max_frp: float | None = Field(default=None, ge=0.0)
     cluster_id: int | None = Field(default=None, ge=1)
+    polygon: str | None = None
+    metric: Literal["raw", "harmonized"] = "raw"
     aggregation: Literal["day", "week", "month"] = "day"
 
     @model_validator(mode="after")
@@ -63,6 +65,8 @@ class FireCalendarQuery(BaseModel):
 
 class FireCalendarInterval(BaseModel):
     date: date
+    has_data: bool = True
+    archive_state: Literal["full", "partial", "missing"] = "full"
     hotspot_count: int
     fire_count: int
     new_fires: int

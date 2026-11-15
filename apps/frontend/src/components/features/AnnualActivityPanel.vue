@@ -27,6 +27,7 @@ const ResponseSchema = z.object({
       year: z.number().int(),
       months_in_archive: z.number().int().min(0).max(12),
       complete: z.boolean(),
+      provisional_months: z.number().int().min(0).max(12).default(0),
       total_hotspots: z.number().int().nonnegative(),
       modis_count: z.number().int().nonnegative(),
       viirs_count: z.number().int().nonnegative(),
@@ -105,10 +106,18 @@ const summary = computed(() => {
   return `The busiest year was ${busiest.year} with ${describe(busiestValue)}${vsMedian}. The quietest was ${quietest.year}.`
 })
 
+const provisionalNote = computed(() => {
+  const years = rows.value.filter((row) => row.provisional_months > 0).map((row) => row.year)
+  if (years.length === 0) return ''
+  return `Bars with a dashed outline (${years.join(', ')}) include months from the near-real-time feed. That data is not harmonized yet and adds one more VIIRS satellite, so it reads higher than archive years.`
+})
+
+const hasProvisional = computed(() => rows.value.some((row) => row.provisional_months > 0))
+
 const partialNote = computed(() => {
   const partial = rows.value.filter((row) => !row.complete && row.total_hotspots > 0)
   if (partial.length === 0) return ''
-  const list = partial.map((row) => `${row.year} (${row.months_in_archive} of 12 months)`)
+  const list = partial.map((row) => `${row.year} (${row.months_in_archive} of 12 complete months)`)
   return `Faded bars are incomplete years in the archive: ${list.join(' and ')}. They are left out of the median.`
 })
 
@@ -189,6 +198,7 @@ const legend = computed(() =>
             {{ summary }}
           </p>
           <p v-if="partialNote" class="text-xs text-ink-muted">{{ partialNote }}</p>
+          <p v-if="provisionalNote" class="text-xs text-ink-muted">{{ provisionalNote }}</p>
         </div>
 
         <p
@@ -217,6 +227,10 @@ const legend = computed(() =>
           <li class="inline-flex items-center gap-2">
             <span class="h-3 w-3 rounded-sm bg-slate-400/35" />
             Incomplete year
+          </li>
+          <li v-if="hasProvisional" class="inline-flex items-center gap-2">
+            <span class="h-3 w-3 rounded-sm border border-dashed border-ink-primary" />
+            Near real time
           </li>
           <li class="inline-flex items-center gap-2">
             <span class="w-5 border-t-[1.5px] border-dashed border-ink-secondary" />

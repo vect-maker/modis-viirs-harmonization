@@ -1,7 +1,7 @@
 -- Execution and memory optimizations
-SET max_memory = '10GB';
+SET max_memory = '2GB';
 SET temp_directory = 'data/temp/duckdb';
-SET threads = 8;
+SET threads = 4;
 SET preserve_insertion_order = false;
 
 -- Base namespace UUID for FIRMS project (derived from DNS namespace + 'firms.nasa.gov')

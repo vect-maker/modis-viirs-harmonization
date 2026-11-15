@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import calendar
 from datetime import UTC, date, datetime, timedelta
+from typing import Literal
 
 from fastapi import HTTPException
 from sqlmodel import Session
 
+from api.dashboard import classify_archive_months
 from model.ClusterStatus import ClusterStatus
 from repositories.FireCalendarRepository import FireCalendarRepository
 from schemas.fire_calendar import (
@@ -90,6 +92,17 @@ class FireCalendarService:
         buckets = self.repo.generate_bucket_dates(
             eff_start, eff_end, query.aggregation
         )
+        use_estimated_fires = (
+            query.cluster_id is None
+            and len(cluster_ranges) == 0
+            and not self.repo.has_any_clusters()
+        )
+        coverage, raw_archive = self.repo.get_archive_coverage_and_months(
+            country=query.country
+        )
+        archive_states = classify_archive_months(raw_archive) if raw_archive else {}
+        first_cov = coverage[0].date() if coverage else None
+        last_cov = coverage[1].date() if coverage else None
 
         intervals: list[FireCalendarInterval] = []
         total_hotspots = 0
@@ -98,6 +111,7 @@ class FireCalendarService:
         daytime_hotspots = 0
         nighttime_hotspots = 0
         high_confidence_count = 0
+        estimated_total_fires = 0
 
         for b_date, b_start, b_end in buckets:
             hb = hotspot_buckets.get(b_date)
@@ -109,6 +123,7 @@ class FireCalendarService:
                 h_day = int(hb["daytime_hotspots"])
                 h_night = int(hb["nighttime_hotspots"])
                 h_high = int(hb["high_confidence_count"])
+                h_est_fires = int(hb.get("estimated_fires", 0))
             else:
                 h_count = 0
                 h_frp_tot = 0.0
@@ -117,14 +132,41 @@ class FireCalendarService:
                 h_day = 0
                 h_night = 0
                 h_high = 0
+                h_est_fires = 0
 
-            new_in_bucket = 0
-            active_in_bucket = 0
-            for c_start, c_end, _ in cluster_ranges:
-                if b_start <= c_start < b_end:
-                    new_in_bucket += 1
-                if c_start < b_end and c_end >= b_start:
-                    active_in_bucket += 1
+            # Clasificar si el intervalo tiene cobertura de archivo o es un hueco (p. ej. ene-mar 2026)
+            m_info = archive_states.get((b_date.year, b_date.month))
+            has_data = True
+            archive_state: Literal["full", "partial", "missing"] = "full"
+            if archive_states:
+                if first_cov and last_cov and (b_date < first_cov or b_date > last_cov):
+                    if b_date > last_cov:
+                        has_data = False
+                        archive_state = "missing"
+                if m_info is None and first_cov and last_cov and first_cov <= b_date <= last_cov:
+                    has_data = False
+                    archive_state = "missing"
+                elif m_info is not None and m_info["state"] == "partial":
+                    if query.aggregation == "month":
+                        archive_state = "partial"
+                    elif b_date.day < int(m_info["first_day"]) or b_date.day > int(
+                        m_info["last_day"]
+                    ):
+                        has_data = False
+                        archive_state = "missing"
+
+            if use_estimated_fires:
+                new_in_bucket = h_est_fires
+                active_in_bucket = h_est_fires
+                estimated_total_fires += h_est_fires
+            else:
+                new_in_bucket = 0
+                active_in_bucket = 0
+                for c_start, c_end, _ in cluster_ranges:
+                    if b_start <= c_start < b_end:
+                        new_in_bucket += 1
+                    if c_start < b_end and c_end >= b_start:
+                        active_in_bucket += 1
 
             total_hotspots += h_count
             total_frp += h_frp_tot
@@ -137,6 +179,8 @@ class FireCalendarService:
             intervals.append(
                 FireCalendarInterval(
                     date=b_date,
+                    has_data=has_data,
+                    archive_state=archive_state,
                     hotspot_count=h_count,
                     fire_count=active_in_bucket,
                     new_fires=new_in_bucket,
@@ -150,14 +194,22 @@ class FireCalendarService:
                 )
             )
 
-        period_start_naive = start_dt.replace(tzinfo=None)
-        period_end_naive = end_dt_exclusive.replace(tzinfo=None)
-        period_new_fires = sum(
-            1 for c_start, _, _ in cluster_ranges if period_start_naive <= c_start < period_end_naive
-        )
-        period_active_fires = sum(
-            1 for _, _, status in cluster_ranges if status == ClusterStatus.ACTIVO
-        )
+        if use_estimated_fires:
+            period_total_fires = estimated_total_fires
+            period_new_fires = estimated_total_fires
+            period_active_fires = intervals[-1].active_fires if intervals else 0
+        else:
+            period_start_naive = start_dt.replace(tzinfo=None)
+            period_end_naive = end_dt_exclusive.replace(tzinfo=None)
+            period_total_fires = len(cluster_ranges)
+            period_new_fires = sum(
+                1
+                for c_start, _, _ in cluster_ranges
+                if period_start_naive <= c_start < period_end_naive
+            )
+            period_active_fires = sum(
+                1 for _, _, status in cluster_ranges if status == ClusterStatus.ACTIVO
+            )
         frp_average = round(total_frp / total_hotspots, 4) if total_hotspots > 0 else 0.0
 
         return FireCalendarResponse(
@@ -171,7 +223,7 @@ class FireCalendarService:
             ),
             aggregation=query.aggregation,
             total_hotspots=total_hotspots,
-            total_fires=len(cluster_ranges),
+            total_fires=period_total_fires,
             new_fires=period_new_fires,
             active_fires=period_active_fires,
             frp_total=round(total_frp, 4),

@@ -214,9 +214,53 @@ def _build_ts_features(
     ]
 
 
+def _reindex_continuous_months(
+    months: Sequence[str],
+    counts: Sequence[float | int],
+) -> tuple[list[str], list[float]]:
+    """
+    Reindexa la serie mensual sobre una rejilla calendario continua YYYY-MM.
+    Si existen huecos de ingesta (p. ej. 2026-01..2026-03), imputa el valor
+    estacional del mismo mes en años previos para no desfasar lag1, lag2 y lag12.
+    """
+    if not months:
+        return [], []
+    lookup: dict[tuple[int, int], float] = {}
+    by_month_num: dict[int, list[float]] = {}
+    for m_str, val in zip(months, counts):
+        parts = m_str.split("-")
+        yr, mo = int(parts[0]), int(parts[1])
+        fval = float(val)
+        lookup[(yr, mo)] = fval
+        by_month_num.setdefault(mo, []).append(fval)
+
+    start_yr, start_mo = (int(x) for x in months[0].split("-"))
+    end_yr, end_mo = (int(x) for x in months[-1].split("-"))
+    start_total = start_yr * 12 + (start_mo - 1)
+    end_total = end_yr * 12 + (end_mo - 1)
+
+    global_mean = float(np.mean(list(lookup.values()))) if lookup else 0.0
+    cont_months: list[str] = []
+    cont_counts: list[float] = []
+    for total_m in range(start_total, end_total + 1):
+        yr, mo0 = divmod(total_m, 12)
+        mo = mo0 + 1
+        label = f"{yr:04d}-{mo:02d}"
+        cont_months.append(label)
+        if (yr, mo) in lookup:
+            cont_counts.append(lookup[(yr, mo)])
+        elif (yr - 1, mo) in lookup:
+            cont_counts.append(lookup[(yr - 1, mo)])
+        elif mo in by_month_num and by_month_num[mo]:
+            cont_counts.append(float(np.mean(by_month_num[mo])))
+        else:
+            cont_counts.append(global_mean)
+    return cont_months, cont_counts
+
+
 def run_monthly_seasonal_forecast(
     months: list[str],
-    counts: list[int],
+    counts: Sequence[float | int],
     train_ratio: float = 0.8,
     future_months: int = 6,
 ) -> dict[str, Any]:
@@ -225,22 +269,23 @@ def run_monthly_seasonal_forecast(
     ajusta Ridge autoregresivo con rezagos (1, 2, 12) + armónicos estacionales + tendencia,
     genera intervalos de confianza al 80% y 95%, y reporta MAE, MSE, RMSE, MAPE, SMAPE, R2 y MBE.
     """
-    n = len(months)
-    if n < 18:
+    if len(months) < 18:
         raise ValueError(
             "Se requieren al menos 18 meses de datos para entrenar y validar el pronóstico estacional."
         )
 
+    months, cont_counts = _reindex_continuous_months(months, counts)
+    n = len(months)
     train_size = max(14, min(n - 2, int(n * train_ratio)))
-    y_all = np.array(counts, dtype=np.float64)
+    y_all = np.array(cont_counts, dtype=np.float64)
 
     start_idx = 12
     X_train_rows: list[list[float]] = []
     y_train_rows: list[float] = []
     for i in range(start_idx, train_size):
         m_num = int(months[i].split("-")[1])
-        X_train_rows.append(_build_ts_features(counts[:train_size], i, m_num))
-        y_train_rows.append(float(counts[i]))
+        X_train_rows.append(_build_ts_features(cont_counts[:train_size], i, m_num))
+        y_train_rows.append(float(cont_counts[i]))
 
     X_train = np.array(X_train_rows, dtype=np.float64)
     y_train = np.array(y_train_rows, dtype=np.float64)
@@ -253,7 +298,7 @@ def run_monthly_seasonal_forecast(
     residual_std = float(np.std(residuals, ddof=1)) if len(residuals) > 1 else 1.0
 
     # Pronóstico recursivo sobre test y horizonte futuro
-    history = [float(c) for c in counts[:train_size]]
+    history = [float(c) for c in cont_counts[:train_size]]
     test_preds: list[float] = []
     test_lower_80: list[float] = []
     test_upper_80: list[float] = []
@@ -299,7 +344,7 @@ def run_monthly_seasonal_forecast(
     )
 
     # Horizonte futuro a partir del último mes real
-    full_history = [float(c) for c in counts]
+    full_history = [float(c) for c in cont_counts]
     last_year, last_month = (int(x) for x in months[-1].split("-"))
     future_series: list[dict[str, Any]] = []
     for step_idx in range(1, future_months + 1):
@@ -324,12 +369,13 @@ def run_monthly_seasonal_forecast(
         )
 
     train_series = [
-        {"month": months[i], "actual": int(counts[i])} for i in range(train_size)
+        {"month": months[i], "actual": int(round(cont_counts[i]))}
+        for i in range(train_size)
     ]
     test_series = [
         {
             "month": months[train_size + k],
-            "actual": int(counts[train_size + k]),
+            "actual": int(round(cont_counts[train_size + k])),
             "predicted": round(test_preds[k], 2),
             "lower_80": round(test_lower_80[k], 2),
             "upper_80": round(test_upper_80[k], 2),

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import {
   MONTH_LABELS,
   monthStatus,
+  type ComparisonMetric,
   type ComparisonMonth,
   type MonthStatus,
 } from './MonthlyComparisonChart.vue'
@@ -10,6 +11,7 @@ import {
 const props = defineProps<{
   months: readonly ComparisonMonth[]
   year: number
+  metric: ComparisonMetric
   valueLabel: string
   fractionDigits: number
 }>()
@@ -26,16 +28,20 @@ const STATUS_TEXT: Record<MonthStatus, string> = {
   above: 'Above range',
   typical: 'Typical',
   below: 'Below range',
+  partial: 'Partial month',
+  unharmonized: 'Not harmonized',
   insufficient: 'Short baseline',
-  'no-data': 'No data yet',
+  missing: 'No data',
 }
 
 const STATUS_CLASS: Record<MonthStatus, string> = {
   above: 'text-accent-bright',
   typical: 'text-ink-secondary',
   below: 'text-sky-300',
+  partial: 'text-ink-muted',
+  unharmonized: 'text-ink-muted',
   insufficient: 'text-ink-muted',
-  'no-data': 'text-ink-muted',
+  missing: 'text-ink-muted',
 }
 
 function format(value: number | null): string {
@@ -44,7 +50,7 @@ function format(value: number | null): string {
 
 const rows = computed(() =>
   props.months.map((month, index) => {
-    const status = monthStatus(month)
+    const status = monthStatus(month, props.metric)
     const { p25, p75, median } = month.historic
     return {
       key: month.month,
@@ -56,7 +62,7 @@ const rows = computed(() =>
         month.anomaly_pct_median === null || month.year_count === null
           ? ''
           : `${pctFormat.format(month.anomaly_pct_median)}%`,
-      status: STATUS_TEXT[status],
+      status: month.provisional ? `${STATUS_TEXT[status]}, near real time` : STATUS_TEXT[status],
       statusClass: STATUS_CLASS[status],
     }
   }),

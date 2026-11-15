@@ -1,5 +1,5 @@
 -- Execution settings
-SET max_memory = '6GB';
+SET max_memory = '2GB';
 SET threads = 4;
 
 -- Load required DuckDB extensions

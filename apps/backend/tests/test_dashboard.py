@@ -235,9 +235,13 @@ def test_monthly_comparison_baseline_excludes_target_and_fills_gaps():
     assert jan["historic"]["median"] == 5.0
     assert jan["anomaly_pct_median"] == 160.0
 
-    # Marzo 2023 no tiene detecciones pero está en el archivo: cuenta como 0
-    assert mar["historic"]["count"] == 2
-    assert mar["historic"]["min"] == 0.0
+    # Marzo 2023 no tiene ninguna detección en toda la región: es un hueco de
+    # datos y no entra en la línea base (antes se contaba como 0).
+    assert mar["historic"]["count"] == 1
+    # Marzo 2024 cierra el archivo el día 10: es parcial y no se clasifica
+    assert mar["archive_state"] == "partial"
+    assert mar["anomaly_pct_median"] is None
+    assert jan["archive_state"] == "full"
 
     # Abril 2024 aún no está en el archivo: sin dato, sin anomalía
     assert apr["has_data"] is False
@@ -287,7 +291,10 @@ def test_annual_stats_sensor_totals_partial_years_and_polygon():
     assert by_year[2022]["harmonized_index"] == 96.0
     assert by_year[2023]["total_hotspots"] == 66  # marzo 2023 sin detecciones
     assert by_year[2024]["viirs_count"] == 33
-    assert by_year[2024]["months_in_archive"] == 3
+    assert by_year[2024]["months_in_archive"] == 2  # marzo 2024 es parcial
+    # Marzo 2023 es un hueco y febrero (datos solo hasta el día 6) cierra un tramo,
+    # así que queda parcial.
+    assert by_year[2023]["months_in_archive"] == 10
     assert by_year[2024]["complete"] is False
     assert by_year[2022]["complete"] is True
     assert "frp" not in by_year[2022]
@@ -302,4 +309,102 @@ def test_annual_stats_sensor_totals_partial_years_and_polygon():
     assert clipped["range"] == {"start_year": 2024, "end_year": 2024}
     assert row["total_hotspots"] == 30
     assert row["frp"]["median"] == 10.0
+
+
+def test_monthly_comparison_marks_gaps_and_near_real_time_months():
+    """Datos del worker (CATCHUP_*) tras un hueco: provisionales y fuera de la base."""
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine, tables=[Hotspots.__table__])  # type: ignore[attr-defined]
+    session = Session(engine)
+
+    def add(yr: int, mo: int, days: range, category: str, weight: float) -> None:
+        session.add_all(
+            Hotspots(
+                id=uuid4(),
+                latitude=12.1,
+                longitude=-86.2,
+                instrument="VIIRS",
+                harmonization_category=category,
+                harmonized_weight=weight,
+                acq_datetime=datetime(yr, mo, d, 10, 0, 0, tzinfo=UTC),
+            )
+            for d in days
+        )
+
+    for yr in (2021, 2022, 2023):
+        for mo in range(1, 13):
+            add(yr, mo, range(1, 29), "BOTH_VIIRS_MODIS", 0.5)
+    # Ene-feb 2024 sin datos; desde el 20 de marzo llega el worker hasta el 15 de mayo
+    add(2024, 3, range(20, 32), "CATCHUP_VIIRS_SNPP_SP", 1.0)
+    add(2024, 4, range(1, 31), "CATCHUP_VIIRS_SNPP_SP", 1.0)
+    add(2024, 5, range(1, 16), "NRT_VIIRS_SNPP_NRT", 1.0)
+    session.commit()
+
+    comp = _run_coro(get_monthly_comparison(session=session, year=2024))
+    jan, _, mar, apr, may = comp["months"][:5]
+    assert jan["archive_state"] == "missing" and jan["year_count"] is None
+    assert mar["archive_state"] == "partial" and mar["provisional"] is True
+    assert apr["archive_state"] == "full" and apr["provisional"] is True
+    assert apr["anomaly_pct_median"] is not None  # en modo crudo sí se compara
+    assert may["archive_state"] == "partial"
+    assert apr["historic"]["count"] == 3  # solo 2021-2023, armonizados
+
+    harmonized = _run_coro(
+        get_monthly_comparison(session=session, year=2024, metric="harmonized")
+    )
+    assert harmonized["months"][3]["anomaly_pct_median"] is None
+
+    annual = _run_coro(get_annual_stats(session=session, include_distributions=False))
+    row_2024 = {r["year"]: r for r in annual["data"]}[2024]
+    assert row_2024["months_in_archive"] == 1
+    assert row_2024["provisional_months"] == 3
+    assert row_2024["complete"] is False
+
+
+def test_dashboard_polygon_harmonized_and_pre_limit_totals():
+    session = _seed_comparison_session()
+    polygon = (
+        '{"type":"Polygon","coordinates":[[[-87,11],[-85,11],[-85,13],[-87,13],[-87,11]]]}'
+    )
+
+    # Spatial density: limit=1 returns 1 cell in data, but total_hotspots reflects all cells in polygon
+    density_raw = _run_coro(
+        get_spatial_density(
+            cell_size_deg=0.1,
+            limit=1,
+            polygon=polygon,
+            metric="raw",
+            session=session,
+        )
+    )
+    assert len(density_raw["data"]) == 1
+    # 2022 (48) + 2023 (66) + 2024 inside polygon (30) = 144
+    assert density_raw["summary"]["total_hotspots"] == 144
+
+    density_harm = _run_coro(
+        get_spatial_density(
+            cell_size_deg=0.1,
+            limit=1,
+            polygon=polygon,
+            metric="harmonized",
+            session=session,
+        )
+    )
+    # 2022 (48*2=96) + 2023 (66*2=132) + 2024 (30*1=30) = 258
+    assert density_harm["summary"]["total_hotspots"] == 258
+
+    # Forecast with gap (2023-03 missing) and metric="harmonized" + polygon
+    forecast = _run_coro(
+        get_monthly_forecast(
+            train_ratio=0.8,
+            future_months=3,
+            metric="harmonized",
+            polygon=polygon,
+            session=session,
+        )
+    )
+    # Continuous calendar from 2022-01 to 2024-03 is 27 months (2023-03 gap imputed)
+    assert forecast["metrics"]["total_months"] == 27
+    assert len(forecast["future"]) == 3
+    assert forecast["future"][0]["month"] == "2024-04"
 

@@ -17,6 +17,7 @@ from enviromental.RequestWeather import RequestWeather
 from enviromental.WeatherDataClient import WeatherClientError, WeatherDataClient
 from repositories.HotspotRepository import HotspotRepository
 from repositories.pagination import paginate_sequence
+from repositories.spatial_filter import parse_geojson_polygon_to_wkt
 from schemas.pagination import PaginatedResponse, PaginationDep
 
 router = APIRouter(prefix="/analysis", tags=["FireAnalysis"])
@@ -29,6 +30,11 @@ class ClusterMovementRequest(BaseModel):
     max_lat: float | None = Field(default=None, ge=-90.0, le=90.0)
     min_lon: float | None = Field(default=None, ge=-180.0, le=180.0)
     max_lon: float | None = Field(default=None, ge=-180.0, le=180.0)
+    country: str | None = Field(default=None, max_length=100)
+    polygon: str | None = Field(
+        default=None,
+        description="GeoJSON Polygon o MultiPolygon (EPSG:4326) serializado",
+    )
     eps_km: float = Field(default=1.0, gt=0.0)
     min_samples: int = Field(default=2, ge=1)
     time_window_hours: float = Field(default=24.0, gt=0.0)
@@ -57,7 +63,13 @@ async def analyze_clusters_and_movement(
     pagination: PaginationDep,
     session: Session = Depends(get_session),
 ):
+    polygon_wkt = parse_geojson_polygon_to_wkt(payload.polygon)
     repo = HotspotRepository(session)
+    stmt_kwargs = {}
+    if payload.country is not None:
+        stmt_kwargs["country"] = payload.country
+    if polygon_wkt is not None:
+        stmt_kwargs["polygon_wkt"] = polygon_wkt
     rows_iter = repo.iter_hotspots_filtered(
         start_date=payload.start_date,
         end_date=payload.end_date,
@@ -66,6 +78,7 @@ async def analyze_clusters_and_movement(
         min_lon=payload.min_lon,
         max_lon=payload.max_lon,
         max_rows=payload.max_rows,
+        **stmt_kwargs,
     )
 
     processor = HotspotProcessor()
@@ -146,7 +159,13 @@ async def predict_fire_displacement(
     payload: FirePredictRequest,
     session: Session = Depends(get_session),
 ):
+    polygon_wkt = parse_geojson_polygon_to_wkt(payload.polygon)
     repo = HotspotRepository(session)
+    stmt_kwargs = {}
+    if payload.country is not None:
+        stmt_kwargs["country"] = payload.country
+    if polygon_wkt is not None:
+        stmt_kwargs["polygon_wkt"] = polygon_wkt
     rows_iter = repo.iter_hotspots_filtered(
         start_date=payload.start_date,
         end_date=payload.end_date,
@@ -155,6 +174,7 @@ async def predict_fire_displacement(
         min_lon=payload.min_lon,
         max_lon=payload.max_lon,
         max_rows=payload.max_rows,
+        **stmt_kwargs,
     )
 
     prepared = HotspotProcessor().prepare(rows_iter)

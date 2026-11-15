@@ -8,6 +8,7 @@ import BaseSelect from '@/components/ui/BaseSelect.vue'
 import MonthlyComparisonChart, {
   MIN_BASELINE_YEARS,
   STATUS_COLORS,
+  MONTH_LABELS,
   monthStatus,
 } from '@/components/common/MonthlyComparisonChart.vue'
 import MonthlyComparisonTable from '@/components/common/MonthlyComparisonTable.vue'
@@ -31,6 +32,9 @@ const ResponseSchema = z.object({
     z.object({
       month: z.number().int().min(1).max(12),
       has_data: z.boolean(),
+      archive_state: z.enum(['full', 'partial', 'missing']),
+      provisional: z.boolean(),
+      days_with_data: z.tuple([z.number().int(), z.number().int()]).nullable(),
       year_count: nullableNumber,
       year_raw_count: z.number().int().nullable(),
       anomaly_pct_median: nullableNumber,
@@ -47,7 +51,7 @@ const ResponseSchema = z.object({
 type ComparisonResponse = z.infer<typeof ResponseSchema>
 
 /** null = el año más reciente con datos (lo resuelve el backend). */
-const requestedYear = shallowRef<number | null>(null)
+const requestedYear = defineModel<number | null>('year', { default: null })
 
 const result = shallowRef<ComparisonResponse | null>(null)
 const isLoading = shallowRef(false)
@@ -108,7 +112,7 @@ const shownYear = computed(() => result.value?.year ?? null)
 const counts = computed(() => {
   const tally = { above: 0, below: 0, comparable: 0 }
   for (const month of months.value) {
-    const status = monthStatus(month)
+    const status = monthStatus(month, props.metric)
     if (status === 'above') tally.above += 1
     if (status === 'below') tally.below += 1
     if (status === 'above' || status === 'below' || status === 'typical') tally.comparable += 1
@@ -152,11 +156,47 @@ const chartDescription = computed(() =>
     : `Bar chart of monthly ${valueLabel.value} in ${shownYear.value} against the median and typical range of other years. ${summary.value}`,
 )
 
-const legend = computed(() => [
-  { key: 'above', label: 'Above range', swatch: STATUS_COLORS.above },
-  { key: 'typical', label: 'Typical', swatch: STATUS_COLORS.typical },
-  { key: 'below', label: 'Below range', swatch: STATUS_COLORS.below },
-])
+const monthNames = (list: readonly { month: number }[]) =>
+  list.map((m) => MONTH_LABELS[m.month - 1]).join(', ')
+
+/** Avisos sobre meses que no se comparan igual que los demás. */
+const dataNotes = computed(() => {
+  const target = shownYear.value
+  const notes: string[] = []
+  const missing = months.value.filter((m) => m.archive_state === 'missing')
+  const lastWithData = Math.max(0, ...months.value.filter((m) => m.has_data).map((m) => m.month))
+  const gaps = missing.filter((m) => m.month < lastWithData)
+  if (gaps.length > 0) {
+    notes.push(`The archive has no data for ${monthNames(gaps)} ${target}. Those months are gaps, not zero fires.`)
+  }
+  const partial = months.value.filter((m) => m.archive_state === 'partial')
+  if (partial.length > 0) {
+    notes.push(`${monthNames(partial)} only cover part of the month, so they are faded and not compared.`)
+  }
+  if (months.value.some((m) => m.provisional)) {
+    notes.push(
+      props.metric === 'harmonized'
+        ? 'Months with a dashed outline come from the near-real-time feed, which is not harmonized yet, so they are not compared on this scale.'
+        : 'Months with a dashed outline come from the near-real-time feed: not harmonized yet and with one more VIIRS satellite than the archive, so they read higher than earlier years.',
+    )
+  }
+  return notes
+})
+
+const legend = computed(() => {
+  const items: { key: string; label: string; swatch: string; dashed?: boolean }[] = [
+    { key: 'above', label: 'Above range', swatch: STATUS_COLORS.above },
+    { key: 'typical', label: 'Typical', swatch: STATUS_COLORS.typical },
+    { key: 'below', label: 'Below range', swatch: STATUS_COLORS.below },
+  ]
+  if (months.value.some((m) => m.archive_state === 'partial')) {
+    items.push({ key: 'partial', label: 'Partial month', swatch: STATUS_COLORS.partial })
+  }
+  if (months.value.some((m) => m.provisional)) {
+    items.push({ key: 'nrt', label: 'Near real time', swatch: 'transparent', dashed: true })
+  }
+  return items
+})
 </script>
 
 <template>
@@ -221,6 +261,9 @@ const legend = computed(() => [
           </p>
           <p class="text-xs text-ink-muted">{{ baselineText }}</p>
         </div>
+        <ul v-if="dataNotes.length > 0" class="space-y-1 text-xs leading-relaxed text-ink-muted">
+          <li v-for="note in dataNotes" :key="note">{{ note }}</li>
+        </ul>
 
         <p
           v-if="harmonizedMissing"
@@ -234,6 +277,7 @@ const legend = computed(() => [
           <MonthlyComparisonChart
             :months="months"
             :year="shownYear"
+            :metric="metric"
             :value-label="valueLabel"
             :fraction-digits="fractionDigits"
             :description="chartDescription"
@@ -242,7 +286,11 @@ const legend = computed(() => [
 
         <ul class="flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-secondary" aria-label="Chart legend">
           <li v-for="item in legend" :key="item.key" class="inline-flex items-center gap-2">
-            <span class="h-3 w-3 rounded-sm" :style="{ backgroundColor: item.swatch }" />
+            <span
+              class="h-3 w-3 rounded-sm"
+              :class="item.dashed && 'border border-dashed border-ink-primary'"
+              :style="{ backgroundColor: item.swatch }"
+            />
             {{ item.label }}
           </li>
           <li class="inline-flex items-center gap-2">
@@ -266,6 +314,7 @@ const legend = computed(() => [
             <MonthlyComparisonTable
               :months="months"
               :year="shownYear"
+              :metric="metric"
               :value-label="valueLabel"
               :fraction-digits="fractionDigits"
             />

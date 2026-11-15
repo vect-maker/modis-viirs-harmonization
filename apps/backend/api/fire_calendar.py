@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
@@ -20,24 +20,33 @@ router = APIRouter(tags=["FireCalendar"])
     summary="Estadísticas históricas de incendios agrupadas por día, semana o mes",
 )
 async def get_fire_calendar(
-    year: int = Query(..., ge=1990, le=2100, description="Año que se desea consultar"),
-    month: int | None = Query(default=None, ge=1, le=12, description="Mes específico (1-12)"),
-    start_date: date | None = Query(default=None, description="Fecha inicial del período"),
-    end_date: date | None = Query(default=None, description="Fecha final del período"),
-    country: str | None = Query(default=None, description="País"),
-    department: str | None = Query(default=None, description="Departamento"),
-    municipality: str | None = Query(default=None, description="Municipio"),
-    min_confidence: float | None = Query(default=None, ge=0.0, le=100.0, description="Confianza mínima"),
-    confidence_class: str | None = Query(default=None, description="Categoría de confianza"),
-    satellite: str | None = Query(default=None, description="Satélite utilizado"),
-    instrument: str | None = Query(default=None, description="Instrumento de detección"),
-    daynight: str | None = Query(default=None, description="Detecciones diurnas ('D') o nocturnas ('N')"),
-    min_frp: float | None = Query(default=None, ge=0.0, description="FRP mínimo"),
-    max_frp: float | None = Query(default=None, ge=0.0, description="FRP máximo"),
-    cluster_id: int | None = Query(default=None, ge=1, description="Identificador de un incendio específico"),
-    aggregation: Literal["day", "week", "month"] = Query(
-        default="day", description="Tipo de agrupación: day, week o month"
-    ),
+    year: Annotated[int, Query(ge=1990, le=2100, description="Año que se desea consultar")],
+    month: Annotated[int | None, Query(ge=1, le=12, description="Mes específico (1-12)")] = None,
+    start_date: Annotated[date | None, Query(description="Fecha inicial del período")] = None,
+    end_date: Annotated[date | None, Query(description="Fecha final del período")] = None,
+    country: Annotated[str | None, Query(description="País")] = None,
+    department: Annotated[str | None, Query(description="Departamento")] = None,
+    municipality: Annotated[str | None, Query(description="Municipio")] = None,
+    min_confidence: Annotated[float | None, Query(ge=0.0, le=100.0, description="Confianza mínima")] = None,
+    confidence_class: Annotated[str | None, Query(description="Categoría de confianza")] = None,
+    satellite: Annotated[str | None, Query(description="Satélite utilizado")] = None,
+    instrument: Annotated[str | None, Query(description="Instrumento de detección")] = None,
+    daynight: Annotated[str | None, Query(description="Detecciones diurnas ('D') o nocturnas ('N')")] = None,
+    min_frp: Annotated[float | None, Query(ge=0.0, description="FRP mínimo")] = None,
+    max_frp: Annotated[float | None, Query(ge=0.0, description="FRP máximo")] = None,
+    cluster_id: Annotated[int | None, Query(ge=1, description="Identificador de un incendio específico")] = None,
+    polygon: Annotated[
+        str | None,
+        Query(description="GeoJSON Polygon o MultiPolygon (EPSG:4326) serializado"),
+    ] = None,
+    metric: Annotated[
+        Literal["raw", "harmonized"],
+        Query(description="Métrica de conteo y FRP: raw o harmonized"),
+    ] = "raw",
+    aggregation: Annotated[
+        Literal["day", "week", "month"],
+        Query(description="Tipo de agrupación: day, week o month"),
+    ] = "day",
     session: Session = Depends(get_session),
 ):
     try:
@@ -57,6 +66,8 @@ async def get_fire_calendar(
             min_frp=min_frp,
             max_frp=max_frp,
             cluster_id=cluster_id,
+            polygon=polygon,
+            metric=metric,
             aggregation=aggregation,
         )
     except ValidationError as exc:
