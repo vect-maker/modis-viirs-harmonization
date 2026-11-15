@@ -40,6 +40,10 @@ As shown in Table 1, introducing VIIRS SNPP (2012) and NOAA-20 (2018) increases 
 )
 #v(0.3em)
 
-== Pipeline and Frontend Performance
+== Pipeline, PostGIS Ingestion, and Backend Verification
 
-#todo[Record DuckDB execution times for `just pipeline fuse-data`, `just pipeline normalize-data`, and `just pipeline db-load-nicaragua`, as well as Parquet compression ratios and frontend MapLibre GL JS rendering frame rates on 5,000+ points.]
+Pure DuckDB SQL spatio-temporal grid clustering (`sql/cluster_hotspots.sql`, $0.009 degree$ cell, $24 "h"$ slot) across the full `data/raw/**/*.parquet` archive (`2000-11-01 02:31:00` to `2025-12-31 19:30:00`) produced `fire_clusters.parquet` (`16.5 MB`, `570,387` clusters) and `cluster_hotspots.parquet` (`25.0 MB`, `809,149` hotspots; global average FRP `12.0 MW`, maximum FRP `3,041.7 MW`). PostGIS loading via `sql/load_clusters.sql` (`just pipeline db-load-clusters` and `db-load-nicaragua`) ingested `570,387` `firecluster` rows in `3.515 s`, `809,149` `clusterhotspots` rows in `9.881 s`, and `809,149` `fact_hotspots` rows (`6` `dim_country`, `4` `dim_platform`) in `32.795 s`.
+
+In `apps/backend`, static type checking with `basedpyright` passes with `0 errors, 0 warnings, 0 notes` across the analytics, repository, schema, service, and API modules (including `api/fire_cluster_forecast.py`, `DashboardRepository.py`, `DashboardAnalytics.py`, `api/dashboard.py`, `FireCalendarRepository.py`, `FireCalendarService.py`, and `api/fire_calendar.py`), and the full backend `pytest` unit/API suite passes (`26 passed in 5.96s` across `test_clustering.py`, `test_movement.py`, `test_weather.py`, `test_predictor.py`, `test_api_analysis.py`, `test_dashboard.py`, and `test_fire_calendar.py`).
+
+#todo[Record DuckDB execution times for `just pipeline fuse-data` and `just pipeline normalize-data`, as well as frontend MapLibre GL JS rendering frame rates on 5,000+ points.]

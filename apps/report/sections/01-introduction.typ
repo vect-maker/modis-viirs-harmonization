@@ -21,7 +21,7 @@ To address these challenges for the 2026 NASA Space Apps Challenge, we present *
 
 - *ETL & Harmonization Pipeline (`apps/pipeline`):* Python 3.12+ orchestration with SQLModel/SQLite metadata tracking, async HTTP/2 ingestion via `httpx2`, and high-throughput DuckDB SQL transformations producing ZSTD-compressed Silver and Star-Schema Gold Parquet datasets.
 - *Spatial Database (`db` service):* PostgreSQL 17 with PostGIS 3.5 (`postgis:17-3.5`) storing the normalized star schema (`dim_country`, `dim_platform`, `fact_hotspots`) with GIST spatial and composite temporal indexes.
-- *Backend API (`apps/backend`, in active development):* FastAPI service built on Python 3.12+, SQLModel, `httpx`, and Psycopg 3 (`psycopg[binary]`), designed to serve spatial and temporal queries from PostGIS to the frontend.
+- *Backend API (`apps/backend`):* FastAPI service built on Python 3.12+, SQLModel, `httpx`, Psycopg 3 (`psycopg[binary]`), NumPy, and Scikit-learn, serving paginated PostGIS queries (`limit`/`offset`) for every table alongside spatio-temporal clustering, movement tracking, NASA POWER weather vector analysis, and fire displacement prediction.
 - *Web Application (`apps/frontend`):* Vue 3.5 (`<script setup lang="ts">`) + Vite 8.2 + Pinia 4.0 dashboard featuring a WebGL-accelerated MapLibre GL JS 5.1 globe/map, interactive polygon/bounding-box ROI drawing (`@mapbox/mapbox-gl-draw`, `@turf/turf`), a 2000–2025 burning activity calendar, daily activity charts, and RFC-4180 CSV export.
 - *Edge Reverse Proxy (`caddy` service):* Caddy 2.9 (`caddy:2.9-alpine`) routing `/api/*` to the backend and `*` to the frontend with automatic HTTPS via `CADDY_DOMAIN`.
 
@@ -32,4 +32,5 @@ This work aims to:
 + Fuse heterogeneous MODIS and VIIRS schemas into a unified Silver Parquet dataset and a deterministic UUIDv5 Star Schema Gold layer;
 + Formulate a point-grain-preserving spatio-temporal co-detection model to quantify VIIRS-to-MODIS multiplicity and classify diurnal/sensitivity anomalies;
 + Deliver an accessible, color-blind-aware burning activity calendar and interactive GIS web interface with CSV export;
++ Provide modular backend analytics for spatio-temporal fire clustering (`DBSCAN` with Haversine/`BallTree`), apparent centroid movement, NASA POWER wind-vector correlation, and `RandomForestRegressor` displacement forecasting;
 + Package the full stack for reproducible rootless container deployment via Podman/Docker Compose.

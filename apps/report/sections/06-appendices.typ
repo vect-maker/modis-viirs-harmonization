@@ -30,14 +30,15 @@ This work is developed for the *2026 NASA Space Apps Challenge* ("Harmonization 
 = Software Dependencies
 
 - *Pipeline (`apps/pipeline`, Python `>=3.12`):* `sqlmodel`, `httpx2[http2]`, `pandas[parquet,feather]`, `dotenv`, `duckdb` CLI (with `spatial`), `ruff`, `basedpyright`.
-- *Backend Stack (`apps/backend`, Python `>=3.12`):* `fastapi[standard]`, `sqlmodel`, `httpx`, `psycopg[binary]>=3.3.9`.
+- *Backend Stack (`apps/backend`, Python `>=3.12`):* `fastapi[standard]`, `sqlmodel`, `httpx`, `psycopg[binary]>=3.3.9`, `numpy`, `scikit-learn`, `scipy`, `duckdb`, `pytest`, `ruff`, `basedpyright`.
 - *Frontend (`apps/frontend`):* `vue@^3.5`, `pinia@^4.0`, `vue-router`, `maplibre-gl@^5.1`, `@mapbox/mapbox-gl-draw@^1.5`, `@turf/turf@^7.2`, `reka-ui@^2.0`, `@vueuse/core@^15.0`, `tailwindcss@^4.3`, `vite@^8.2`.
 
 = Reproducibility Checklist
 
 - `[x]` Source code and SQL transformations publicly available on GitHub.
-- `[x]` Deterministic UUIDv5 key generation (`firms.nasa.gov` DNS namespace).
+- `[x]` Deterministic UUIDv5 key generation (`firms.nasa.gov` DNS namespace) and DuckDB/PostGIS cluster loading (`just pipeline db-load-clusters`).
 - `[x]` Containerfiles (`prod.containerfile`, `debug.containerfile`) and `compose.yml` included.
-- `[ ]` #todo[Completed empirical spatial benchmark (`just pipeline benchmark-spatial`) and end-to-end backend API integration.]
+- `[x]` Backend REST endpoints, NumPy/Scikit-learn analytics modules, and `pytest` / `basedpyright` verification suite implemented.
+- `[ ]` #todo[Completed empirical spatial benchmark (`just pipeline benchmark-spatial`) and frontend live-API switchover.]
 
 *Hackathon Project Information:* NASA Space Apps Challenge 2026 | Repository: `https://github.com/vect-maker/firms-harmonizer-etl` | Live Demo: #todo[Add deployed URL] | Team: #todo[Add team handles]
