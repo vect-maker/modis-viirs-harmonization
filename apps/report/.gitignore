@@ -1,2 +1,6 @@
-output/
+output/*
+!output/report.pdf
+!output/PyroTrace_Harmonization.pdf
 *.pdf
+!output/report.pdf
+!output/PyroTrace_Harmonization.pdf
