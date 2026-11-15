@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import LandingNavbar from '@/components/landing/LandingNavbar.vue'
-import LandingHero from '@/components/landing/LandingHero.vue'
-import LandingProblem from '@/components/landing/LandingProblem.vue'
-import LandingMethodology from '@/components/landing/LandingMethodology.vue'
-import LandingAudience from '@/components/landing/LandingAudience.vue'
-import LandingFooter from '@/components/landing/LandingFooter.vue'
+import BrandHeader from '@/components/landing/BrandHeader.vue'
+import BrandHero from '@/components/landing/BrandHero.vue'
+import BrandContinuity from '@/components/landing/BrandContinuity.vue'
+import BrandCalendar from '@/components/landing/BrandCalendar.vue'
+import BrandAudience from '@/components/landing/BrandAudience.vue'
+import BrandQuestions from '@/components/landing/BrandQuestions.vue'
+import BrandFooter from '@/components/landing/BrandFooter.vue'
+import '@/assets/landing.css'
 </script>
 
 <template>
-  <div
-    class="min-h-dvh bg-surface-base font-sans text-ink-primary selection:bg-accent selection:text-surface-base"
-  >
-    <LandingNavbar />
-    <main>
-      <LandingHero />
-      <LandingProblem />
-      <LandingMethodology />
-      <LandingAudience />
+  <div class="pyro-landing" lang="es">
+    <a class="landing-skip" href="#contenido">Saltar al contenido</a>
+    <BrandHeader />
+    <main id="contenido" tabindex="-1">
+      <BrandHero />
+      <BrandContinuity />
+      <BrandCalendar />
+      <BrandAudience />
+      <BrandQuestions />
     </main>
-    <LandingFooter />
+    <BrandFooter />
   </div>
 </template>
