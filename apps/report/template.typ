@@ -43,7 +43,7 @@
   set block(spacing: 1em)
   set heading(numbering: none)
   set math.equation(numbering: "(1)")
-  show raw: set text(font: ("Liberation Mono", "DejaVu Sans Mono"), size: 10pt)
+  show raw: set text(size: 10pt)
   show link: set text(fill: rgb("#1f4e79"))
 
   // APA heading levels 1 to 3.

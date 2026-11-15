@@ -17,7 +17,7 @@ PyroTrace is the solution developed by the PyroTrace team for the NASA Space App
     [Local event], [Managua, Nicaragua, November 14 and 15, 2026],
     [Solution], [Open-source web platform that harmonizes MODIS and VIIRS active-fire records from NASA FIRMS for the seven countries of Central America and presents them in a map, a historical calendar, and a statistics panel],
     [Source code], [#link("https://github.com/vect-maker/modis-viirs-harmonization")[github.com/vect-maker/modis-viirs-harmonization] (public, open source)],
-    [Deployment], [#link("https://firms-harmonization.northcentralus.cloudapp.azure.com/")[firms-harmonization.northcentralus.cloudapp.azure.com]; this instance may lag behind the repository],
+    [Deployment], [#link("https://pyrotrace.northcentralus.cloudapp.azure.com/")[pyrotrace.northcentralus.cloudapp.azure.com]; this instance may lag behind the repository],
     [Demonstration video], [Linked from the team's project page on the Space Apps platform],
   ),
   caption: [Project Identification],

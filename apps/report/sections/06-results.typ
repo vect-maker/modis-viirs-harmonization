@@ -115,4 +115,4 @@ The following figures show the platform running with the complete database. The 
 
 == Links
 
-The source code, including the pipeline, the SQL, the API, the web application, the tests, and this report, is available at #link("https://github.com/vect-maker/modis-viirs-harmonization")[github.com/vect-maker/modis-viirs-harmonization]. A deployed instance runs at #link("https://firms-harmonization.northcentralus.cloudapp.azure.com/")[firms-harmonization.northcentralus.cloudapp.azure.com], and the demonstration video is linked from the team's project page on the Space Apps platform.
+The source code, including the pipeline, the SQL, the API, the web application, the tests, and this report, is available at #link("https://github.com/vect-maker/modis-viirs-harmonization")[github.com/vect-maker/modis-viirs-harmonization]. A deployed instance runs at #link("https://pyrotrace.northcentralus.cloudapp.azure.com/")[pyrotrace.northcentralus.cloudapp.azure.com], and the demonstration video is linked from the team's project page on the Space Apps platform.
