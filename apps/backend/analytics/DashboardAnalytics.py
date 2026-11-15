@@ -134,6 +134,7 @@ def run_spatial_isolation_forest(
                 "normal_count": 0,
                 "anomaly_count": 0,
                 "anomaly_pct": 0.0,
+                "returned_points": 0,
                 "score_stats": compute_descriptive_stats(np.array([], dtype=np.float64)),
             },
             "points": [],

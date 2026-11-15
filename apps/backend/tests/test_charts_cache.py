@@ -32,7 +32,7 @@ def _clear_global_chart_cache():
 def test_resolve_chart_bucket_and_key_canonicalization():
     assert resolve_chart_bucket("/charts/temporal/daily-activity") == "temporal"
     assert resolve_chart_bucket("/api/charts/diagnostics/correlations") == "diagnostics"
-    assert resolve_chart_bucket("/charts/models/monthly-forecast") == "models"
+    assert resolve_chart_bucket("/charts/models/weather-correlation") == "models"
     assert resolve_chart_bucket("/hotspots") is None
 
     k1 = build_chart_cache_key(

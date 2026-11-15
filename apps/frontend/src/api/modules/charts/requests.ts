@@ -59,28 +59,6 @@ export interface SpatialAnomaliesQuery extends ChartBaseFilterQuery {
   max_lon?: number
 }
 
-export interface MonthlyForecastQuery extends ChartBaseFilterQuery {
-  train_ratio?: number
-  future_months?: number | string
-  start_year?: number | string
-  end_year?: number | string
-}
-
-export interface ClusterMovementQuery extends ChartBaseFilterQuery {
-  min_lat?: number
-  max_lat?: number
-  min_lon?: number
-  max_lon?: number
-  eps_km?: number | string
-  min_samples?: number
-  time_window_hours?: number
-  max_time_window_hours?: number
-  interval_hours?: number
-  max_rows?: number
-  limit?: number
-  offset?: number
-}
-
 export interface WeatherCorrelationQuery extends ChartBaseFilterQuery {
   latitude: number
   longitude: number
@@ -89,12 +67,6 @@ export interface WeatherCorrelationQuery extends ChartBaseFilterQuery {
   fire_direction_deg?: number | null
   limit?: number
   offset?: number
-}
-
-export interface FirePredictQuery extends ClusterMovementQuery {
-  min_training_samples?: number
-  test_ratio?: number
-  n_estimators?: number
 }
 
 export function polygonBbox(polygon: GeoJSONPolygon | null | undefined) {

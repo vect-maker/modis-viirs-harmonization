@@ -22,10 +22,7 @@ EXPECTED_CHART_ROUTES = {
     ("GET", "/charts/diagnostics/correlations"),
     ("GET", "/charts/diagnostics/spatial-density"),
     ("GET", "/charts/diagnostics/spatial-anomalies"),
-    ("GET", "/charts/models/monthly-forecast"),
-    ("GET", "/charts/models/cluster-movement"),
     ("GET", "/charts/models/weather-correlation"),
-    ("GET", "/charts/models/predict"),
 }
 
 REMOVED_LEGACY_ROUTES = {

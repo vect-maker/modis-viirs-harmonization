@@ -12,7 +12,6 @@ from api.charts.diagnostics import (
     get_spatial_anomalies,
     get_spatial_density,
 )
-from api.charts.models import get_monthly_forecast
 from api.charts.temporal import get_annual_stats, get_monthly_comparison
 from model import Hotspots
 from schemas.charts import ChartFilterParams
@@ -171,23 +170,6 @@ def test_dashboard_monthly_comparison_anomalies_and_forecast():
     assert anom["summary"]["total_points"] > 0
     assert anom["summary"]["anomaly_count"] >= 1
     assert "score_stats" in anom["summary"]
-
-    forecast_resp = _run_coro(
-        get_monthly_forecast(
-            filters=ChartFilterParams(),
-            train_ratio=0.8,
-            future_months=3,
-            start_year=2023,
-            end_year=2024,
-            session=session,
-        )
-    )
-    forecast = forecast_resp.data
-    assert "metrics" in forecast
-    assert forecast["metrics"]["mae"] >= 0.0
-    assert forecast["metrics"]["rmse"] >= 0.0
-    assert "smape_pct" in forecast["metrics"]
-    assert len(forecast["future"]) == 3
 
 
 def _seed_comparison_session() -> Session:
@@ -417,15 +399,3 @@ def test_dashboard_polygon_harmonized_and_pre_limit_totals():
         )
     ).data
     assert density_harm["summary"]["total_hotspots"] == 258
-
-    forecast = _run_coro(
-        get_monthly_forecast(
-            filters=ChartFilterParams(polygon=polygon, metric="harmonized"),
-            train_ratio=0.8,
-            future_months=3,
-            session=session,
-        )
-    ).data
-    assert forecast["metrics"]["total_months"] == 27
-    assert len(forecast["future"]) == 3
-    assert forecast["future"][0]["month"] == "2024-04"

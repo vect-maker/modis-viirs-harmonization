@@ -29,7 +29,6 @@ from api.dashboard import (
     get_confidence_dbscan,
     get_correlations,
     get_monthly_comparison,
-    get_monthly_forecast,
     get_spatial_anomalies,
     get_spatial_density,
 )
@@ -559,17 +558,6 @@ def test_dashboard_and_fire_calendar_endpoints():
     )
     assert "summary" in anom_res
 
-    forecast_res = _run_coro(
-        get_monthly_forecast(
-            train_ratio=0.8,
-            future_months=6,
-            start_year=2024,
-            end_year=2025,
-            session=session,
-        )
-    )
-    assert len(forecast_res["future"]) == 6
-
     cal_res = _run_coro(
         get_fire_calendar(
             year=2024,
@@ -760,18 +748,6 @@ def test_exception_handling_and_validation_errors():
             get_monthly_comparison(year=None, start_year=2026, end_year=2024, session=session)
         )
     assert exc_cmp_years.value.status_code == 400
-
-    with pytest.raises(HTTPException) as exc_fc_years:
-        _run_coro(
-            get_monthly_forecast(
-                train_ratio=0.8,
-                future_months=6,
-                start_year=2026,
-                end_year=2024,
-                session=session,
-            )
-        )
-    assert exc_fc_years.value.status_code == 400
 
     # 404 on missing alert
     with pytest.raises(HTTPException) as exc_alert:

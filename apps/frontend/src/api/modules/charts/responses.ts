@@ -175,82 +175,6 @@ export const SpatialAnomaliesDataSchema = z.object({
   ),
 })
 
-export const ForecastTrainPointSchema = z.object({
-  month: z.string(),
-  actual: z.number(),
-  predicted: z.number().nullable(),
-})
-
-export const ForecastTestPointSchema = z.object({
-  month: z.string(),
-  actual: z.number(),
-  predicted: z.number(),
-  lower_80: z.number(),
-  upper_80: z.number(),
-  lower_95: z.number(),
-  upper_95: z.number(),
-})
-
-export const ForecastFuturePointSchema = z.object({
-  month: z.string(),
-  predicted: z.number(),
-  lower_80: z.number(),
-  upper_80: z.number(),
-  lower_95: z.number(),
-  upper_95: z.number(),
-})
-
-export const MonthlyForecastDataSchema = z.object({
-  metrics: z.object({
-    total_months: z.number().int(),
-    train_months: z.number().int(),
-    test_months: z.number().int(),
-    mae: z.number(),
-    mse: z.number(),
-    rmse: z.number(),
-    mape_pct: z.number(),
-    smape_pct: z.number(),
-    r2: z.number(),
-    mbe: z.number(),
-    residual_std: z.number(),
-  }),
-  train: z.array(ForecastTrainPointSchema),
-  test: z.array(ForecastTestPointSchema),
-  future: z.array(ForecastFuturePointSchema),
-})
-
-export const ClusterMovementStepSchema = z.object({
-  fire_id: z.number().int(),
-  timestamp: z.string(),
-  centroid_lat: z.number(),
-  centroid_lon: z.number(),
-  direction_deg: z.number().nullable(),
-  cardinal_direction: z.string().nullable(),
-  distance_km: z.number(),
-  apparent_speed_kmh: z.number(),
-  hotspot_count: z.number().int().nonnegative(),
-  total_frp: z.number(),
-  angle_change_deg: z.number().nullable(),
-  direction_changed: z.boolean(),
-  empty_intervals_before: z.number().int().nonnegative(),
-})
-
-export const ClusterMovementDataSchema = z.object({
-  summary: z.object({
-    hotspots_valid: z.number().int().nonnegative(),
-    hotspots_dropped: z.number().int().nonnegative().optional(),
-    clusters: z.number().int().nonnegative(),
-    noise: z.number().int().nonnegative(),
-  }),
-  fires: z.array(
-    z.object({
-      fire_id: z.number().int(),
-      steps: z.array(ClusterMovementStepSchema),
-    }),
-  ),
-  total: z.number().int().nonnegative(),
-})
-
 export const WeatherCorrelationRecordSchema = z.object({
   date: z.string(),
   is_complete: z.boolean(),
@@ -272,26 +196,6 @@ export const WeatherCorrelationDataSchema = z.object({
   total: z.number().int().nonnegative(),
 })
 
-export const FirePredictDataSchema = z.object({
-  metrics: z.object({
-    train_samples: z.number().int(),
-    test_samples: z.number().int(),
-    r2_delta_lat: z.number(),
-    r2_delta_lon: z.number(),
-    mae_delta_lat: z.number(),
-    mae_delta_lon: z.number(),
-    mean_distance_error_km: z.number(),
-    feature_importances: z.record(z.string(), z.number()),
-  }),
-  latest_prediction: z.object({
-    predicted_delta_lat: z.number(),
-    predicted_delta_lon: z.number(),
-    predicted_distance_km: z.number(),
-    predicted_direction_deg: z.number(),
-    predicted_cardinal_direction: z.string(),
-  }),
-})
-
 export const AnnualStatsEnvelopeSchema = ChartResponseSchema(AnnualStatsDataSchema)
 export const MonthlyComparisonEnvelopeSchema = ChartResponseSchema(MonthlyComparisonDataSchema)
 export const FireCalendarEnvelopeSchema = ChartResponseSchema(FireCalendarDataSchema)
@@ -299,7 +203,4 @@ export const ConfidenceDbscanEnvelopeSchema = ChartResponseSchema(ConfidenceDbsc
 export const CorrelationsEnvelopeSchema = ChartResponseSchema(z.array(CorrelationPairSchema))
 export const SpatialDensityEnvelopeSchema = ChartResponseSchema(SpatialDensityDataSchema)
 export const SpatialAnomaliesEnvelopeSchema = ChartResponseSchema(SpatialAnomaliesDataSchema)
-export const MonthlyForecastEnvelopeSchema = ChartResponseSchema(MonthlyForecastDataSchema)
-export const ClusterMovementEnvelopeSchema = ChartResponseSchema(ClusterMovementDataSchema)
 export const WeatherCorrelationEnvelopeSchema = ChartResponseSchema(WeatherCorrelationDataSchema)
-export const FirePredictEnvelopeSchema = ChartResponseSchema(FirePredictDataSchema)

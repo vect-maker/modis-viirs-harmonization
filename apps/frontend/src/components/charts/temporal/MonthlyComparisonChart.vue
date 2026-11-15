@@ -5,6 +5,7 @@ import { RotateCw } from '@lucide/vue'
 import { useTemporalChartsApi } from '@/api'
 import { useChartLifecycle } from '@/composables/useChartLifecycle'
 import { useChartFiltersStore } from '@/stores/chartFilters'
+import BaseChartLoading from '@/components/ui/BaseChartLoading.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import MonthlyComparisonRenderer, {
   MIN_BASELINE_YEARS,
@@ -188,10 +189,10 @@ const legend = computed(() => {
         </button>
       </div>
 
-      <div
+      <BaseChartLoading
         v-if="result === null && isLoading"
-        class="h-[21rem] rounded-lg bg-white/[0.03] motion-safe:animate-pulse"
-        aria-hidden="true"
+        height-class="h-[21rem]"
+        label="Loading monthly comparison…"
       />
 
       <p

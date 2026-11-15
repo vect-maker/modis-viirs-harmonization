@@ -18,6 +18,7 @@ import { ScatterChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
+import SpatialAnomaliesGeoMap from './SpatialAnomaliesGeoMap.vue'
 
 use([CanvasRenderer, ScatterChart, GridComponent, TooltipComponent])
 
@@ -30,14 +31,13 @@ const props = defineProps<{
 const frpFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
 const chartOption = computed(() => {
+  if (props.mode === 'geo') return {}
+
   const normals: { value: number[]; pt: SpatialAnomalyPoint }[] = []
   const anomalies: { value: number[]; pt: SpatialAnomalyPoint }[] = []
 
   for (const pt of props.points) {
-    const coords =
-      props.mode === 'geo'
-        ? [pt.longitude, pt.latitude]
-        : [pt.score, pt.frp ?? 0]
+    const coords = [pt.score, pt.frp ?? 0]
     if (pt.is_anomaly) {
       anomalies.push({ value: coords, pt })
     } else {
@@ -63,14 +63,14 @@ const chartOption = computed(() => {
           `<div style="margin-top:2px;color:#f3f4f6">${pt.latitude.toFixed(4)}°N, ${pt.longitude.toFixed(4)}°E</div>`,
           `<div style="color:#cbd5e1">Decision score: ${pt.score.toFixed(4)}</div>`,
           `<div style="color:#cbd5e1">FRP: ${pt.frp !== null ? `${frpFmt.format(pt.frp)} MW` : '—'}</div>`,
-          `<div style="color:#94a3b8">${pt.acq_datetime.slice(0, 19)} UTC</div>`,
+          `<div style="color:#94a3b8">${pt.acq_datetime ? `${pt.acq_datetime.slice(0, 19)} UTC` : '—'}</div>`,
         ].join('')
       },
     },
     xAxis: {
       type: 'value',
       scale: true,
-      name: props.mode === 'geo' ? 'Longitude (°)' : 'IsolationForest Decision Score',
+      name: 'IsolationForest Decision Score',
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: { color: '#94a3b8', fontSize: 11 },
@@ -78,20 +78,20 @@ const chartOption = computed(() => {
       axisLabel: {
         color: '#94a3b8',
         fontSize: 10,
-        formatter: (v: number) => (props.mode === 'geo' ? `${v.toFixed(1)}°` : v.toFixed(2)),
+        formatter: (v: number) => v.toFixed(2),
       },
       splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.06)', type: 'dashed' } },
     },
     yAxis: {
       type: 'value',
       scale: true,
-      name: props.mode === 'geo' ? 'Latitude (°)' : 'FRP (MW)',
+      name: 'FRP (MW)',
       nameTextStyle: { color: '#94a3b8', fontSize: 11 },
       axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.12)' } },
       axisLabel: {
         color: '#94a3b8',
         fontSize: 10,
-        formatter: (v: number) => (props.mode === 'geo' ? `${v.toFixed(1)}°` : `${frpFmt.format(v)}`),
+        formatter: (v: number) => `${frpFmt.format(v)}`,
       },
       splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.06)', type: 'dashed' } },
     },
@@ -124,7 +124,8 @@ const chartOption = computed(() => {
 </script>
 
 <template>
-  <div role="img" :aria-label="description" class="h-[32rem] w-full sm:h-[38rem] lg:h-[42rem]">
+  <SpatialAnomaliesGeoMap v-if="mode === 'geo'" :points="points" :description="description" />
+  <div v-else role="img" :aria-label="description" class="h-[32rem] w-full sm:h-[38rem] lg:h-[42rem]">
     <VChart :option="chartOption" autoresize aria-hidden="true" />
   </div>
 </template>

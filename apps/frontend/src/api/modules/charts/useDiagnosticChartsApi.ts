@@ -23,7 +23,7 @@ export function useDiagnosticChartsApi() {
   async function getConfidenceDbscan(
     params?: ConfidenceDbscanQuery,
   ): Promise<ConfidenceDbscanData> {
-    const qs = buildChartQueryString({ ...(params ?? {}) }, params?.polygon)
+    const qs = buildChartQueryString({ ...params }, params?.polygon)
     const { data, error } = await useApiFetch(`/charts/diagnostics/confidence-dbscan${qs}`)
       .get()
       .json()
@@ -34,7 +34,7 @@ export function useDiagnosticChartsApi() {
   }
 
   async function getCorrelations(params?: CorrelationsQuery): Promise<CorrelationPair[]> {
-    const qs = buildChartQueryString({ ...(params ?? {}) }, params?.polygon)
+    const qs = buildChartQueryString({ ...params }, params?.polygon)
     const { data, error } = await useApiFetch(`/charts/diagnostics/correlations${qs}`)
       .get()
       .json()
@@ -45,7 +45,7 @@ export function useDiagnosticChartsApi() {
   }
 
   async function getSpatialDensity(params?: SpatialDensityQuery): Promise<SpatialDensityData> {
-    const qs = buildChartQueryString({ ...(params ?? {}) }, params?.polygon)
+    const qs = buildChartQueryString({ ...params }, params?.polygon)
     const { data, error } = await useApiFetch(`/charts/diagnostics/spatial-density${qs}`)
       .get()
       .json()
@@ -58,7 +58,7 @@ export function useDiagnosticChartsApi() {
   async function getSpatialAnomalies(
     params?: SpatialAnomaliesQuery,
   ): Promise<SpatialAnomaliesData> {
-    const qs = buildChartQueryString({ ...(params ?? {}) }, params?.polygon)
+    const qs = buildChartQueryString({ ...params }, params?.polygon)
     const { data, error } = await useApiFetch(`/charts/diagnostics/spatial-anomalies${qs}`)
       .get()
       .json()

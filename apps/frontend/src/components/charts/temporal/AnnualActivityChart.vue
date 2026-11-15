@@ -10,6 +10,7 @@ import AnnualActivityRenderer, {
   annualValue,
   completeYearMedian,
 } from '@/components/common/AnnualActivityChart.vue'
+import BaseChartLoading from '@/components/ui/BaseChartLoading.vue'
 import AnnualActivityTable from '@/components/common/AnnualActivityTable.vue'
 
 const filtersStore = useChartFiltersStore()
@@ -137,10 +138,10 @@ const legend = computed(() =>
         </button>
       </div>
 
-      <div
+      <BaseChartLoading
         v-if="result === null && isLoading"
-        class="h-[20rem] rounded-lg bg-white/[0.03] motion-safe:animate-pulse"
-        aria-hidden="true"
+        height-class="h-[20rem]"
+        label="Loading annual activity…"
       />
 
       <p

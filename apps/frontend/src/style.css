@@ -44,3 +44,35 @@ body,
   height: 100%;
   margin: 0;
 }
+
+/* Dark theme overrides for MapLibre controls inside diagnostic chart maps */
+.satellite-chart-map .maplibregl-ctrl-top-left {
+  top: 0.625rem;
+  left: 0.625rem;
+}
+.satellite-chart-map .maplibregl-ctrl-group {
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-surface-panel) 92%, transparent);
+  box-shadow: 0 4px 12px #0004;
+}
+.satellite-chart-map .maplibregl-ctrl-group button {
+  width: 30px;
+  height: 30px;
+}
+.satellite-chart-map .maplibregl-ctrl-group button:hover {
+  background-color: var(--color-surface-elevated);
+}
+.satellite-chart-map .maplibregl-ctrl-group button + button {
+  border-top-color: var(--color-border-subtle);
+}
+.satellite-chart-map .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+.satellite-chart-map .maplibregl-ctrl-scale {
+  border-color: var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-surface-panel) 85%, transparent);
+  color: var(--color-ink-secondary);
+  font-size: 10px;
+}

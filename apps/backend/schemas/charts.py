@@ -60,12 +60,12 @@ class ChartFilterParams(BaseModel):
 
     def to_datetime_bounds(self) -> tuple[datetime | None, datetime | None]:
         start_dt = (
-            datetime.combine(self.start_date, time.min)
+            datetime.combine(self.start_date, time.min, tzinfo=UTC)
             if self.start_date is not None
             else None
         )
         end_dt = (
-            datetime.combine(self.end_date, time.max)
+            datetime.combine(self.end_date, time.max, tzinfo=UTC)
             if self.end_date is not None
             else None
         )

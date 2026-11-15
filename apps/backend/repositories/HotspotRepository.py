@@ -463,8 +463,12 @@ class HotspotRepository:
             col(Hotspots.frp),
         )
         if start_date is not None:
+            if start_date.tzinfo is None:
+                start_date = start_date.replace(tzinfo=UTC)
             stmt = stmt.where(col(Hotspots.acq_datetime) >= start_date)
         if end_date is not None:
+            if end_date.tzinfo is None:
+                end_date = end_date.replace(tzinfo=UTC)
             stmt = stmt.where(col(Hotspots.acq_datetime) <= end_date)
         if min_lat is not None:
             stmt = stmt.where(col(Hotspots.latitude) >= min_lat)

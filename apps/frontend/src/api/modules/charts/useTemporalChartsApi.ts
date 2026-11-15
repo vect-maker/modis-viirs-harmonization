@@ -21,7 +21,7 @@ export function useTemporalChartsApi() {
   const { getDailyActivity, getHistoricalCalendar } = useHotspotsApi()
 
   async function getAnnualStats(params?: AnnualStatsQuery): Promise<AnnualStatsData> {
-    const qs = buildChartQueryString({ ...(params ?? {}) }, params?.polygon)
+    const qs = buildChartQueryString({ ...params }, params?.polygon)
     const { data, error } = await useApiFetch(`/charts/temporal/annual-stats${qs}`).get().json()
     if (error.value || !data.value) {
       throw error.value ?? new Error('Failed to fetch annual stats')
@@ -32,7 +32,7 @@ export function useTemporalChartsApi() {
   async function getMonthlyComparison(
     params?: MonthlyComparisonQuery,
   ): Promise<MonthlyComparisonData> {
-    const qs = buildChartQueryString({ ...(params ?? {}) }, params?.polygon)
+    const qs = buildChartQueryString({ ...params }, params?.polygon)
     const { data, error } = await useApiFetch(`/charts/temporal/monthly-comparison${qs}`)
       .get()
       .json()

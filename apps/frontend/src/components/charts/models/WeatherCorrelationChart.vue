@@ -7,6 +7,7 @@ import { useModelChartsApi } from '@/api'
 import { useApiFetch } from '@/api/useApiFetch'
 import { useChartLifecycle } from '@/composables/useChartLifecycle'
 import { useChartFiltersStore } from '@/stores/chartFilters'
+import BaseChartLoading from '@/components/ui/BaseChartLoading.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import WeatherCorrelationRenderer, {
@@ -245,10 +246,10 @@ const summaryText = computed(() => {
         </button>
       </div>
 
-      <div
+      <BaseChartLoading
         v-if="correlationResult === null && isLoading"
-        class="h-[21rem] rounded-lg bg-white/[0.03] motion-safe:animate-pulse"
-        aria-hidden="true"
+        height-class="h-[21rem]"
+        label="Loading weather correlation…"
       />
 
       <p

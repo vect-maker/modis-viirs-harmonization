@@ -22,25 +22,3 @@ La verificación sintética y este informe se reproducen desde `apps/report`:
 typst compile --font-path fonts main-es.typ output/report-es.pdf"))
 
 El ejecutor requiere la interfaz de línea de comandos de DuckDB. Registra la versión de DuckDB y el hash SHA-256 de cada archivo SQL en `validation/results.json`, que este informe lee directamente. Si el SQL cambia, el ejecutor debe ejecutarse nuevamente antes de recompilar el informe.
-
-#pagebreak()
-#align(center)[*Apéndice B*]
-#align(center)[*Estado de la Evidencia en la Entrega*]
-
-#figure(
-  table(
-    columns: (62%, 38%),
-    table.header([Elemento de evidencia], [Estado]),
-    [Archivo completo de FIRMS para siete países (3,621,309 detecciones)], [Procesado y cargado],
-    [Cuatro etapas SQL sobre 810 registros sintéticos], [Verificado],
-    [Atributos nativos preservados en las pruebas sintéticas], [Verificado],
-    [Índice armonizado en la aplicación], [Integrado (panel de estadísticas)],
-    [Calendario histórico], [Conteos crudos],
-    [Consistencia en la transición de sensores], [Escalón residual del 37% después de 2012],
-    [Normalización de plataforma MODIS para 2001 y 2002], [Pendiente],
-    [Armonización de datos en tiempo casi real], [Pendiente],
-    [Corrección de cobertura por nubes y pasos satelitales], [No implementado],
-    [Validación científica en datos reservados], [Pendiente],
-  ),
-  caption: [Estado de la Evidencia al 15 de Noviembre de 2026],
-) <tbl-status>

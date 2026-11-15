@@ -22,8 +22,6 @@ import ConfidenceDbscanChart from '@/components/charts/diagnostics/ConfidenceDbs
 import CorrelationsChart from '@/components/charts/diagnostics/CorrelationsChart.vue'
 import SpatialAnomaliesChart from '@/components/charts/diagnostics/SpatialAnomaliesChart.vue'
 import SpatialDensityChart from '@/components/charts/diagnostics/SpatialDensityChart.vue'
-import ClusterMovementChart from '@/components/charts/models/ClusterMovementChart.vue'
-import MonthlyForecastChart from '@/components/charts/models/MonthlyForecastChart.vue'
 import WeatherCorrelationChart from '@/components/charts/models/WeatherCorrelationChart.vue'
 
 defineProps<{
@@ -120,7 +118,7 @@ watch(
 const supportsAreaFilter = computed(() => true)
 
 const showMetricToggle = computed(
-  () => activeSection.value !== 'movement' && activeSection.value !== 'weather',
+  () => activeSection.value !== 'weather',
 )
 
 const metricHelp = computed(() =>
@@ -270,20 +268,6 @@ const triggerClass =
               <ConfidenceDbscanChart />
             </BaseLazySection>
           </template>
-
-          <BaseLazySection
-            v-if="showSection('forecast')"
-            :eager="activeSection === 'forecast'"
-          >
-            <MonthlyForecastChart />
-          </BaseLazySection>
-
-          <BaseLazySection
-            v-if="showSection('movement')"
-            :eager="activeSection === 'movement'"
-          >
-            <ClusterMovementChart />
-          </BaseLazySection>
 
           <BaseLazySection
             v-if="showSection('weather')"

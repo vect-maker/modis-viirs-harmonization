@@ -5,6 +5,7 @@ import { RotateCw } from '@lucide/vue'
 import { polygonBbox, useDiagnosticChartsApi } from '@/api'
 import { useChartLifecycle } from '@/composables/useChartLifecycle'
 import { useChartFiltersStore } from '@/stores/chartFilters'
+import BaseChartLoading from '@/components/ui/BaseChartLoading.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import SpatialDensityRenderer from '@/components/common/SpatialDensityChart.vue'
@@ -129,10 +130,10 @@ const chartDescription = computed(
         </button>
       </div>
 
-      <div
+      <BaseChartLoading
         v-if="result === null && isLoading"
-        class="h-[22rem] rounded-lg bg-white/[0.03] motion-safe:animate-pulse"
-        aria-hidden="true"
+        height-class="h-[22rem]"
+        label="Loading spatial density…"
       />
 
       <p

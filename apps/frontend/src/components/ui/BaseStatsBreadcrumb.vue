@@ -6,8 +6,6 @@ export type StatsSectionId =
   | 'fire-calendar'
   | 'spatial'
   | 'diagnostics'
-  | 'forecast'
-  | 'movement'
   | 'weather'
 
 export interface StatsSectionItem {
@@ -22,9 +20,9 @@ export const STATS_SECTIONS: readonly StatsSectionItem[] = [
   {
     id: 'all',
     label: 'All Statistics & Endpoints',
-    shortLabel: 'All Charts (13)',
-    endpoints: ['/charts/temporal/*', '/charts/diagnostics/*', '/charts/models/*', '/weather'],
-    description: 'All temporal, diagnostic, spatial, ML movement, and NASA POWER weather charts.',
+    shortLabel: 'All Charts (10)',
+    endpoints: ['/charts/temporal/*', '/charts/diagnostics/*', '/charts/models/weather-correlation', '/weather'],
+    description: 'All temporal, diagnostic, spatial, and NASA POWER weather charts.',
   },
   {
     id: 'overview',
@@ -60,20 +58,6 @@ export const STATS_SECTIONS: readonly StatsSectionItem[] = [
     shortLabel: 'Correlations & DBSCAN',
     endpoints: ['/charts/diagnostics/correlations', '/charts/diagnostics/confidence-dbscan'],
     description: 'Pearson r / R² matrix across thermal variables and confidence value clustering.',
-  },
-  {
-    id: 'forecast',
-    label: 'Seasonal Forecast',
-    shortLabel: 'Forecast',
-    endpoints: ['/charts/models/monthly-forecast'],
-    description: 'Autoregressive Ridge monthly forecast with 80% and 95% confidence bands.',
-  },
-  {
-    id: 'movement',
-    label: 'Cluster Movement & ML Prediction',
-    shortLabel: 'Movement & ML',
-    endpoints: ['/charts/models/cluster-movement', '/charts/models/predict'],
-    description: 'Spatio-temporal DBSCAN trajectories and RandomForest displacement prediction.',
   },
   {
     id: 'weather',
