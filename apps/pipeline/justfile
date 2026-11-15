@@ -62,6 +62,13 @@ normalize-data:
     mkdir -p data/processed/star data/temp/duckdb
     duckdb -dark-mode -f sql/normalize_star_schema.sql
 
+# Fetch Central America data, fuse, harmonize, and normalize into Star Schema Gold datasets
+generate-central-america *args="--all":
+    {{just_executable()}} -f {{source_file()}} fetch-central-america {{args}}
+    {{just_executable()}} -f {{source_file()}} fuse-data central_america
+    {{just_executable()}} -f {{source_file()}} harmonize-data
+    {{just_executable()}} -f {{source_file()}} normalize-data
+
 # Open psql shell using DATABASE_URL (local or remote Azure DB)
 db-psql *args:
     psql "$DATABASE_URL" "$@"
