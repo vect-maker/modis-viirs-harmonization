@@ -63,7 +63,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
           @hotspot-select="selectedHotspot = $event"
           @roi-change="onRoiChange"
         >
-          <template #dock="{ drawArea, clearArea, resetView, showGlobe }">
+          <template #dock="{ drawArea, clearArea, locateUser, showGlobe }">
             <div
               ref="timelineElement"
               class="absolute bottom-3 left-3 right-3 z-20 md:bottom-5 md:left-5"
@@ -74,7 +74,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
                   <MapActionBar
                     :has-area="areaKm2 !== null"
                     @draw="drawArea"
-                    @recenter="resetView"
+                    @locate="locateUser"
                     @globe="showGlobe"
                     @clear="clearArea"
                   />

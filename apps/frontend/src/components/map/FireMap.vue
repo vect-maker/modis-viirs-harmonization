@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, onMounted, onUnmounted, h, render, shallowRef, useTemplateRef } from 'vue'
-import { useMediaQuery, usePreferredReducedMotion, useResizeObserver } from '@vueuse/core'
+import { useGeolocation, useMediaQuery, usePreferredReducedMotion, useResizeObserver } from '@vueuse/core'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import type { MapLayerMouseEvent } from 'maplibre-gl'
@@ -46,7 +46,7 @@ defineSlots<{
   dock?(props: {
     drawArea: () => void
     clearArea: () => void
-    resetView: () => void
+    locateUser: () => void
     showGlobe: () => void
   }): unknown
 }>()
@@ -66,6 +66,43 @@ const isDesktop = useMediaQuery('(min-width: 768px)')
 const reducedMotion = usePreferredReducedMotion()
 const spaceVisible = shallowRef(true)
 useResizeObserver(mapContainer, () => map.value?.resize())
+const {
+  coords,
+  locatedAt,
+  resume: resumeGeolocation,
+} = useGeolocation({ immediate: false })
+const pendingLocate = shallowRef(false)
+
+function flyToCoords(longitude: number, latitude: number) {
+  activePopup.value?.remove()
+  draw.value?.changeMode('simple_select')
+  map.value?.flyTo({
+    center: [longitude, latitude],
+    zoom: 9,
+    bearing: 0,
+    pitch: 0,
+    padding: getViewportPadding(),
+    duration: reducedMotion.value === 'reduce' ? 0 : 900,
+  })
+}
+
+watch(locatedAt, () => {
+  if (!pendingLocate.value) return
+  const { latitude, longitude } = coords.value
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return
+  pendingLocate.value = false
+  flyToCoords(longitude, latitude)
+})
+
+function locateUser() {
+  pendingLocate.value = true
+  resumeGeolocation()
+  const { latitude, longitude } = coords.value
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    pendingLocate.value = false
+    flyToCoords(longitude, latitude)
+  }
+}
 
 function getViewportPadding() {
   const height = mapContainer.value?.clientHeight ?? 600
@@ -350,7 +387,7 @@ onUnmounted(() => {
       name="dock"
       :draw-area="startDrawPolygon"
       :clear-area="clearRoi"
-      :reset-view="fitNicaragua"
+      :locate-user="locateUser"
       :show-globe="showGlobe"
     />
 

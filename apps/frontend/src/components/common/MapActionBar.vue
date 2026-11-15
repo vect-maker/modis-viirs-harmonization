@@ -3,7 +3,7 @@ import { Pentagon, LocateFixed, Trash2, Globe2 } from '@lucide/vue'
 import BaseTooltip from '@/components/ui/BaseTooltip.vue'
 
 defineProps<{ hasArea: boolean }>()
-const emit = defineEmits<{ draw: []; recenter: []; clear: []; globe: [] }>()
+const emit = defineEmits<{ draw: []; locate: []; clear: []; globe: [] }>()
 
 const actionClass =
   'inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-[7px] px-2.5 py-2 text-xs font-medium whitespace-nowrap text-ink-muted hover:bg-white/[0.04] hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer'
@@ -22,15 +22,15 @@ const actionClass =
         <span class="sm:hidden">Draw</span><span class="hidden sm:inline">Draw Area</span>
       </button>
     </BaseTooltip>
-    <BaseTooltip text="Center on Nicaragua">
+    <BaseTooltip text="Center on my location">
       <button
         type="button"
         :class="actionClass"
-        aria-label="Show all Nicaragua hotspots"
-        @click="emit('recenter')"
+        aria-label="Center map on my current location"
+        @click="emit('locate')"
       >
         <LocateFixed aria-hidden="true" class="h-4 w-4" />
-        <span class="hidden xl:inline">Nicaragua</span>
+        <span class="hidden xl:inline">My Location</span>
       </button>
     </BaseTooltip>
     <BaseTooltip text="View satellite globe">
