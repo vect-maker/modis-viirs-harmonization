@@ -3,7 +3,10 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from model.ClusterStatus import ClusterStatus
+try:
+    from .ClusterStatus import ClusterStatus
+except ImportError:
+    from model.ClusterStatus import ClusterStatus
 
 if TYPE_CHECKING:
     from model.ClusterHotspot import ClusterHotspots
@@ -24,9 +27,7 @@ class FireCluster(SQLModel, table=True):
 
     environmentalRecords: list["EnvironmentalRecord"] = Relationship(
         back_populates="fireCluster",
-        sa_relationship_kwargs={
-            "foreign_keys": "[EnvironmentalRecord.fireClusterId]"
-        },
+        sa_relationship_kwargs={"foreign_keys": "[EnvironmentalRecord.fireClusterId]"},
     )
 
     forecasts: list["FireClusterForecast"] = Relationship(
@@ -35,3 +36,6 @@ class FireCluster(SQLModel, table=True):
             "foreign_keys": "[FireClusterForecast.fireClusterId]"
         },
     )
+
+    dirExpansion: float | None = Field(default=None, nullable=True)
+    veloExpansion: float | None = Field(default=None, nullable=True)

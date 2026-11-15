@@ -4,7 +4,10 @@ from typing import TYPE_CHECKING
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from model.FireCluster import FireCluster
+    try:
+        from .FireCluster import FireCluster
+    except ImportError:
+        from model.FireCluster import FireCluster
 
 
 class EnvironmentalRecord(SQLModel, table=True):
@@ -26,7 +29,5 @@ class EnvironmentalRecord(SQLModel, table=True):
 
     fireCluster: "FireCluster" = Relationship(
         back_populates="environmentalRecords",
-        sa_relationship_kwargs={
-            "foreign_keys": "[EnvironmentalRecord.fireClusterId]"
-        },
+        sa_relationship_kwargs={"foreign_keys": "[EnvironmentalRecord.fireClusterId]"},
     )
