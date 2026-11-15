@@ -3,7 +3,9 @@ import BrandHeader from '@/components/landing/BrandHeader.vue'
 import BrandHero from '@/components/landing/BrandHero.vue'
 import BrandContinuity from '@/components/landing/BrandContinuity.vue'
 import BrandCalendar from '@/components/landing/BrandCalendar.vue'
+import BrandStats from '@/components/landing/BrandStats.vue'
 import BrandAudience from '@/components/landing/BrandAudience.vue'
+import BrandTeam from '@/components/landing/BrandTeam.vue'
 import BrandQuestions from '@/components/landing/BrandQuestions.vue'
 import BrandFooter from '@/components/landing/BrandFooter.vue'
 import '@/assets/landing.css'
@@ -17,7 +19,9 @@ import '@/assets/landing.css'
       <BrandHero />
       <BrandContinuity />
       <BrandCalendar />
+      <BrandStats />
       <BrandAudience />
+      <BrandTeam />
       <BrandQuestions />
     </main>
     <BrandFooter />

@@ -11,6 +11,7 @@ const links = [
   { label: 'El proyecto', href: '#proyecto' },
   { label: 'Los datos', href: '#datos' },
   { label: 'Para quién', href: '#comunidad' },
+  { label: 'Equipo', href: '#equipo' },
 ]
 function closeMenu(returnFocus = false) {
   menuOpen.value = false
@@ -33,7 +34,7 @@ function closeMenu(returnFocus = false) {
         <RouterLink
           v-if="authStore.isAuthenticated"
           :to="{ name: 'profile' }"
-          class="landing-nav-link inline-flex items-center gap-1.5"
+          class="landing-nav-link landing-header-login inline-flex items-center gap-1.5"
         >
           <User :size="15" aria-hidden="true" />
           <span>{{ authStore.user?.username }}</span>
@@ -41,7 +42,7 @@ function closeMenu(returnFocus = false) {
         <RouterLink
           v-else
           :to="{ name: 'login' }"
-          class="landing-nav-link inline-flex items-center gap-1.5"
+          class="landing-nav-link landing-header-login inline-flex items-center gap-1.5"
         >
           <LogIn :size="15" aria-hidden="true" />
           <span>Iniciar sesión</span>

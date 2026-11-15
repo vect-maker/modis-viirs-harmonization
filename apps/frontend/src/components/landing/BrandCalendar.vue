@@ -7,7 +7,7 @@ import type { CalendarSensor } from '@/types/calendar'
 import { calendarCount } from '@/utils/historicalCalendar'
 
 const calendarStore = useCalendarStore()
-const { archive } = storeToRefs(calendarStore)
+const { archive, isLoading, hasLoaded, error } = storeToRefs(calendarStore)
 onMounted(() => {
   void calendarStore.fetchHistoricalCalendar()
 })
@@ -34,9 +34,17 @@ const fullLabels = [
 const firstYear = computed(() =>
   archive.value.firstDetection ? Number(archive.value.firstDetection.slice(0, 4)) : 2020,
 )
-const lastYear = computed(() =>
-  archive.value.lastDetection ? Number(archive.value.lastDetection.slice(0, 4)) : 2025,
-)
+// Último año con los 12 meses en el archivo: deja fuera el año en curso, que llega
+// incompleto y desde el feed casi en tiempo real.
+const lastYear = computed(() => {
+  const monthsPerYear = new Map<number, number>()
+  for (const item of archive.value.months) {
+    monthsPerYear.set(item.year, (monthsPerYear.get(item.year) ?? 0) + 1)
+  }
+  const complete = [...monthsPerYear].filter(([, n]) => n === 12).map(([y]) => y)
+  return complete.length > 0 ? Math.max(...complete) : 2025
+})
+const isReady = computed(() => hasLoaded.value && archive.value.months.length > 0)
 const years = computed(() =>
   Array.from({ length: lastYear.value - firstYear.value + 1 }, (_, i) => lastYear.value - i),
 )
@@ -47,7 +55,12 @@ const index = computed(
   () => new Map(archive.value.months.map((item) => [`${item.year}-${item.month}`, item])),
 )
 const maximum = computed(() =>
-  Math.max(1, ...archive.value.months.map((item) => calendarCount(item, sensor.value) ?? 0)),
+  Math.max(
+    1,
+    ...archive.value.months
+      .filter((item) => item.year <= lastYear.value)
+      .map((item) => calendarCount(item, sensor.value) ?? 0),
+  ),
 )
 const rows = computed(() =>
   recentYears.value.map((y) => ({
@@ -85,33 +98,44 @@ function heat(count: number | null) {
 <template>
   <section id="datos" class="landing-section landing-data-section" aria-labelledby="calendar-title">
     <div class="landing-wrap">
-      <div class="landing-section-top">
-        <span class="landing-section-index">02 / COMPRENDER</span
-        ><span class="landing-section-note">DEL DATO A LA PREGUNTA</span>
-      </div>
       <div class="landing-section-heading">
-        <h2 id="calendar-title">El calendario de<br /><span>tu territorio.</span></h2>
+        <h2 id="calendar-title">El calendario<br />del fuego.</h2>
         <p>
-          ¿Qué meses concentran más detecciones? Empieza por Nicaragua, cambia el periodo y
-          encuentra tus propias preguntas.
+          ¿Qué meses concentran más detecciones? Recorre el archivo desde 2000, cambia el mes y el
+          sensor, y encuentra tus propias preguntas.
         </p>
       </div>
       <div class="landing-calendar-layout">
         <div class="landing-calendar-frame">
           <div class="landing-calendar-frame-head">
             <div>
-              <span class="landing-kicker">NICARAGUA / AGREGADO NACIONAL</span>
               <h3>Actividad por mes</h3>
+              <span class="landing-calendar-scope">Centroamérica, los 7 países</span>
             </div>
             <span class="landing-source-chip">NASA FIRMS</span>
           </div>
+          <p v-if="isLoading && !isReady" class="landing-calendar-state" role="status">
+            Cargando el archivo de detecciones…
+          </p>
+          <div v-else-if="!isReady" class="landing-calendar-state" role="alert">
+            <p>No pudimos cargar el calendario. Revisa la conexión e inténtalo de nuevo.</p>
+            <button
+              v-if="error"
+              type="button"
+              class="landing-text-link"
+              @click="calendarStore.fetchHistoricalCalendar()"
+            >
+              Reintentar
+            </button>
+          </div>
           <div
+            v-else
             class="landing-calendar-matrix"
             role="img"
-            aria-label="Calendario nacional de detecciones entre 2020 y 2025. El tono indica la cantidad en escala logarítmica; consulta las cifras mediante los controles inferiores."
+            :aria-label="`Calendario de detecciones en Centroamérica entre ${recentYears[0]} y ${lastYear}. El tono indica la cantidad en escala logarítmica; consulta las cifras con los controles inferiores.`"
           >
             <div class="landing-matrix-row landing-matrix-labels">
-              <span>AÑO</span><span v-for="label in labels" :key="label">{{ label }}</span>
+              <span>Año</span><span v-for="label in labels" :key="label">{{ label }}</span>
             </div>
             <div
               v-for="row in rows"
@@ -132,7 +156,7 @@ function heat(count: number | null) {
               >
             </div>
           </div>
-          <div class="landing-calendar-legend">
+          <div v-if="isReady" class="landing-calendar-legend">
             <span>Menos detecciones</span>
             <div aria-hidden="true">
               <i
@@ -143,7 +167,7 @@ function heat(count: number | null) {
             </div>
             <span>Más detecciones</span>
           </div>
-          <div class="landing-calendar-controls">
+          <div v-if="isReady" class="landing-calendar-controls">
             <div class="landing-year-picker">
               <button
                 type="button"
@@ -177,7 +201,10 @@ function heat(count: number | null) {
               </select></label
             >
           </div>
-          <div class="landing-month-picker" role="group" :aria-label="`Mes de ${year} a consultar`">
+          <div
+            v-if="isReady"
+            class="landing-month-picker"
+            role="group" :aria-label="`Mes de ${year} a consultar`">
             <button
               v-for="cell in yearCells"
               :key="cell.month"
@@ -191,8 +218,10 @@ function heat(count: number | null) {
           </div>
         </div>
         <div class="landing-calendar-insight">
-          <span class="landing-kicker">UNA MIRADA A LOS DATOS</span>
-          <div class="landing-calendar-result" role="status" aria-live="polite" aria-atomic="true">
+          <div
+            v-if="isReady"
+            class="landing-calendar-result"
+            role="status" aria-live="polite" aria-atomic="true">
             <p class="landing-result-period">{{ fullLabels[month - 1] }} de {{ year }}</p>
             <strong>{{ selectedCount === null ? '—' : format.format(selectedCount) }}</strong>
             <p>
@@ -203,8 +232,8 @@ function heat(count: number | null) {
               }}
             </p>
           </div>
-          <div class="landing-peak-note">
-            <span>MES CON MÁS DETECCIONES EN {{ year }}</span
+          <div v-if="isReady" class="landing-peak-note">
+            <span>Mes con más detecciones en {{ year }}</span
             ><strong>{{
               (peakMonth.count ?? 0) > 0 ? fullLabels[peakMonth.month - 1] : 'Sin datos'
             }}</strong>
@@ -212,8 +241,8 @@ function heat(count: number | null) {
           <div class="landing-science-note">
             <Info :size="18" aria-hidden="true" />
             <p>
-              Estos son conteos originales, aún sin armonizar y con cobertura por verificar. Una
-              detección no equivale a un incendio individual.
+              Conteos crudos de detecciones, sin armonizar. Una detección es un píxel con calor
+              anómalo, no un incendio individual.
             </p>
           </div>
           <RouterLink :to="{ name: 'dashboard' }" class="landing-text-link"

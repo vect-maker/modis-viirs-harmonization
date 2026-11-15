@@ -7,9 +7,7 @@ import PyroTraceLogo from '@/components/common/PyroTraceLogo.vue'
   <footer class="landing-footer">
     <div class="landing-wrap">
       <div class="landing-footer-top">
-        <span class="landing-eyebrow"
-          ><span class="landing-status-dot" /> TU TERRITORIO. TUS PREGUNTAS.</span
-        ><a href="#landing-title" class="landing-icon-link" aria-label="Volver al inicio"
+        <a href="#landing-title" class="landing-icon-link" aria-label="Volver al inicio"
           ><ArrowUp :size="19" aria-hidden="true"
         /></a>
       </div>
@@ -27,7 +25,7 @@ import PyroTraceLogo from '@/components/common/PyroTraceLogo.vue'
         <p>Conectamos datos satelitales<br />para comprender y decidir mejor.</p>
       </div>
       <div class="landing-footer-bottom">
-        <p>PyroTrace · NASA Space Apps Challenge 2026</p>
+        <p>PyroTrace, NASA Space Apps Challenge 2026</p>
         <nav aria-label="Fuentes del proyecto">
           <a href="https://firms.modaps.eosdis.nasa.gov/" target="_blank" rel="noopener noreferrer"
             >Datos NASA FIRMS <ArrowUpRight :size="13" aria-hidden="true" /></a

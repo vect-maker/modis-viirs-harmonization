@@ -38,6 +38,35 @@ export const SERIES_COLORS = {
 } as const
 
 export const VIIRS_FIRST_YEAR = 2012
+
+export type ChartLang = 'en' | 'es'
+
+const TEXT = {
+  en: {
+    detections: 'detections',
+    harmonizedIndex: 'harmonized index',
+    rawDetections: 'raw detections',
+    provisional: (n: number) => `${n} months from the near-real-time feed, not harmonized yet`,
+    incomplete: (n: number) => `Incomplete year: ${n} of 12 complete months`,
+    vsMedian: 'vs. median year',
+    partial: 'Partial',
+    median: 'Median year',
+    viirsStarts: 'VIIRS starts',
+    seriesHarmonized: 'Harmonized index',
+  },
+  es: {
+    detections: 'detecciones',
+    harmonizedIndex: 'detecciones equivalentes VIIRS',
+    rawDetections: 'detecciones crudas',
+    provisional: (n: number) => `${n} meses del feed casi en tiempo real, sin armonizar`,
+    incomplete: (n: number) => `Año incompleto: ${n} de 12 meses completos`,
+    vsMedian: 'frente al año mediano',
+    partial: 'Parcial',
+    median: 'Año mediano',
+    viirsStarts: 'Inicio de VIIRS',
+    seriesHarmonized: 'Índice armonizado',
+  },
+} as const
 </script>
 
 <script setup lang="ts">
@@ -54,18 +83,26 @@ const props = defineProps<{
   rows: readonly AnnualRow[]
   metric: AnnualMetric
   description: string
+  /** Idioma de etiquetas y tooltip; la app usa inglés y la landing español. */
+  lang?: ChartLang
 }>()
+
+const t = computed(() => TEXT[props.lang ?? 'en'])
+const locale = computed(() => (props.lang === 'es' ? 'es-NI' : 'en-US'))
 
 const PROVISIONAL_OUTLINE = '#f3f4f6'
 const PARTIAL_OPACITY = 0.35
 const fractionDigits = computed(() => (props.metric === 'harmonized' ? 1 : 0))
 const valueFormat = computed(
-  () => new Intl.NumberFormat('en-US', { maximumFractionDigits: fractionDigits.value }),
+  () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: fractionDigits.value }),
 )
-const pctFormat = new Intl.NumberFormat('en-US', {
-  maximumFractionDigits: 0,
-  signDisplay: 'exceptZero',
-})
+const pctFormat = computed(
+  () =>
+    new Intl.NumberFormat(locale.value, {
+      maximumFractionDigits: 0,
+      signDisplay: 'exceptZero',
+    }),
+)
 const median = computed(() => completeYearMedian(props.rows, props.metric))
 
 function tooltipHtml(index: number): string {
@@ -75,30 +112,30 @@ function tooltipHtml(index: number): string {
   const lines = [`<div style="font-weight:600">${row.year}</div>`]
   if (props.metric === 'raw') {
     lines.push(
-      `<div style="margin-top:2px;color:#ffe066">${format(row.total_hotspots)} detections</div>`,
+      `<div style="margin-top:2px;color:#ffe066">${format(row.total_hotspots)} ${t.value.detections}</div>`,
       `<div style="color:#cbd5e1">MODIS: ${format(row.modis_count)}</div>`,
       `<div style="color:#cbd5e1">VIIRS: ${format(row.viirs_count)}</div>`,
     )
   } else {
     lines.push(
-      `<div style="margin-top:2px;color:#ffe066">${format(row.harmonized_index)} harmonized index</div>`,
-      `<div style="color:#cbd5e1">${valueFormat.value.format(row.total_hotspots)} raw detections</div>`,
+      `<div style="margin-top:2px;color:#ffe066">${format(row.harmonized_index)} ${t.value.harmonizedIndex}</div>`,
+      `<div style="color:#cbd5e1">${valueFormat.value.format(row.total_hotspots)} ${t.value.rawDetections}</div>`,
     )
   }
   const value = annualValue(row, props.metric)
   if (row.provisional_months > 0) {
     lines.push(
-      `<div style="margin-top:6px;color:#e69f00">${row.provisional_months} months from the near-real-time feed, not harmonized yet</div>`,
+      `<div style="margin-top:6px;color:#e69f00">${t.value.provisional(row.provisional_months)}</div>`,
     )
   }
   if (!row.complete) {
     lines.push(
-      `<div style="margin-top:6px;color:#94a3b8">Incomplete year: ${row.months_in_archive} of 12 complete months</div>`,
+      `<div style="margin-top:6px;color:#94a3b8">${t.value.incomplete(row.months_in_archive)}</div>`,
     )
   } else if (median.value !== null && median.value > 0) {
     const pct = ((value - median.value) / median.value) * 100
     lines.push(
-      `<div style="margin-top:6px;color:#f3f4f6">${pctFormat.format(pct)}% vs. median year</div>`,
+      `<div style="margin-top:6px;color:#f3f4f6">${pctFormat.value.format(pct)}% ${t.value.vsMedian}</div>`,
     )
   }
   return lines.join('')
@@ -122,7 +159,7 @@ function barItem(value: number, row: AnnualRow, color: string, isTop: boolean) {
       color: '#cbd5e1',
       opacity: 1,
       fontSize: 10,
-      formatter: 'Partial',
+      formatter: t.value.partial,
     },
   }
 }
@@ -140,7 +177,7 @@ const chartOption = computed(() => {
             position: 'insideStartTop',
             color: '#cbd5e1',
             fontSize: 11,
-            formatter: 'Median year',
+            formatter: t.value.median,
           },
           data: [{ yAxis: median.value }],
         }
@@ -155,7 +192,7 @@ const chartOption = computed(() => {
             rotate: 0,
             color: '#e6b04d',
             fontSize: 11,
-            formatter: 'VIIRS starts',
+            formatter: t.value.viirsStarts,
           },
         }
       : null
@@ -188,7 +225,7 @@ const chartOption = computed(() => {
         ]
       : [
           {
-            name: 'Harmonized index',
+            name: t.value.seriesHarmonized,
             type: 'bar',
             barMaxWidth: 28,
             data: props.rows.map((row) =>
@@ -227,7 +264,7 @@ const chartOption = computed(() => {
         color: '#94a3b8',
         fontSize: 10,
         formatter: (value: number) =>
-          new Intl.NumberFormat('en-US', { notation: 'compact' }).format(value),
+          new Intl.NumberFormat(locale.value, { notation: 'compact' }).format(value),
       },
       splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.06)', type: 'dashed' } },
     },
