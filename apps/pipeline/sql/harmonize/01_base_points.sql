@@ -17,13 +17,15 @@ COPY (
     WITH solar AS (
         SELECT
             *,
+            row_number() OVER () AS point_id,
             ((hour(acq_datetime) + minute(acq_datetime) / 60.0 + longitude / 15.0) % 24.0 + 24.0) % 24.0 AS local_solar_hour,
-            round(latitude / 0.02) * 0.02 AS lat_q,
-            round((longitude * cos(radians(latitude))) / 0.02) * 0.02 AS lon_q,
-            date_trunc('hour', acq_datetime) AS hour_window
+            floor(latitude / 0.02)::BIGINT AS lat_cell,
+            floor((longitude * cos(radians(latitude))) / 0.02)::BIGINT AS lon_cell,
+            floor(epoch(acq_datetime) / 3600.0)::BIGINT AS hour_slot
         FROM read_parquet('data/processed/hotspots.parquet')
     )
     SELECT
+        point_id,
         country,
         latitude,
         longitude,
@@ -40,9 +42,9 @@ COPY (
         frp,
         daynight,
         type,
-        lat_q,
-        lon_q,
-        hour_window,
+        lat_cell,
+        lon_cell,
+        hour_slot,
         CASE
             WHEN local_solar_hour >= 8.5 AND local_solar_hour < 12.0 THEN 'MORNING_TERRA'
             WHEN local_solar_hour >= 12.0 AND local_solar_hour < 16.0 THEN 'AFTERNOON_AQUA_VIIRS'

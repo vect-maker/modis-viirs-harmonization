@@ -10,35 +10,52 @@ SET progress_bar_time = 500;
 
 -- ==============================================================================
 -- Harmonization Step 3: Empirical per-country calibration (2012+ overlap era)
--- Falls back to Central America reference defaults (2.20, 6.12, 4.50, 1.14)
--- when a country has fewer than 100 Class A co-detection clusters.
+-- Normalizes VIIRS counts/FRP by active VIIRS platform count per country-year
+-- and falls back to reference defaults (2.20, 6.12, 4.50, 1.14) when a country
+-- has fewer than 100 co-occurring MODIS observations.
 -- Input:  data/temp/harmonize/01_base_points.parquet
 --         data/temp/harmonize/02_quadrant_hourly.parquet
 -- Output: data/temp/harmonize/03_country_calibration.parquet
 -- ==============================================================================
 COPY (
-    WITH class_a AS (
+    WITH platform_exposure AS (
         SELECT
             country,
-            count(*) AS class_a_clusters,
-            sum(viirs_in_cluster)::DOUBLE / nullif(sum(modis_in_cluster), 0) AS raw_pixel_ratio,
-            sum(viirs_frp_sum)::DOUBLE / nullif(sum(modis_frp_sum), 0) AS raw_frp_ratio
-        FROM read_parquet('data/temp/harmonize/02_quadrant_hourly.parquet')
-        WHERE year(hour_window) >= 2012
-          AND modis_in_cluster > 0
-          AND viirs_in_cluster > 0
-        GROUP BY country
+            year(acq_datetime) AS obs_year,
+            greatest(count(DISTINCT satellite) FILTER (WHERE instrument = 'VIIRS'), 1)::DOUBLE AS active_viirs_platforms
+        FROM read_parquet('data/temp/harmonize/01_base_points.parquet')
+        GROUP BY 1, 2
+    ),
+    class_a AS (
+        SELECT
+            b.country,
+            count(*) FILTER (WHERE b.instrument = 'MODIS') AS class_a_clusters,
+            (sum(1.0 / p.active_viirs_platforms) FILTER (WHERE b.instrument = 'VIIRS'))::DOUBLE
+                / nullif(count(*) FILTER (WHERE b.instrument = 'MODIS'), 0) AS raw_pixel_ratio,
+            (sum(b.frp / p.active_viirs_platforms) FILTER (WHERE b.instrument = 'VIIRS'))::DOUBLE
+                / nullif(sum(b.frp) FILTER (WHERE b.instrument = 'MODIS'), 0) AS raw_frp_ratio
+        FROM read_parquet('data/temp/harmonize/02_quadrant_hourly.parquet') q
+        INNER JOIN read_parquet('data/temp/harmonize/01_base_points.parquet') b
+            ON q.point_id = b.point_id
+        INNER JOIN platform_exposure p
+            ON b.country = p.country
+           AND year(b.acq_datetime) = p.obs_year
+        WHERE year(b.acq_datetime) >= 2012
+        GROUP BY b.country
     ),
     overlap_totals AS (
         SELECT
-            country,
-            count(*) FILTER (WHERE instrument = 'VIIRS' AND overpass_window = 'AFTERNOON_AQUA_VIIRS')::DOUBLE
-                / nullif(count(*) FILTER (WHERE instrument = 'MODIS' AND overpass_window = 'AFTERNOON_AQUA_VIIRS'), 0) AS raw_afternoon_ratio,
-            count(*) FILTER (WHERE instrument = 'VIIRS' AND overpass_window IN ('NIGHT_TERRA', 'NIGHT_DAWN_AQUA_VIIRS', 'OFF_CYCLE'))::DOUBLE
-                / nullif(count(*) FILTER (WHERE instrument = 'MODIS' AND overpass_window IN ('NIGHT_TERRA', 'NIGHT_DAWN_AQUA_VIIRS', 'OFF_CYCLE')), 0) AS raw_night_ratio
-        FROM read_parquet('data/temp/harmonize/01_base_points.parquet')
-        WHERE year(acq_datetime) >= 2012
-        GROUP BY country
+            b.country,
+            (sum(1.0 / p.active_viirs_platforms) FILTER (WHERE b.instrument = 'VIIRS' AND b.overpass_window = 'AFTERNOON_AQUA_VIIRS'))::DOUBLE
+                / nullif(count(*) FILTER (WHERE b.instrument = 'MODIS' AND b.overpass_window = 'AFTERNOON_AQUA_VIIRS'), 0) AS raw_afternoon_ratio,
+            (sum(1.0 / p.active_viirs_platforms) FILTER (WHERE b.instrument = 'VIIRS' AND b.overpass_window IN ('NIGHT_TERRA', 'NIGHT_DAWN_AQUA_VIIRS', 'OFF_CYCLE')))::DOUBLE
+                / nullif(count(*) FILTER (WHERE b.instrument = 'MODIS' AND b.overpass_window IN ('NIGHT_TERRA', 'NIGHT_DAWN_AQUA_VIIRS', 'OFF_CYCLE')), 0) AS raw_night_ratio
+        FROM read_parquet('data/temp/harmonize/01_base_points.parquet') b
+        INNER JOIN platform_exposure p
+            ON b.country = p.country
+           AND year(b.acq_datetime) = p.obs_year
+        WHERE year(b.acq_datetime) >= 2012
+        GROUP BY b.country
     )
     SELECT
         o.country,
