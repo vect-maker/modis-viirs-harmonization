@@ -13,8 +13,9 @@ from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, select
 
 from catchup import CatchUpProcess
+from country_resolver import CentralAmericaCountryResolver
 from firms_client import FirmsApiClient, FirmsBudget, QuotaExhaustedError
-from hotspot_writer import FactHotspot, HotspotWriter
+from hotspot_writer import DimCountry, FactHotspot, HotspotWriter
 from nrt_sync import NrtSyncProcess
 
 
@@ -212,3 +213,63 @@ def test_nrt_sync_deduplicates_inserts_and_updates_kv():
         assert isinstance(datetime.fromisoformat(state["last_sync_at"]), datetime)
 
     asyncio.run(_run())
+
+
+def test_country_resolver_maps_central_america_and_excludes_outside_points():
+    resolver = CentralAmericaCountryResolver()
+    assert resolver.resolve(17.25, -88.77) == "Belize"
+    assert resolver.resolve(9.93, -84.08) == "Costa_Rica"
+    assert resolver.resolve(13.69, -89.22) == "El_Salvador"
+    assert resolver.resolve(14.63, -90.51) == "Guatemala"
+    assert resolver.resolve(14.07, -87.19) == "Honduras"
+    assert resolver.resolve(12.11, -86.24) == "Nicaragua"
+    assert resolver.resolve(8.98, -79.52) == "Panama"
+    # Points inside Central America bbox but outside the 7 countries
+    assert resolver.resolve(16.75, -93.12) is None  # Chiapas, Mexico
+    assert resolver.resolve(7.50, -76.80) is None  # Colombia
+
+
+def test_hotspot_writer_resolves_real_countries_when_region_is_central_america():
+    writer = _make_sqlite_writer()
+    rows = [
+        {
+            "latitude": "12.11000",
+            "longitude": "-86.24000",
+            "acq_date": "2026-11-15",
+            "acq_time": "1800",
+            "satellite": "N20",
+            "instrument": "VIIRS",
+            "confidence": "n",
+            "frp": "10.0",
+        },
+        {
+            "latitude": "9.93000",
+            "longitude": "-84.08000",
+            "acq_date": "2026-11-15",
+            "acq_time": "1805",
+            "satellite": "N20",
+            "instrument": "VIIRS",
+            "confidence": "h",
+            "frp": "22.5",
+        },
+        {
+            # Outside Central America (southern Mexico) -> skipped
+            "latitude": "16.75000",
+            "longitude": "-93.12000",
+            "acq_date": "2026-11-15",
+            "acq_time": "1810",
+            "satellite": "N20",
+            "instrument": "VIIRS",
+            "confidence": "h",
+            "frp": "15.0",
+        },
+    ]
+
+    inserted = writer.insert_new_hotspots(rows, country_name="Central_America")
+    assert inserted == 2
+
+    with Session(writer.engine) as session:
+        country_names = sorted(
+            c.name for c in session.exec(select(DimCountry)).all()
+        )
+        assert country_names == ["Costa_Rica", "Nicaragua"]

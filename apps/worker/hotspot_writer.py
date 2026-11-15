@@ -12,6 +12,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlmodel import Field, Session, SQLModel, col, select
 
+from country_resolver import (
+    CentralAmericaCountryResolver,
+    get_default_country_resolver,
+)
+
 FIRMS_NAMESPACE = uuid.UUID("98b00dc4-63e7-5855-bfed-2cdc66170e68")
 
 
@@ -127,8 +132,14 @@ def _normalize_instrument(raw: str) -> str:
 class HotspotWriter:
     """Writes deduplicated FIRMS detections into the PostGIS star schema."""
 
-    def __init__(self, engine: Engine) -> None:
+    def __init__(
+        self,
+        engine: Engine,
+        *,
+        country_resolver: CentralAmericaCountryResolver | None = None,
+    ) -> None:
         self.engine = engine
+        self._country_resolver = country_resolver
 
     def get_latest_hotspot_date(self) -> date | None:
         with Session(self.engine) as session:
@@ -139,19 +150,29 @@ class HotspotWriter:
                 return latest.date()
             return date.fromisoformat(str(latest)[:10])
 
+    def _resolve_country(self, latitude: float, longitude: float) -> str | None:
+        resolver = self._country_resolver or get_default_country_resolver()
+        return resolver.resolve(latitude, longitude)
+
     def insert_new_hotspots(
         self,
         rows: Sequence[Mapping[str, Any]],
         *,
-        country_name: str,
+        country_name: str | None = None,
         harmonization_category: str = "API_INGESTED",
     ) -> int:
         if not rows:
             return 0
 
-        normalized_country = country_name.strip()
-        country_id = firms_uuid5(f"country:{normalized_country.lower()}")
+        raw_country = (country_name or "").strip()
+        auto_resolve = raw_country.lower() in {
+            "",
+            "auto",
+            "central_america",
+            "central america",
+        }
 
+        countries: dict[uuid.UUID, str] = {}
         platforms: dict[uuid.UUID, tuple[str, str]] = {}
         fact_rows: list[dict[str, Any]] = []
 
@@ -172,6 +193,15 @@ class HotspotWriter:
             ):
                 continue
 
+            resolved_country = (
+                self._resolve_country(lat, lon) if auto_resolve else raw_country
+            )
+            if not resolved_country:
+                continue
+
+            country_id = firms_uuid5(f"country:{resolved_country.lower()}")
+            countries[country_id] = resolved_country
+
             instrument = _normalize_instrument(instrument_raw)
             platform_id = firms_uuid5(
                 f"platform:{satellite.lower()}:{instrument.lower()}"
@@ -180,7 +210,7 @@ class HotspotWriter:
 
             acq_dt = _parse_acq_datetime(acq_date_raw, acq_time_raw)
             hotspot_id = firms_uuid5(
-                f"hotspot:{normalized_country.lower()}:{satellite.lower()}:"
+                f"hotspot:{resolved_country.lower()}:{satellite.lower()}:"
                 f"{instrument.lower()}:{acq_dt.isoformat()}:{lat:.5f}:{lon:.5f}"
             )
             bright_mir = _float_or_none(
@@ -240,11 +270,12 @@ class HotspotWriter:
                 )
 
         with Session(self.engine) as session:
-            session.exec(
-                insert_fn(DimCountry)
-                .values(id=country_id, name=normalized_country)
-                .on_conflict_do_nothing()
-            )
+            for cid, cname in countries.items():
+                session.exec(
+                    insert_fn(DimCountry)
+                    .values(id=cid, name=cname)
+                    .on_conflict_do_nothing()
+                )
             for pid, (sat, inst) in platforms.items():
                 session.exec(
                     insert_fn(DimPlatform)

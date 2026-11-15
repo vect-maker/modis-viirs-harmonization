@@ -13,6 +13,7 @@ dependencies = [
     "ruff",
     "sqlmodel",
     "basedpyright",
+    "shapely>=2.0.0",
 ]
 
 [tool.ruff]
