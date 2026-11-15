@@ -37,8 +37,8 @@ class WorkerRunner:
 
     def __init__(self) -> None:
         self.nats_url = os.getenv("NATS_URL", "nats://localhost:4222").strip()
-        self.bbox = os.getenv("FIRMS_AREA_BBOX", "-87.7,10.7,-82.7,15.1").strip()
-        self.country_name = os.getenv("FIRMS_COUNTRY_NAME", "Nicaragua").strip()
+        self.bbox = os.getenv("FIRMS_AREA_BBOX", "-92.3,7.2,-77.1,18.5").strip()
+        self.country_name = os.getenv("FIRMS_COUNTRY_NAME", "Central_America").strip()
         self.cooldown_seconds = float(os.getenv("CATCHUP_COOLDOWN_SECONDS", "610"))
         self.poll_interval_seconds = float(
             os.getenv("NRT_POLL_INTERVAL_SECONDS", "300")
