@@ -20,6 +20,7 @@ dependencies = [
     "ruff",
     "basedpyright",
     "psycopg[binary]>=3.3.9",
+    "moka-py>=0.5.0",
 ]
 
 [tool.ruff]

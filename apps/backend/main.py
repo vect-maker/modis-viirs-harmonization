@@ -20,6 +20,7 @@ from api.fire_cluster_forecast import router as fire_cluster_forecast_router
 from api.weather import router as weather_router
 from database.initDb import create_db_and_tables
 from database.session import get_session
+from middleware.ChartCacheMiddleware import ChartCacheMiddleware
 from model.StarSchema import (
     AvailableDatesResponse,
     CountryPublic,
@@ -69,6 +70,7 @@ app = FastAPI(
     root_path=os.getenv("ROOT_PATH", ""),
     lifespan=lifespan,
 )
+app.add_middleware(ChartCacheMiddleware)
 
 app.include_router(alerts_router)
 app.include_router(auth_router)
