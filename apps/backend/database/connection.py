@@ -1,7 +1,7 @@
 import os
 
 from dotenv import find_dotenv, load_dotenv
-from firms_shared.db import normalize_postgres_url
+from shared_core.db import normalize_postgres_url
 from sqlalchemy import create_engine
 
 # Cargar variables de entorno desde la raíz del proyecto si existe .env

@@ -1,12 +1,12 @@
-from firms_shared.constants import (
+from shared_core.constants import (
     CENTRAL_AMERICA_BBOX,
     CENTRAL_AMERICA_COUNTRIES,
     DEFAULT_FIRMS_BASE_URL,
     FIRMS_NAMESPACE,
     firms_uuid5,
 )
-from firms_shared.db import normalize_postgres_url
-from firms_shared.models import (
+from shared_core.db import normalize_postgres_url
+from shared_core.models import (
     AvailableDatesResponse,
     CountryBase,
     CountryPublic,
@@ -22,7 +22,7 @@ from firms_shared.models import (
     PlatformBase,
     PlatformPublic,
 )
-from firms_shared.sse import (
+from shared_core.sse import (
     NotificationCreateRequest,
     NotificationDispatchResponse,
     NotificationSeverity,

@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 import csv
 import io
+import logging
 import os
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
 import httpx
-from firms_shared.constants import DEFAULT_FIRMS_BASE_URL
+from shared_core.constants import DEFAULT_FIRMS_BASE_URL
 
+logger = logging.getLogger("firms.worker.client")
 FIRMS_BASE_URL = os.getenv("FIRMS_BASE_URL", DEFAULT_FIRMS_BASE_URL)
+RETRYABLE_STATUS_CODES = frozenset({500, 502, 503, 504})
 
 
 class QuotaExhaustedError(RuntimeError):
@@ -36,6 +40,8 @@ class FirmsApiClient:
         map_key: str | None = None,
         base_url: str | None = None,
         quota_reserve: int | None = None,
+        max_retries: int = 3,
+        retry_backoff_seconds: float = 1.0,
     ) -> None:
         self.map_key = (
             map_key if map_key is not None else os.getenv("FIRMS_MAP_KEY", "")
@@ -46,22 +52,74 @@ class FirmsApiClient:
             if quota_reserve is not None
             else int(os.getenv("FIRMS_QUOTA_RESERVE", "50"))
         )
+        self.max_retries = max(1, max_retries)
+        self.retry_backoff_seconds = max(0.0, retry_backoff_seconds)
 
     def _require_key(self) -> str:
         if not self.map_key or self.map_key == "your_firms_map_key_here":
             raise RuntimeError("Valid FIRMS_MAP_KEY is required.")
         return self.map_key
 
+    async def _get_with_retries(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        *,
+        params: dict[str, Any] | None = None,
+        timeout: float = 30.0,
+        context: str,
+    ) -> httpx.Response:
+        for attempt in range(self.max_retries):
+            try:
+                resp = await client.get(url, params=params, timeout=timeout)
+            except httpx.TransportError as exc:
+                if attempt + 1 >= self.max_retries:
+                    raise
+                delay = self.retry_backoff_seconds * (2**attempt)
+                logger.warning(
+                    "Transient transport error %s (attempt %d/%d): %s; "
+                    "retrying in %.1fs",
+                    context,
+                    attempt + 1,
+                    self.max_retries,
+                    exc,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            if resp.status_code == 429:
+                raise QuotaExhaustedError(f"HTTP 429 {context}")
+            if (
+                resp.status_code in RETRYABLE_STATUS_CODES
+                and attempt + 1 < self.max_retries
+            ):
+                delay = self.retry_backoff_seconds * (2**attempt)
+                logger.warning(
+                    "Transient HTTP %d %s (attempt %d/%d); retrying in %.1fs",
+                    resp.status_code,
+                    context,
+                    attempt + 1,
+                    self.max_retries,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            resp.raise_for_status()
+            return resp
+
+        raise RuntimeError(f"Unreachable retry loop exit {context}")
+
     async def check_budget(self, client: httpx.AsyncClient) -> FirmsBudget:
         key = self._require_key()
-        resp = await client.get(
+        resp = await self._get_with_retries(
+            client,
             f"{self.base_url}/mapserver/mapkey_status/",
             params={"MAP_KEY": key},
             timeout=15.0,
+            context="from mapkey_status",
         )
-        if resp.status_code == 429:
-            raise QuotaExhaustedError("HTTP 429 from mapkey_status")
-        resp.raise_for_status()
         data: dict[str, Any] = resp.json()
         return FirmsBudget(
             transaction_limit=int(data.get("transaction_limit", 0)),
@@ -82,10 +140,12 @@ class FirmsApiClient:
     ) -> dict[str, tuple[date, date]]:
         key = self._require_key()
         url = f"{self.base_url}/api/data_availability/csv/{key}/ALL"
-        resp = await client.get(url, timeout=30.0)
-        if resp.status_code == 429:
-            raise QuotaExhaustedError("HTTP 429 from data_availability")
-        resp.raise_for_status()
+        resp = await self._get_with_retries(
+            client,
+            url,
+            timeout=30.0,
+            context="from data_availability",
+        )
         text = resp.text.strip()
         self._validate_csv_text(text, url)
 
@@ -119,10 +179,12 @@ class FirmsApiClient:
             f"{self.base_url}/api/area/csv/{key}/{source}/"
             f"{bbox}/{day_range}/{end_date.isoformat()}"
         )
-        resp = await client.get(url, timeout=60.0)
-        if resp.status_code == 429:
-            raise QuotaExhaustedError(f"HTTP 429 fetching {source} ({end_date})")
-        resp.raise_for_status()
+        resp = await self._get_with_retries(
+            client,
+            url,
+            timeout=60.0,
+            context=f"fetching {source} ({end_date})",
+        )
 
         text = resp.text.strip()
         if not text:

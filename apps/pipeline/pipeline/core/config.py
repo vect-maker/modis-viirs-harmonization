@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from firms_shared.constants import DEFAULT_FIRMS_BASE_URL
+from shared_core.constants import DEFAULT_FIRMS_BASE_URL
 
 load_dotenv()
 

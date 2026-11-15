@@ -1,4 +1,4 @@
-from firms_shared.sse import (
+from shared_core.sse import (
     NotificationCreateRequest,
     NotificationDispatchResponse,
     NotificationSeverity,

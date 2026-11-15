@@ -7,11 +7,11 @@ import signal
 
 import nats
 from dotenv import load_dotenv
-from firms_shared.constants import CENTRAL_AMERICA_BBOX
 from nats.aio.client import Client as NatsClient
 from nats.js.api import KeyValueConfig
 from nats.js.errors import BucketNotFoundError
 from nats.js.kv import KeyValue
+from shared_core.constants import CENTRAL_AMERICA_BBOX
 
 from catchup import CatchUpProcess
 from firms_client import FirmsApiClient

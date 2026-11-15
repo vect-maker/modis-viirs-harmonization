@@ -6,9 +6,9 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Any
 
-from firms_shared.constants import firms_uuid5
-from firms_shared.db import normalize_postgres_url
-from firms_shared.models import DimCountry, DimPlatform, FactHotspot
+from shared_core.constants import firms_uuid5
+from shared_core.db import normalize_postgres_url
+from shared_core.models import DimCountry, DimPlatform, FactHotspot
 from sqlalchemy import Engine, create_engine, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert

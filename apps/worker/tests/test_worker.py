@@ -273,3 +273,57 @@ def test_hotspot_writer_resolves_real_countries_when_region_is_central_america()
             c.name for c in session.exec(select(DimCountry)).all()
         )
         assert country_names == ["Costa_Rica", "Nicaragua"]
+
+
+def test_firms_client_retries_transient_500_on_check_budget():
+    async def _run() -> None:
+        attempts = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal attempts
+            attempts += 1
+            if attempts < 3:
+                return httpx.Response(500, request=request)
+            return httpx.Response(
+                200,
+                json={"transaction_limit": 5000, "current_transactions": 120},
+                request=request,
+            )
+
+        client = FirmsApiClient(
+            map_key="test-key",
+            max_retries=3,
+            retry_backoff_seconds=0.0,
+        )
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport) as http_client:
+            budget = await client.check_budget(http_client)
+
+        assert attempts == 3
+        assert budget == FirmsBudget(transaction_limit=5000, current_transactions=120)
+
+    asyncio.run(_run())
+
+
+def test_firms_client_raises_after_exhausting_500_retries():
+    async def _run() -> None:
+        attempts = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal attempts
+            attempts += 1
+            return httpx.Response(500, request=request)
+
+        client = FirmsApiClient(
+            map_key="test-key",
+            max_retries=3,
+            retry_backoff_seconds=0.0,
+        )
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport) as http_client:
+            with pytest.raises(httpx.HTTPStatusError):
+                await client.check_budget(http_client)
+
+        assert attempts == 3
+
+    asyncio.run(_run())

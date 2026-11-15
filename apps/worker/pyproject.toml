@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Background worker for FIRMS realtime sync and NATS SSE notifications"
 requires-python = ">=3.12"
 dependencies = [
-    "firms-shared",
+    "shared-core",
     "httpx",
     "nats-py>=2.9.0",
     "psycopg[binary]>=3.3.9",
@@ -32,4 +32,4 @@ exclude = [".venv"]
 reportMissingTypeStubs = false
 
 [tool.uv.sources]
-firms-shared = { path = "../../shared", editable = true }
+shared-core = { path = "../../shared", editable = true }

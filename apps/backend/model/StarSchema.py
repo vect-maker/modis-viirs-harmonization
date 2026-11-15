@@ -1,4 +1,4 @@
-from firms_shared.models import (
+from shared_core.models import (
     AvailableDatesResponse,
     CountryBase,
     CountryPublic,

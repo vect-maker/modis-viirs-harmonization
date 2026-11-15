@@ -94,6 +94,8 @@ class NrtSyncProcess:
                     await self.run_once(http_client=http_client)
                 except QuotaExhaustedError as exc:
                     logger.warning("NRT sync skipped due to quota: %s", exc)
+                except httpx.HTTPError as exc:
+                    logger.warning("NRT sync cycle failed due to HTTP error: %s", exc)
                 except Exception as exc:
                     logger.exception("NRT sync cycle failed: %s", exc)
 

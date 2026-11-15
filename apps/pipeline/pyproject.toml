@@ -5,7 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "dotenv",
     "duckdb",
-    "firms-shared",
+    "shared-core",
     "httpx2[http2]",
     "pandas[parquet,feather]",
     "sqlmodel",
@@ -27,4 +27,4 @@ include = ["pipeline"]
 reportMissingTypeStubs = false
 
 [tool.uv.sources]
-firms-shared = { path = "../../shared", editable = true }
+shared-core = { path = "../../shared", editable = true }
