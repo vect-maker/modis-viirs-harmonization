@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import hmac
+import os
+
 from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
+    Header,
+    HTTPException,
     Query,
+    Request,
     WebSocket,
     WebSocketDisconnect,
 )
+from fastapi.responses import StreamingResponse
 from sqlmodel import Session
 
 from database.session import get_session
@@ -27,8 +34,42 @@ from services.AlertManagementService import AlertManagementService
 from services.AlertRuleService import AlertRuleService
 from services.AlertSchedulerService import alert_scheduler
 from services.NotificationService import ws_manager
+from services.SSEConnectionService import SSEConnectionService, parse_last_event_id
 
 router = APIRouter(prefix="/alerts", tags=["EarlyWarning"])
+
+
+def verify_sse_access(
+    request: Request,
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    token: str | None = Query(default=None),
+) -> None:
+    expected = (
+        os.getenv("ALERT_STREAM_TOKEN", "").strip()
+        or os.getenv("API_AUTH_TOKEN", "").strip()
+    )
+    if not expected:
+        return
+
+    provided: str | None = None
+    if authorization and authorization.lower().startswith("bearer "):
+        provided = authorization[7:].strip()
+    elif x_api_key:
+        provided = x_api_key.strip()
+    elif token:
+        provided = token.strip()
+
+    if not provided:
+        raise HTTPException(
+            status_code=401,
+            detail="Autenticación requerida para acceder al stream de alertas",
+        )
+    if not hmac.compare_digest(provided, expected):
+        raise HTTPException(
+            status_code=403,
+            detail="Credenciales inválidas para el stream de alertas",
+        )
 
 
 @router.get("", response_model=dict[str, object], summary="Listar alertas")
@@ -117,6 +158,36 @@ async def evaluate_alerts(
     service = AlertDetectionService(session)
     result = await service.evaluate_rules(rule_ids=payload.rule_ids)
     return AlertEvaluateResponse(**result)
+
+
+@router.get(
+    "/stream",
+    summary="Stream en tiempo real de alertas de hotspots mediante Server-Sent Events (SSE)",
+    dependencies=[Depends(verify_sse_access)],
+)
+async def stream_alerts(
+    request: Request,
+    last_event_id_header: str | None = Header(default=None, alias="Last-Event-ID"),
+    last_event_id: int | None = Query(default=None, ge=0),
+    max_events: int | None = Query(default=None, ge=1, include_in_schema=False),
+    session: Session = Depends(get_session),
+):
+    resolved_last_id = parse_last_event_id(last_event_id_header, last_event_id)
+    connection_service = SSEConnectionService()
+    return StreamingResponse(
+        connection_service.event_stream(
+            request=request,
+            session=session,
+            last_event_id=resolved_last_id,
+            max_events=max_events,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/{alert_id}", response_model=AlertRead, summary="Detalle de una alerta")

@@ -83,3 +83,14 @@ class AlertHistory(SQLModel, table=True):
     changedBy: str = Field(default="system", nullable=False, max_length=100)
     note: str | None = Field(default=None, nullable=True)
     changedAt: datetime = Field(default_factory=lambda: datetime.now(UTC), nullable=False)
+
+
+class AlertEvent(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    alertId: int = Field(foreign_key="alert.id", nullable=False, index=True)
+    eventType: str = Field(nullable=False, max_length=50, index=True)
+    dedupKey: str = Field(nullable=False, unique=True, index=True, max_length=255)
+    payloadJson: str = Field(nullable=False)
+    createdAt: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), nullable=False, index=True
+    )

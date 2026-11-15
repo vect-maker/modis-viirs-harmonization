@@ -19,6 +19,7 @@ from api.alerts import (
 )
 from model.Alert import (
     Alert,
+    AlertEvent,
     AlertHistory,
     AlertRule,
     AlertRuleStatus,
@@ -55,6 +56,7 @@ def _seed_alert_session() -> tuple[Session, datetime]:
             AlertRule.__table__,  # type: ignore[attr-defined]
             Alert.__table__,  # type: ignore[attr-defined]
             AlertHistory.__table__,  # type: ignore[attr-defined]
+            AlertEvent.__table__,  # type: ignore[attr-defined]
         ],
     )
     session = Session(engine)
