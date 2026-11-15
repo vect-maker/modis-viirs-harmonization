@@ -22,6 +22,7 @@ Processed star-schema tables (`dim_country`, `dim_platform`, `fact_hotspots`) an
       [Production store], [PostgreSQL + PostGIS], [Serves normalized star-schema records and spatial geometries to the application backend.],
       [Backend API], [FastAPI + SQLModel], [Provides rapid REST and SSE endpoint development with shared Pydantic and SQLAlchemy models.],
       [State & event bus], [NATS JetStream], [Persists worker KV cursors and SSE presence, and routes real-time events across API replicas.],
+      [Containers & proxy], [Podman Compose, Caddy], [Provides rootless, daemonless container orchestration and TLS reverse-proxy ingress.],
       [Task runner], [`justfile`], [Centralizes common pipeline, database, and report commands as versioned recipes.],
     )
   },
@@ -66,6 +67,14 @@ Once catch-up completes, the worker transitions to near-real-time polling (`nrt_
 The application backend (`apps/backend`) is implemented with FastAPI and SQLModel. This stack was selected for rapid prototype development, automatic OpenAPI schema generation, and unified Pydantic validation and SQLAlchemy ORM mapping over the PostGIS star schema. Given additional engineering time, performance-critical API paths could be migrated from Python to a compiled systems framework such as Rust with Axum while keeping the same PostgreSQL/PostGIS schema and messaging contracts.
 
 NATS serves as both a JetStream Key-Value (KV) store and a pub-sub event bus across the runtime services. As a KV store, the ingestion worker persists its operational state in the `worker_state` bucket (`catchup.cursor`, `catchup.completed`, `catchup.last_progress`, and `nrt.last_sync`), while FastAPI replicas record active Server-Sent Events (SSE) client streams in the `sse_presence` bucket (with a 45 s default TTL). As an event bus, `NatsService` publishes global notifications on `firms.sse.broadcast` and routes targeted user or tenant envelopes to specific backend replicas via `firms.sse.instance.<instance_id>`, falling back to local in-memory delivery when `NATS_URL` is unconfigured. Meanwhile, newly ingested hotspots written by the worker into PostgreSQL/PostGIS become immediately queryable by FastAPI repositories.
+
+== Container orchestration and cloud deployment
+
+All runtime services are built and orchestrated using Podman with Compose (`compose.yml` and `debug.compose.yml`), invoked through root `justfile` recipes such as `up`, `up-build`, and `up-debug`. Podman was selected for cross-system compatibility, its default rootless execution model, and its daemonless architecture, which avoids running a persistent root-privileged background daemon.
+
+The production Compose topology coordinates six containers: `db` (`postgis/postgis:17-3.5`), `nats` (`nats:2.10-alpine` with JetStream enabled), `backend` (`apps/backend/prod.containerfile`), `worker` (`apps/worker/prod.containerfile`), `frontend` (`apps/frontend/prod.containerfile`), and `caddy` (`caddy:2.9-alpine`). Caddy serves as the sole public ingress (`Caddyfile`), exposing only ports 80 and 443. HTTP requests on port 80 are automatically redirected to HTTPS on port 443 with managed TLS certificates, while `/api/*` requests are reverse-proxied to `backend:8080` and all remaining routes are served by `frontend:8080`.
+
+The containerized stack is deployed on a Microsoft Azure virtual machine (`sldg`) in the `northcentralus` region using a `Standard_B2as_v2` instance profile. The host runs Ubuntu 24.04 LTS Server (`ubuntu-24_04-lts`) backed by a 30 GB `Premium_LRS` managed OS disk, with password authentication disabled in favor of SSH key-based access.
 
 == Inputs and schema alignment
 
