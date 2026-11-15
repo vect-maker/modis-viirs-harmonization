@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch, useTemplateRef } from 'vue'
+import { computed, onMounted, shallowRef, watch, useTemplateRef } from 'vue'
 import { useMediaQuery, useElementSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import FireMap from '@/components/map/FireMap.vue'
@@ -10,7 +10,12 @@ import MapActionBar from '@/components/common/MapActionBar.vue'
 import type { FireHotspot } from '@/types/hotspot'
 import { useHotspotsStore } from '@/stores/hotspots'
 
-const { filteredHotspots } = storeToRefs(useHotspotsStore())
+const hotspotsStore = useHotspotsStore()
+const { filteredHotspots } = storeToRefs(hotspotsStore)
+
+onMounted(() => {
+  void hotspotsStore.fetchHotspots({ limit: 100 })
+})
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const panelOpen = shallowRef(isDesktop.value)
 const timelineOpen = shallowRef(false)

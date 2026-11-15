@@ -1,18 +1,51 @@
 import { computed, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
 import { parseDate } from '@internationalized/date'
+import {
+  useHotspotsApi,
+  usePlatformsApi,
+  type HotspotFiltersRequest,
+  type HotspotResponse,
+  type PlatformResponse,
+} from '@/api'
 import { aggregateDailyActivity } from '@/utils/hotspotActivity'
 import type { HotspotDateRange } from '@/types/filters'
-import sampleHotspots from '@/data/sample_hotspots.json'
 import type { FireHotspot } from '@/types/hotspot'
 
 export type SensorFilter = 'ALL' | FireHotspot['instrument']
 
+function mapHotspotToFireHotspot(
+  item: HotspotResponse,
+  platformsById: Map<string, PlatformResponse>,
+): FireHotspot {
+  const platform = platformsById.get(item.platform_id)
+  const instrument: FireHotspot['instrument'] =
+    platform?.instrument === 'VIIRS' ? 'VIIRS' : 'MODIS'
+
+  return {
+    latitude: item.latitude,
+    longitude: item.longitude,
+    acq_datetime: item.acq_datetime.replace('T', ' '),
+    instrument,
+    satellite: platform?.satellite ?? 'Unknown',
+    confidence_class: item.confidence_class ?? '',
+    confidence: item.confidence ?? 0,
+    frp: item.frp ?? 0,
+    bright_mir: item.bright_mir ?? 0,
+    daynight: item.daynight === 'N' ? 'N' : 'D',
+  }
+}
+
 export const useHotspotsStore = defineStore('hotspots', () => {
-  const hotspots = shallowRef<FireHotspot[]>(sampleHotspots as FireHotspot[])
+  const hotspots = shallowRef<FireHotspot[]>([])
+  const isLoading = shallowRef(false)
+  const error = shallowRef<string | null>(null)
   const selectedSensor = shallowRef<SensorFilter>('ALL')
   const areaHotspots = shallowRef<FireHotspot[] | null>(null)
   const dateRange = shallowRef<HotspotDateRange | null>(null)
+
+  const { getHotspots } = useHotspotsApi()
+  const { getPlatforms } = usePlatformsApi()
 
   const availableDates = computed<HotspotDateRange | null>(() => {
     const dates = hotspots.value.map((hotspot) => hotspot.acq_datetime.slice(0, 10)).sort()
@@ -72,8 +105,29 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     dateRange.value = range ? { ...range } : null
   }
 
+  async function fetchHotspots(params?: HotspotFiltersRequest) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const [hotspotsRes, platformsRes] = await Promise.all([
+        getHotspots(params),
+        getPlatforms({ limit: 100 }),
+      ])
+      const platformsById = new Map(platformsRes.data.map((p) => [p.id, p]))
+      hotspots.value = hotspotsRes.data.map((item) =>
+        mapHotspotToFireHotspot(item, platformsById),
+      )
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch hotspots'
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     hotspots,
+    isLoading,
+    error,
     selectedSensor,
     areaHotspots,
     dateRange,
@@ -82,6 +136,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     dailyActivity,
     filteredHotspots,
     stats,
+    fetchHotspots,
     setSensor,
     setAreaHotspots,
     setDateRange,

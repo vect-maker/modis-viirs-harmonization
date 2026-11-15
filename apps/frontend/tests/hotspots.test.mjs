@@ -234,3 +234,74 @@ test('space backdrop is decorative and exposes no keyboard interaction', async (
   assert(html.includes('aria-hidden="true"'))
   assert(!html.includes('tabindex'))
 })
+
+test('fetchHotspots loads hotspots and resolves platform metadata from the API', async () => {
+  const previousFetch = globalThis.fetch
+  const platformId = '11111111-1111-4111-8111-111111111111'
+  const countryId = '22222222-2222-4222-8222-222222222222'
+  const hotspotId = '33333333-3333-4333-8333-333333333333'
+
+  globalThis.fetch = async (url) => {
+    const href = String(url)
+    if (href.includes('/platforms')) {
+      return new Response(
+        JSON.stringify({
+          data: [{ id: platformId, satellite: 'NOAA-20', instrument: 'VIIRS' }],
+          total: 1,
+          limit: 100,
+          offset: 0,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    if (href.includes('/hotspots')) {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: hotspotId,
+              country_id: countryId,
+              platform_id: platformId,
+              latitude: 12.5,
+              longitude: -85.5,
+              acq_datetime: '2024-05-31T18:44:00',
+              bright_mir: null,
+              confidence: null,
+              confidence_class: null,
+              frp: 4.5,
+              daynight: 'N',
+            },
+          ],
+          total: 1,
+          limit: 100,
+          offset: 0,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    return new Response('Not Found', { status: 404 })
+  }
+
+  try {
+    const store = createStore()
+    await store.fetchHotspots({ limit: 100 })
+    assert.equal(store.isLoading, false)
+    assert.equal(store.error, null)
+    assert.deepEqual(store.hotspots, [
+      {
+        latitude: 12.5,
+        longitude: -85.5,
+        acq_datetime: '2024-05-31 18:44:00',
+        instrument: 'VIIRS',
+        satellite: 'NOAA-20',
+        confidence_class: '',
+        confidence: 0,
+        frp: 4.5,
+        bright_mir: 0,
+        daynight: 'N',
+      },
+    ])
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
