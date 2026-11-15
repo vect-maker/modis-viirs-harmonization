@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
@@ -107,6 +108,21 @@ def _classify_overpass_window(acq_dt: datetime, lon: float) -> str:
     return "NIGHT"
 
 
+@dataclass(frozen=True)
+class InsertedHotspot:
+    """Summary of a newly persisted hotspot row for downstream notifications."""
+
+    id: uuid.UUID
+    country: str
+    satellite: str
+    instrument: str
+    latitude: float
+    longitude: float
+    acq_datetime: datetime
+    frp: float | None
+    confidence_class: str | None
+
+
 class HotspotWriter:
     """Writes deduplicated FIRMS detections into the PostGIS star schema."""
 
@@ -139,8 +155,23 @@ class HotspotWriter:
         country_name: str | None = None,
         harmonization_category: str = "API_INGESTED",
     ) -> int:
+        return len(
+            self.insert_new_hotspots_with_details(
+                rows,
+                country_name=country_name,
+                harmonization_category=harmonization_category,
+            )
+        )
+
+    def insert_new_hotspots_with_details(
+        self,
+        rows: Sequence[Mapping[str, Any]],
+        *,
+        country_name: str | None = None,
+        harmonization_category: str = "API_INGESTED",
+    ) -> list[InsertedHotspot]:
         if not rows:
-            return 0
+            return []
 
         raw_country = (country_name or "").strip()
         auto_resolve = raw_country.lower() in {
@@ -153,6 +184,7 @@ class HotspotWriter:
         countries: dict[uuid.UUID, str] = {}
         platforms: dict[uuid.UUID, tuple[str, str]] = {}
         fact_rows: list[dict[str, Any]] = []
+        candidate_details: dict[uuid.UUID, InsertedHotspot] = {}
 
         for row in rows:
             lat = _float_or_none(row.get("latitude"))
@@ -248,9 +280,23 @@ class HotspotWriter:
                     ),
                 }
             )
+            candidate_details.setdefault(
+                hotspot_id,
+                InsertedHotspot(
+                    id=hotspot_id,
+                    country=resolved_country,
+                    satellite=satellite_norm,
+                    instrument=instrument,
+                    latitude=lat,
+                    longitude=lon,
+                    acq_datetime=acq_dt,
+                    frp=frp,
+                    confidence_class=conf_cls,
+                ),
+            )
 
         if not fact_rows:
-            return 0
+            return []
 
         # Si MODIS coincide espacial (~2 km) y temporalmente (<= 4 h) con VIIRS, peso = 0.0
         viirs_pts = [
@@ -297,7 +343,7 @@ class HotspotWriter:
                 )
 
             batch_size = 1000
-            total_inserted = 0
+            inserted_details: list[InsertedHotspot] = []
             for offset in range(0, len(fact_rows), batch_size):
                 batch = fact_rows[offset : offset + batch_size]
                 stmt = (
@@ -306,7 +352,16 @@ class HotspotWriter:
                     .on_conflict_do_nothing(index_elements=["id"])
                     .returning(col(FactHotspot.id))
                 )
-                total_inserted += len(list(session.exec(stmt).all()))
+                for row in session.exec(stmt).all():
+                    raw_id = row[0] if not isinstance(row, uuid.UUID) else row
+                    inserted_id = (
+                        raw_id
+                        if isinstance(raw_id, uuid.UUID)
+                        else uuid.UUID(str(raw_id))
+                    )
+                    detail = candidate_details.get(inserted_id)
+                    if detail is not None:
+                        inserted_details.append(detail)
             session.commit()
 
-        return total_inserted
+        return inserted_details

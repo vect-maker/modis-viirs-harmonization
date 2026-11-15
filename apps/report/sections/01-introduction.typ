@@ -16,10 +16,10 @@ The prototype explores three operations: preserving original observations, ident
 
 The repository contains a Python/SQLite ingestion pipeline, DuckDB/Parquet transformations, a PostgreSQL/PostGIS star schema, a FastAPI backend, and a Vue/MapLibre frontend. These components support data access and visualization; their existence is not evidence of scientific calibration accuracy.
 
-This revision verifies the SQL using synthetic inputs and checks the bundled monthly JSON. Original FIRMS Parquet inputs and cloud/swath metadata were unavailable in this checkout. No new full-archive calibration, field comparison, or real-data accuracy measurement is reported. Previously recorded ingestion timings and backend test counts are not reused as harmonization evidence.
+This revision verifies the SQL using synthetic inputs. Original FIRMS Parquet inputs and cloud/swath metadata were unavailable in this checkout. No new full-archive calibration, field comparison, or real-data accuracy measurement is reported. Previously recorded ingestion timings and backend test counts are not reused as harmonization evidence.
 
 == Verified source boundaries
 
-The FIRMS archive page distinguishes Terra records beginning in November 2000 from Aqua records beginning in July 2002, and lists NOAA-20 archive availability from April 2018 and NOAA-21 from January 2024 @firmsarchive. Launch dates are not interchangeable with product availability. The supplied monthly JSON is not platform-resolved, so this review cannot independently verify its claimed platform mix.
+The FIRMS archive page distinguishes Terra records beginning in November 2000 from Aqua records beginning in July 2002, and lists NOAA-20 archive availability from April 2018 and NOAA-21 from January 2024 @firmsarchive. Launch dates are not interchangeable with product availability.
 
 NASA's product documentation supports the sensor properties in this report. It does not establish the project's fallback factors, bin widths, minimum sample count, or clipping bounds. Those are implementation choices documented in Section 2.

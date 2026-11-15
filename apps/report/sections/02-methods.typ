@@ -21,6 +21,7 @@ Processed star-schema tables (`dim_country`, `dim_platform`, `fact_hotspots`) an
       [Transform & load], [DuckDB SQL], [Replaces in-memory pandas for single-machine out-of-core SQL transforms and direct PostgreSQL loading.],
       [Production store], [PostgreSQL + PostGIS], [Serves normalized star-schema records and spatial geometries to the application backend.],
       [Backend API], [FastAPI + SQLModel], [Provides rapid REST and SSE endpoint development with shared Pydantic and SQLAlchemy models.],
+      [Frontend SPA], [Vue 3, Pinia, VueUse], [Delivers a history-mode SPA with centralized Pinia stores, VueUse composables, and MapLibre GL.],
       [State & event bus], [NATS JetStream], [Persists worker KV cursors and SSE presence, and routes real-time events across API replicas.],
       [Containers & proxy], [Podman Compose, Caddy], [Provides rootless, daemonless container orchestration and TLS reverse-proxy ingress.],
       [Task runner], [`justfile`], [Centralizes common pipeline, database, and report commands as versioned recipes.],
@@ -68,6 +69,12 @@ The application backend (`apps/backend`) is implemented with FastAPI and SQLMode
 
 NATS serves as both a JetStream Key-Value (KV) store and a pub-sub event bus across the runtime services. As a KV store, the ingestion worker persists its operational state in the `worker_state` bucket (`catchup.cursor`, `catchup.completed`, `catchup.last_progress`, and `nrt.last_sync`), while FastAPI replicas record active Server-Sent Events (SSE) client streams in the `sse_presence` bucket (with a 45 s default TTL). As an event bus, `NatsService` publishes global notifications on `firms.sse.broadcast` and routes targeted user or tenant envelopes to specific backend replicas via `firms.sse.instance.<instance_id>`, falling back to local in-memory delivery when `NATS_URL` is unconfigured. Meanwhile, newly ingested hotspots written by the worker into PostgreSQL/PostGIS become immediately queryable by FastAPI repositories.
 
+== Web SPA portal
+
+The user-facing portal (`apps/frontend`) is built as a Vue 3 Single-Page Application (SPA) with TypeScript, Vite, MapLibre GL for interactive geospatial rendering, and ECharts for statistical visualizations. Navigation is managed by `vue-router` in HTML5 history mode (`createWebHistory` in browser contexts, with `createMemoryHistory` fallback outside the browser), providing clean URLs across lazy-loaded views (`/`, `/dashboard`, `/auth/login`, `/auth/register`, and `/profile`) alongside `beforeEach` route guards for session initialization and access control.
+
+Application state is centralized in Pinia stores (`apps/frontend/src/stores/`) partitioned across seven domain modules (`auth`, `calendar`, `clusters`, `feedback`, `filters`, `hotspots`, and `notifications`). Reusable browser and reactive utilities are implemented using `@vueuse/core` composables, including `createFetch` for typed API requests (`useApiFetch.ts`), `useEventSource` for live SSE notification streams (`useNotificationStream.ts`), `useObjectUrl` for client-side CSV exports (`useHotspotCsvDownload.ts`), and `useResizeObserver`, `useIntersectionObserver`, `useMediaQuery`, and `useGeolocation` for responsive map and dashboard interactions.
+
 == Container orchestration and cloud deployment
 
 All runtime services are built and orchestrated using Podman with Compose (`compose.yml` and `debug.compose.yml`), invoked through root `justfile` recipes such as `up`, `up-build`, and `up-debug`. Podman was selected for cross-system compatibility, its default rootless execution model, and its daemonless architecture, which avoids running a persistent root-privileged background daemon.
@@ -75,6 +82,29 @@ All runtime services are built and orchestrated using Podman with Compose (`comp
 The production Compose topology coordinates six containers: `db` (`postgis/postgis:17-3.5`), `nats` (`nats:2.10-alpine` with JetStream enabled), `backend` (`apps/backend/prod.containerfile`), `worker` (`apps/worker/prod.containerfile`), `frontend` (`apps/frontend/prod.containerfile`), and `caddy` (`caddy:2.9-alpine`). Caddy serves as the sole public ingress (`Caddyfile`), exposing only ports 80 and 443. HTTP requests on port 80 are automatically redirected to HTTPS on port 443 with managed TLS certificates, while `/api/*` requests are reverse-proxied to `backend:8080` and all remaining routes are served by `frontend:8080`.
 
 The containerized stack is deployed on a Microsoft Azure virtual machine (`sldg`) in the `northcentralus` region using a `Standard_B2as_v2` instance profile. The host runs Ubuntu 24.04 LTS Server (`ubuntu-24_04-lts`) backed by a 30 GB `Premium_LRS` managed OS disk, with password authentication disabled in favor of SSH key-based access.
+
+== Data sources and API attribution
+
+All external datasets consumed by the pipeline, live worker, backend, and interactive map are anchored to explicit endpoints in the codebase. Historical archived detections are retrieved from the NASA FIRMS host (`https://firms.modaps.eosdis.nasa.gov`) using the country yearly summary index (`data/country/yearly_summary_files.txt`) and data availability CSV endpoint (`/api/data_availability/csv`) in `apps/pipeline` @firmsapi @firmsarchive. Near-real-time (NRT) and catch-up detections are queried from the same NASA FIRMS host through the Area CSV endpoint (`/api/area/csv`) in `apps/worker` @firmsapi.
+
+For the interactive map and environmental context, `FireMap.vue` renders satellite imagery tiles from the Esri ArcGIS World Imagery service (`server.arcgisonline.com/.../World_Imagery/MapServer`) @esriworldimagery, country boundary polygons are sourced from Natural Earth @naturalearth, and daily meteorological context is fetched by `WeatherDataClient.py` from the NASA POWER Daily Point API (`power.larc.nasa.gov/api/temporal/daily/point`) @nasapower.
+
+#figure(
+  {
+    set par(justify: false)
+    table(
+      columns: (28%, 32%, 40%),
+      align: (left, left, left),
+      table.header([Use case], [Source & endpoint], [Component]),
+      [Archived fire data], [NASA FIRMS country summary & availability CSVs @firmsapi @firmsarchive], [`apps/pipeline` (`sync_meta.py`, `fetcher.py`)],
+      [Near-real-time data], [NASA FIRMS Area CSV API (`/api/area/csv`) @firmsapi], [`apps/worker` (`firms_client.py`, `nrt_sync.py`)],
+      [Map imagery], [Esri ArcGIS World Imagery `MapServer` tiles @esriworldimagery], [`apps/frontend` (`FireMap.vue`)],
+      [Country polygons], [Natural Earth vector boundaries @naturalearth], [`apps/frontend`, `apps/worker`],
+      [Weather context], [NASA POWER Daily Point API @nasapower], [`apps/backend` (`WeatherDataClient.py`)],
+    )
+  },
+  caption: [External data sources and API endpoints cited by the PyroTrace system.],
+)
 
 == Inputs and schema alignment
 

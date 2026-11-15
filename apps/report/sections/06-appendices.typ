@@ -12,14 +12,14 @@ PyroTrace uses NASA FIRMS products and open-source software. References document
 
 = Reproduction and Data Availability
 
-The source files are in the current project checkout. The monthly demonstration data are in #raw("apps/frontend/src/data/historical_monthly.json"). The four weighting stages are in #raw("apps/pipeline/sql/harmonize/"). No original country-level Parquet files were available for the present review.
+The source files are in the current project checkout. The four weighting stages are in #raw("apps/pipeline/sql/harmonize/"). No original country-level Parquet files were available for the present review.
 
 Run from the repository root in PowerShell:
 #raw("cd apps/report\npython validation/verify_prototype.py", block: true)
 
 To refresh the evidence snapshot included in this report, append the flag #raw("--refresh-report-data") to the Python command. Review changed results and their interpretation before doing so.
 
-The runner writes its synthetic workspace and machine-readable outputs beneath the report's ignored output directory. It verifies native-field preservation, exact scenario results, calibration-factor changes, and the sum of bundled monthly totals. The committed snapshot records SHA-256 hashes of the four SQL files. If those files change, rerun the checks and review the scientific interpretation before updating the snapshot.
+The runner writes its synthetic workspace and machine-readable outputs beneath the report's ignored output directory. It verifies native-field preservation, exact scenario results, and calibration-factor changes. The committed snapshot records SHA-256 hashes of the four SQL files. If those files change, rerun the checks and review the scientific interpretation before updating the snapshot.
 
 To build the report using the existing Typst installation:
 #raw("$pdf = 'output/report.pdf'\ntypst compile --font-path fonts main.typ $pdf", block: true)
@@ -32,7 +32,7 @@ The project recipes also provide #raw("just report::build"), #raw("just report::
 
 Primary sources were checked on 14 November 2026. Product attributes and collection-specific guidance take precedence over generic descriptions. The bibliography provides stable source URLs and paper DOIs.
 
-The current FIRMS archive page lists NOAA-20 availability from April 2018, while the general VIIRS description page lists January 2020. This report uses the archive page for archive availability and makes no claim to have independently verified the platform coverage of the bundled monthly JSON.
+The current FIRMS archive page lists NOAA-20 availability from April 2018, while the general VIIRS description page lists January 2020. This report uses the archive page for archive availability.
 
 The 2024 Collection 2 guide is used for VIIRS retrieval interpretation. The 2014 algorithm paper provides historical algorithm context, not evidence that the local archive uses any particular collection. Li et al.'s 2018 study is explicitly a 750 m comparison.
 
@@ -45,7 +45,6 @@ No primary source reviewed establishes the values 2.20, 6.12, 4.50, or 1.14 as t
 #table(
   columns: (60%, 40%),
   table.header([Evidence item], [Status]),
-  [Monthly JSON total consistency], [Verified],
   [Four SQL stages on synthetic data], [Verified],
   [Native tuples preserved in those checks], [Verified],
   [Original FIRMS archive reprocessing], [Not performed],

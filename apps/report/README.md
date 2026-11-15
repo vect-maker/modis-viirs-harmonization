@@ -41,7 +41,7 @@ The `validation/results.json` snapshot records the results, DuckDB version, and 
 SHA-256 hashes. Detailed files are written to `output/validation`.
 The checks execute four SQL stages on 810 synthetic records and verify tuple
 preservation, hourly and spatial boundaries, platform effects, and missing FRP.
-They also verify the monthly JSON total. These checks do not establish scientific accuracy.
+These checks do not establish scientific accuracy.
 
 References are stored in `references.bib`. The fallback values 2.20, 6.12, 4.50,
 and 1.14 are provisional. The current calendar displays raw counts.
