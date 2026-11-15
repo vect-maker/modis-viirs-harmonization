@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useCalendarStore } from '@/stores/calendar'
 import BaseSensorFilter from '@/components/ui/BaseSensorFilter.vue'
@@ -8,6 +8,10 @@ import { getThermalPalette } from '@/utils/themeColors'
 const store = useCalendarStore()
 const { archive, sensor, rows, maxCount, total, selectedPeriod, selectedMonth, selectedCount } =
   storeToRefs(store)
+
+onMounted(() => {
+  void store.fetchHistoricalCalendar()
+})
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'long',
   year: 'numeric',
@@ -27,16 +31,16 @@ function formatCount(value: number | null | undefined) {
 </script>
 
 <template>
-  <section class="space-y-3 p-3 sm:p-5" aria-label="Nicaragua historical burning activity calendar">
+  <section class="space-y-3 p-3 sm:p-5" aria-label="Historical burning activity calendar">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 class="text-sm font-medium">
-          Nicaragua · {{ archive.firstDetection.slice(0, 4) }}–{{
-            archive.lastDetection.slice(0, 4)
-          }}
+          Historical Archive<template v-if="archive.firstDetection && archive.lastDetection">
+            · {{ archive.firstDetection.slice(0, 4) }}–{{ archive.lastDetection.slice(0, 4) }}
+          </template>
         </h2>
         <p class="mt-1 text-xs text-ink-muted">
-          {{ total.toLocaleString() }} observed detections · national archive
+          {{ total.toLocaleString() }} observed detections · full archive
         </p>
       </div>
       <BaseSensorFilter
@@ -46,7 +50,7 @@ function formatCount(value: number | null | undefined) {
       />
     </div>
     <p class="text-[11px] leading-relaxed text-ink-muted">
-      National totals. Map area and date filters do not apply here. Counts are not harmonized;
+      Archive totals. Map area and date filters do not apply here. Counts are not harmonized;
       observation coverage is unverified.
     </p>
     <BurningCalendar

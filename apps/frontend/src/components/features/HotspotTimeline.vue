@@ -41,7 +41,7 @@ function selectDay(date: string) {
 <template>
   <BaseTimelinePanel
     v-model:open="open"
-    :summary="view === 'history' ? 'Nicaragua · national archive' : summary"
+    :summary="view === 'history' ? 'Historical archive' : summary"
     :large="view === 'history'"
   >
     <template #tools><slot name="tools" /></template>

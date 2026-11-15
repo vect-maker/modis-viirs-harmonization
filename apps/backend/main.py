@@ -21,6 +21,7 @@ from model.StarSchema import (
     AvailableDatesResponse,
     CountryPublic,
     DailyActivityResponse,
+    HistoricalCalendarResponse,
     HotspotPublic,
     PlatformPublic,
 )
@@ -123,6 +124,11 @@ def get_hotspot_daily_activity(
     return HotspotRepository(session).get_daily_activity(
         start_date=start_date, end_date=end_date, instrument=instrument
     )
+
+
+@app.get("/hotspots/historical-calendar", tags=["Hotspots"])
+def get_hotspot_historical_calendar(session: SessionDep) -> HistoricalCalendarResponse:
+    return HotspotRepository(session).get_historical_calendar()
 
 
 @app.get("/countries", tags=["Countries"])

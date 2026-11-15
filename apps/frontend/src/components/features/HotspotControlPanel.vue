@@ -17,7 +17,7 @@ const { stats } = storeToRefs(useHotspotsStore())
       <div class="flex items-center gap-2 text-xs text-ink-secondary">
         <Pentagon v-if="areaKm2 !== null" aria-hidden="true" class="h-3.5 w-3.5 text-ink-muted" />
         <MapPin v-else aria-hidden="true" class="h-3.5 w-3.5 text-ink-muted" />
-        <span>{{ areaKm2 !== null ? 'Selected area' : 'Nicaragua' }}</span>
+        <span>{{ areaKm2 !== null ? 'Selected area' : 'All Regions' }}</span>
         <span v-if="areaKm2 !== null" class="ml-auto font-mono text-ink-muted"
           >{{ areaKm2.toLocaleString(undefined, { maximumFractionDigits: 1 }) }} km²</span
         >

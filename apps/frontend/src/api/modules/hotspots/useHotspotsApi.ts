@@ -3,12 +3,14 @@ import { DailyActivityRequestSchema, HotspotFiltersRequestSchema } from "./reque
 import {
   AvailableDatesResponseSchema,
   DailyActivityResponseSchema,
+  HistoricalCalendarResponseSchema,
   PaginatedHotspotResponseSchema,
 } from "./responses";
 import type {
   AvailableDatesResponse,
   DailyActivityRequest,
   DailyActivityResponse,
+  HistoricalCalendarResponse,
   HotspotFiltersRequest,
   PaginatedHotspotResponse,
 } from "./types";
@@ -76,9 +78,21 @@ export const useHotspotsApi = () => {
     return DailyActivityResponseSchema.parse(data.value);
   }
 
+  // GET /hotspots/historical-calendar
+  async function getHistoricalCalendar(): Promise<HistoricalCalendarResponse> {
+    const { data, error } = await useApiFetch("/hotspots/historical-calendar").get().json();
+
+    if (error.value || !data.value) {
+      throw error.value || new Error("Failed to fetch historical calendar");
+    }
+
+    return HistoricalCalendarResponseSchema.parse(data.value);
+  }
+
   return {
     getHotspots,
     getAvailableDates,
     getDailyActivity,
+    getHistoricalCalendar,
   };
 };

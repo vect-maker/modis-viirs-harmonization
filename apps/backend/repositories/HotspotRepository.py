@@ -10,6 +10,8 @@ from model.StarSchema import (
     DailyActivityResponse,
     DimPlatform,
     FactHotspot,
+    HistoricalCalendarResponse,
+    HistoricalMonthSummary,
     HotspotPublic,
 )
 from repositories.pagination import paginate_statement
@@ -236,6 +238,84 @@ class HotspotRepository:
             days=days,
             min_date=resolved_start,
             max_date=resolved_end,
+        )
+
+    def get_historical_calendar(self) -> HistoricalCalendarResponse:
+        date_expr = func.date(col(FactHotspot.acq_datetime))
+        instrument_expr = func.upper(col(DimPlatform.instrument))
+        count_expr = func.count(col(FactHotspot.id))
+
+        statement = (
+            select(date_expr, instrument_expr, count_expr)
+            .join(DimPlatform, col(FactHotspot.platform_id) == col(DimPlatform.id))
+            .group_by(date_expr, instrument_expr)
+            .order_by(date_expr.asc())
+        )
+        rows = self.session.exec(statement).all()
+
+        if not rows:
+            return HistoricalCalendarResponse(
+                first_detection=None,
+                last_detection=None,
+                total_records=0,
+                months=[],
+            )
+
+        monthly: dict[tuple[int, int], dict[str, object]] = {}
+        first_day: date | None = None
+        last_day: date | None = None
+        total_records = 0
+
+        for raw_day, raw_instrument, raw_count in rows:
+            if raw_day is None:
+                continue
+            parsed_day = (
+                raw_day if isinstance(raw_day, date) else date.fromisoformat(str(raw_day))
+            )
+            count = int(raw_count)
+            instrument = str(raw_instrument or "").upper()
+
+            if first_day is None or parsed_day < first_day:
+                first_day = parsed_day
+            if last_day is None or parsed_day > last_day:
+                last_day = parsed_day
+            total_records += count
+
+            key = (parsed_day.year, parsed_day.month)
+            bucket = monthly.get(key)
+            if bucket is None:
+                bucket = {
+                    "total": 0,
+                    "modis": 0,
+                    "viirs": 0,
+                    "days": set(),
+                }
+                monthly[key] = bucket
+
+            bucket["total"] = int(bucket["total"]) + count  # type: ignore[arg-type]
+            if instrument == "MODIS":
+                bucket["modis"] = int(bucket["modis"]) + count  # type: ignore[arg-type]
+            elif instrument == "VIIRS":
+                bucket["viirs"] = int(bucket["viirs"]) + count  # type: ignore[arg-type]
+            bucket["days"].add(parsed_day)  # type: ignore[attr-defined]
+
+        months = [
+            HistoricalMonthSummary(
+                year=year,
+                month=month,
+                total=int(data["total"]),  # type: ignore[arg-type]
+                modis_count=int(data["modis"]) if int(data["modis"]) > 0 else None,  # type: ignore[arg-type]
+                viirs_count=int(data["viirs"]) if int(data["viirs"]) > 0 else None,  # type: ignore[arg-type]
+                observed_days=len(data["days"]),  # type: ignore[arg-type]
+            )
+            for (year, month), data in sorted(monthly.items())
+        ]
+
+        return HistoricalCalendarResponse(
+            first_detection=first_day,
+            last_detection=last_day,
+            total_records=total_records,
+            months=months,
         )
 
     def get_hostspot_by_dates(

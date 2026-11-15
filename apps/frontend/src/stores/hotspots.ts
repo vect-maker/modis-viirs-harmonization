@@ -138,13 +138,19 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     }
   }
 
+  function clearHotspots() {
+    hotspots.value = []
+    aggregatedDailyActivity.value = null
+    filters.setFetchedDateRange(null)
+  }
+
   async function selectDateRange(range: HotspotDateRange | null) {
     filters.setDateRange(range)
-    await fetchHotspots(
-      range
-        ? { start_date: range.start, end_date: range.end, limit: 100 }
-        : { limit: 100 },
-    )
+    if (!range) {
+      clearHotspots()
+      return
+    }
+    await fetchHotspots({ start_date: range.start, end_date: range.end, limit: 100 })
   }
 
   async function fetchHotspots(params?: HotspotFiltersRequest) {
@@ -222,6 +228,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     getCountry,
     fetchAvailableDates: filters.fetchAvailableDates,
     fetchHotspots,
+    clearHotspots,
     selectDateRange,
     updateStartDate,
     updateEndDate,

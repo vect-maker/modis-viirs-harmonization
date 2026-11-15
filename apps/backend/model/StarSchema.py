@@ -97,3 +97,23 @@ class DailyActivityResponse(BaseModel):
     days: list[DailyActivityItem]
     min_date: date | None
     max_date: date | None
+
+
+class HistoricalMonthSummary(BaseModel):
+    """Monthly aggregated hotspot counts across MODIS and VIIRS."""
+
+    year: int
+    month: int
+    total: int
+    modis_count: int | None
+    viirs_count: int | None
+    observed_days: int
+
+
+class HistoricalCalendarResponse(BaseModel):
+    """Full historical monthly archive summary for the heatmap calendar."""
+
+    first_detection: date | None
+    last_detection: date | None
+    total_records: int
+    months: list[HistoricalMonthSummary]

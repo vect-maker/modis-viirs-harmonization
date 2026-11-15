@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue'
+import { computed, onMounted, shallowRef } from 'vue'
+import { storeToRefs } from 'pinia'
 import { ArrowUpRight, ChevronLeft, ChevronRight, Info } from '@lucide/vue'
-import rawArchive from '@/data/historical_monthly.json'
-import type { HistoricalArchive, CalendarSensor } from '@/types/calendar'
+import { useCalendarStore } from '@/stores/calendar'
+import type { CalendarSensor } from '@/types/calendar'
 import { calendarCount } from '@/utils/historicalCalendar'
 
-const archive = rawArchive as HistoricalArchive
+const calendarStore = useCalendarStore()
+const { archive } = storeToRefs(calendarStore)
+onMounted(() => {
+  void calendarStore.fetchHistoricalCalendar()
+})
+
 const year = shallowRef(2024)
 const month = shallowRef(5)
 const sensor = shallowRef<CalendarSensor>('ALL')
@@ -25,31 +31,41 @@ const fullLabels = [
   'noviembre',
   'diciembre',
 ]
-const firstYear = Number(archive.firstDetection.slice(0, 4))
-const lastYear = Number(archive.lastDetection.slice(0, 4))
-const years = Array.from({ length: lastYear - firstYear + 1 }, (_, i) => lastYear - i)
-const recentYears = Array.from({ length: 6 }, (_, i) => lastYear - 5 + i)
-const index = new Map(archive.months.map((item) => [`${item.year}-${item.month}`, item]))
+const firstYear = computed(() =>
+  archive.value.firstDetection ? Number(archive.value.firstDetection.slice(0, 4)) : 2020,
+)
+const lastYear = computed(() =>
+  archive.value.lastDetection ? Number(archive.value.lastDetection.slice(0, 4)) : 2025,
+)
+const years = computed(() =>
+  Array.from({ length: lastYear.value - firstYear.value + 1 }, (_, i) => lastYear.value - i),
+)
+const recentYears = computed(() =>
+  Array.from({ length: 6 }, (_, i) => lastYear.value - 5 + i),
+)
+const index = computed(
+  () => new Map(archive.value.months.map((item) => [`${item.year}-${item.month}`, item])),
+)
 const maximum = computed(() =>
-  Math.max(1, ...archive.months.map((item) => calendarCount(item, sensor.value) ?? 0)),
+  Math.max(1, ...archive.value.months.map((item) => calendarCount(item, sensor.value) ?? 0)),
 )
 const rows = computed(() =>
-  recentYears.map((y) => ({
+  recentYears.value.map((y) => ({
     year: y,
     cells: labels.map((label, i) => ({
       label,
       month: i + 1,
-      count: calendarCount(index.get(`${y}-${i + 1}`), sensor.value),
+      count: calendarCount(index.value.get(`${y}-${i + 1}`), sensor.value),
     })),
   })),
 )
-const selected = computed(() => index.get(`${year.value}-${month.value}`))
+const selected = computed(() => index.value.get(`${year.value}-${month.value}`))
 const selectedCount = computed(() => calendarCount(selected.value, sensor.value))
 const yearCells = computed(() =>
   labels.map((label, i) => ({
     label,
     month: i + 1,
-    count: calendarCount(index.get(`${year.value}-${i + 1}`), sensor.value),
+    count: calendarCount(index.value.get(`${year.value}-${i + 1}`), sensor.value),
   })),
 )
 const peakMonth = computed(() =>
