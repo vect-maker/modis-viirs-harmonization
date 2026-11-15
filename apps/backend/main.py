@@ -15,6 +15,7 @@ from api.cluster_hotspots import router as cluster_hotspots_router
 from api.clusters import router as clusters_router
 from api.dashboard import router as dashboard_router
 from api.environmental_records import router as environmental_records_router
+from api.feedback import router as feedback_router
 from api.fire_analysis import router as fire_analysis_router
 from api.fire_calendar import router as fire_calendar_router
 from api.fire_cluster_forecast import router as fire_cluster_forecast_router
@@ -83,6 +84,7 @@ app.include_router(fire_cluster_forecast_router)
 app.include_router(fire_analysis_router)
 app.include_router(dashboard_router)
 app.include_router(fire_calendar_router)
+app.include_router(feedback_router)
 
 
 @app.exception_handler(ValueError)

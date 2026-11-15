@@ -16,7 +16,7 @@ import PyroTraceLogo from '@/components/common/PyroTraceLogo.vue'
         prototype.
       </p>
       <RouterLink
-        to="/dashboard"
+        :to="{ name: 'dashboard' }"
         class="font-medium text-accent-bright hover:underline focus-visible:outline-2 focus-visible:outline-focus"
       >
         /dashboard

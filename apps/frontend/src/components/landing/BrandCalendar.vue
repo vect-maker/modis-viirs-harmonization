@@ -216,7 +216,7 @@ function heat(count: number | null) {
               detección no equivale a un incendio individual.
             </p>
           </div>
-          <RouterLink to="/dashboard" class="landing-text-link"
+          <RouterLink :to="{ name: 'dashboard' }" class="landing-text-link"
             >Consultar el explorador <ArrowUpRight :size="17" aria-hidden="true"
           /></RouterLink>
         </div>

@@ -58,7 +58,7 @@ const boundaries = geography.countries.map((country) => {
       <div class="landing-map-title">
         <img src="/favicon.svg" alt="" width="27" height="27" /><span>Explorador de actividad</span>
       </div>
-      <RouterLink to="/dashboard" class="landing-icon-link" aria-label="Abrir el mapa completo"
+      <RouterLink :to="{ name: 'dashboard' }" class="landing-icon-link" aria-label="Abrir el mapa completo"
         ><ArrowUpRight :size="19" aria-hidden="true"
       /></RouterLink>
     </div>

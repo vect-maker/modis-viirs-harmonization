@@ -15,3 +15,11 @@ export * from "./modules/hotspots/useHotspotsApi";
 // Health
 export * from "./modules/health/types.d";
 export * from "./modules/health/useHealthApi";
+
+// Auth
+export * from "./modules/auth/types.d";
+export * from "./modules/auth/useAuthApi";
+
+// Feedback
+export * from "./modules/feedback/types.d";
+export * from "./modules/feedback/useFeedbackApi";

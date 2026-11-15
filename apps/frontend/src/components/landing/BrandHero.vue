@@ -18,7 +18,7 @@ import BrandMap from './BrandMap.vue'
           los datos MODIS y VIIRS a todas las personas.
         </p>
         <div class="landing-hero-actions landing-entrance landing-delay-3">
-          <RouterLink to="/dashboard" class="landing-button"
+          <RouterLink :to="{ name: 'dashboard' }" class="landing-button"
             >Abrir explorador <ArrowUpRight :size="19" aria-hidden="true"
           /></RouterLink>
           <a href="#proyecto" class="landing-text-link"

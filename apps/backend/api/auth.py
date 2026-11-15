@@ -3,7 +3,12 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Response, status
 
 from model.User import User
-from schemas.auth import UserAuthenticateRequest, UserPublic, UserRegisterRequest
+from schemas.auth import (
+    UserAuthenticateRequest,
+    UserPublic,
+    UserRegisterRequest,
+    UserUpdateRequest,
+)
 from services.AuthService import AuthServiceDep, CurrentUserDep, SessionDep
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -82,6 +87,45 @@ async def authenticate(
     summary="Obtener el perfil del usuario autenticado",
 )
 async def get_me(current_user: CurrentUserDep) -> UserPublic:
+    return UserPublic.model_validate(current_user)
+
+
+@router.patch(
+    "/me",
+    response_model=UserPublic,
+    summary="Actualizar el perfil del usuario autenticado",
+)
+async def update_me(
+    payload: UserUpdateRequest,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    auth_service: AuthServiceDep,
+) -> UserPublic:
+    if payload.email is not None:
+        normalized_email = payload.email.strip().lower()
+        if normalized_email != current_user.email:
+            existing = auth_service.get_user_by_email(session, normalized_email)
+            if existing is not None and existing.id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="El correo electrónico ya está registrado",
+                )
+            current_user.email = normalized_email
+
+    if payload.username is not None:
+        normalized_username = payload.username.strip()
+        if normalized_username != current_user.username:
+            existing = auth_service.get_user_by_username(session, normalized_username)
+            if existing is not None and existing.id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="El nombre de usuario ya está en uso",
+                )
+            current_user.username = normalized_username
+
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
     return UserPublic.model_validate(current_user)
 
 

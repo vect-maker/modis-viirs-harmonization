@@ -62,5 +62,6 @@ export const useApiFetch = createFetch({
   },
   fetchOptions: {
     mode: "cors",
+    credentials: "include",
   },
 });

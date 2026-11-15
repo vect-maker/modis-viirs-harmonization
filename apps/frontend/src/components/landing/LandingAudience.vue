@@ -60,7 +60,7 @@ const audiences = [
         </div>
 
         <RouterLink
-          to="/dashboard"
+          :to="{ name: 'dashboard' }"
           class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-surface-base transition hover:bg-accent-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           <span>Open Dashboard</span>
