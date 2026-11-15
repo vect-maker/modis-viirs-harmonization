@@ -41,7 +41,6 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'hotspot-select', hotspot: HotspotResponse): void
   (
     e: 'roi-change',
     payload: { count: number; areaKm2: number | null; filtered: HotspotResponse[] },
@@ -472,14 +471,11 @@ onMounted(() => {
         hotspot,
         platform: hotspotsStore.getPlatform(hotspot.platform_id),
         country: hotspotsStore.getCountry(hotspot.country_id),
-        onSelect: (hSpot) => {
-          emit('hotspot-select', hSpot)
-        },
       })
       render(vnode, popupWrapper)
 
       activePopup.value?.remove()
-      activePopup.value = new maplibregl.Popup({ offset: 12, maxWidth: '280px' })
+      activePopup.value = new maplibregl.Popup({ offset: 14, maxWidth: '310px' })
         .setLngLat(coordinates)
         .setDOMContent(popupWrapper)
         .addTo(m)
