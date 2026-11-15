@@ -123,22 +123,26 @@ FROM read_parquet('data/processed/hotspots_harmonized.parquet')
 WHERE country='null_frp';
 """)
     by_case = {row["scenario"]: row for row in activity}
+    # Expected behavior of the current SQL: neighbor-cell matching pairs observations
+    # across hour and cell edges, and VIIRS weights are divided by the active platforms.
     expected = {
-        "same_hour": (2, 1.0), "hour_boundary": (2, 7.12),
-        "spatial_boundary": (2, 7.12), "multiple_viirs": (3, 2.0),
+        "same_hour": (2, 1.0), "hour_boundary": (2, 1.0),
+        "spatial_boundary": (2, 1.0), "multiple_viirs": (3, 1.0),
         "null_frp": (1, 1.0), "one_viirs": (300, 200.0),
-        "two_viirs": (500, 400.0),
+        "two_viirs": (500, 200.0),
     }
     for name, (records, value) in expected.items():
         assert int(by_case[name]["records"]) == records, name
         assert abs(float(by_case[name]["activity"]) - value) < 1e-9, name
     assert int(native[0]["mismatches"]) == 0
     assert sum(int(row["records"]) for row in activity) == 810
-    for row, factor in zip(calibration, (2.0, 4.0), strict=True):
+    # Adding a second VIIRS platform must not change the calibrated factors.
+    for row, factor in zip(calibration, (2.0, 2.0), strict=True):
         for key in ("f_morning", "f_afternoon", "f_frp"):
             assert float(row[key]) == factor, (row["country"], key)
     assert nulls[0]["native_is_null"] == "true"
-    assert float(nulls[0]["derived_frp"]) == 0.0
+    # Missing native FRP stays missing in the derived FRP.
+    assert nulls[0]["derived_frp"] == ""
 
     summary = {
         "status": "synthetic_behavior_verified",
@@ -161,7 +165,7 @@ WHERE country='null_frp';
     if args.refresh_report_data:
         (REPORT / "validation/results.json").write_text(json.dumps(summary, indent=2)+"\n", encoding="utf-8")
     print("Verified 810 synthetic records and four unchanged SQL stages.")
-    print("Known limitations reproduced; scientific validation remains pending.")
+    print("Boundary, platform, and missing-FRP checks passed; scientific validation remains pending.")
     print(output / "summary.json")
 
 

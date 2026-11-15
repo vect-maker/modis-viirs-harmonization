@@ -38,7 +38,12 @@ import PyroTraceLogo from '@/components/common/PyroTraceLogo.vue'
             href="https://www.spaceappschallenge.org/2026/challenges/modis-and-viirs-hot-spots/?tab=details"
             target="_blank"
             rel="noopener noreferrer"
-            >El reto <ArrowUpRight :size="13" aria-hidden="true"
+            >El reto <ArrowUpRight :size="13" aria-hidden="true" /></a
+          ><a
+            href="https://www.spaceappschallenge.org/2026/find-a-team/sdlg/?tab=members"
+            target="_blank"
+            rel="noopener noreferrer"
+            >El equipo en Space Apps <ArrowUpRight :size="13" aria-hidden="true"
           /></a>
         </nav>
       </div>

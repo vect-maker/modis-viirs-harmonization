@@ -3,24 +3,24 @@
   "scientific_validation": false,
   "synthetic_records": 810,
   "native_mismatches": 0,
-  "duckdb_version": "v1.5.6",
+  "duckdb_version": "v2.0.0",
   "sql_sha256": {
-    "01_base_points.sql": "31f0dce84979f503e68ff964e54d8858809f416bebf7f68a4f623227bb22e5a3",
-    "02_quadrant_hourly.sql": "25658c9b8711f2f729a07b32e721b328717de64a4e57720eca3772bb43ebbb45",
-    "03_country_calibration.sql": "e53319c73bb076e36c524a4330e8766bf26e825e99ba33e5036b0b94763bc1ad",
-    "04_harmonize_points.sql": "87654dd6385eb3ec900ae543c8e55c2d466e8b6eeaa818a028a6cd5da5981400"
+    "01_base_points.sql": "70e22318041c2ea38b0a6a344bb50218533da257a8f120d574950a6f267ca20d",
+    "02_quadrant_hourly.sql": "4d2c34f61e3d797a516ca8a22cbc4aed6da95adb7f31255285bc738a49991729",
+    "03_country_calibration.sql": "42244dfc356d3f1408d3831498b505a0b29541c93ba20e5fe1fc9781441ef060",
+    "04_harmonize_points.sql": "f321feb14abc113b92025feb1e1a1395d7f606e17b8a113cc371f49023b8a7e4"
   },
   "scenarios": [
     {
       "scenario": "hour_boundary",
       "records": "2",
-      "activity": "7.12",
-      "suppressed_modis": "0"
+      "activity": "1.0",
+      "suppressed_modis": "1"
     },
     {
       "scenario": "multiple_viirs",
       "records": "3",
-      "activity": "2.0",
+      "activity": "1.0",
       "suppressed_modis": "1"
     },
     {
@@ -44,13 +44,13 @@
     {
       "scenario": "spatial_boundary",
       "records": "2",
-      "activity": "7.12",
-      "suppressed_modis": "0"
+      "activity": "1.0",
+      "suppressed_modis": "1"
     },
     {
       "scenario": "two_viirs",
       "records": "500",
-      "activity": "400.0",
+      "activity": "200.0",
       "suppressed_modis": "100"
     }
   ],
@@ -64,15 +64,15 @@
     },
     {
       "country": "two_viirs",
-      "f_morning": "4.0",
-      "f_afternoon": "4.0",
+      "f_morning": "2.0",
+      "f_afternoon": "2.0",
       "f_night": "4.5",
-      "f_frp": "4.0"
+      "f_frp": "2.0"
     }
   ],
   "null_frp": {
     "native_is_null": "true",
-    "derived_frp": "0.0"
+    "derived_frp": ""
   },
   "spatial_separation_m": 0.21777478182737448
 }

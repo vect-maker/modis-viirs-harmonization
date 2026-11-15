@@ -48,6 +48,13 @@ const team = [
           class="landing-text-link"
           >Leer el reto <ArrowUpRight :size="17" aria-hidden="true"
         /></a>
+        <a
+          href="https://www.spaceappschallenge.org/2026/find-a-team/sdlg/?tab=members"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="landing-text-link"
+          >Ver el equipo en Space Apps <ArrowUpRight :size="17" aria-hidden="true"
+        /></a>
       </div>
       <div class="landing-team-people">
         <h3>El equipo</h3>
