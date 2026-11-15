@@ -2,26 +2,6 @@
 
 = Results and Verification
 
-== Bundled Nicaragua archive
-
-The checked monthly JSON reports #evidence.archive.totalRecords raw observations between #evidence.archive.firstDetection and #evidence.archive.lastDetection. Summing its monthly totals reproduces the declared total. The processing flag is #raw(repr(evidence.archive.harmonized)) and verified coverage is #raw(repr(evidence.archive.coverageVerified)). These checks concern the stored aggregate, not independent reprocessing of the original FIRMS data.
-
-#figure(
-  table(
-    columns: (17%, 27%, 27%, 29%),
-    align: (x, y) => if x == 0 { left } else { right },
-    table.header([April], [MODIS], [VIIRS], [Raw total]),
-    [2005], [5,074], [--], [5,074],
-    [2011], [2,419], [--], [2,419],
-    [2012], [1,169], [7,964], [9,133],
-    [2018], [2,318], [31,587], [33,905],
-    [2020], [3,660], [45,365], [49,025],
-  ),
-  caption: [Values verified against the bundled monthly JSON. These are raw detections, not harmonization performance metrics.],
-)
-
-Different years can differ in real burning activity as well as observing systems. This table alone cannot attribute the increase to sensor changes, establish a counterfactual VIIRS count for 2011, or validate a scaling factor. No reconstructed total of 12,800 fires is claimed.
-
 == Reproducible synthetic checks
 
 The checked-in Python runner constructs 810 synthetic records and executes the four unchanged production SQL files with DuckDB #evidence.duckdb_version. It requires no downloaded FIRMS archive and uses only Python's standard library plus the DuckDB CLI. Scenario names occupy the country field solely to isolate experiments.

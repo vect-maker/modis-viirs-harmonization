@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+SSE_BROADCAST_SUBJECT = "firms.sse.broadcast"
+
 
 class SSETargetScope(StrEnum):
     ALL = "all"

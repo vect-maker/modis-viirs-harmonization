@@ -102,6 +102,7 @@ class WorkerRunner:
                 kv=self._kv,
                 bbox=self.bbox,
                 country_name=self.country_name,
+                nats_client=self._nc,
                 poll_interval_seconds=self.poll_interval_seconds,
             )
             await nrt_sync.run_forever(self._stop_event)

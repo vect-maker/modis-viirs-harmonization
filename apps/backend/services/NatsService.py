@@ -17,13 +17,13 @@ from nats.aio.subscription import Subscription
 from nats.js.api import KeyValueConfig
 from nats.js.errors import BucketNotFoundError, KeyNotFoundError, NoKeysError
 from nats.js.kv import KeyValue
+from shared_core.sse import SSE_BROADCAST_SUBJECT
 
 from schemas.sse import SSEEventEnvelope, SSETargetScope
 from services.SSEManager import SSEClient
 
 logger = logging.getLogger("firms.nats")
 
-SSE_BROADCAST_SUBJECT = "firms.sse.broadcast"
 SSE_INSTANCE_SUBJECT_PREFIX = "firms.sse.instance"
 SSE_PRESENCE_BUCKET = "sse_presence"
 

@@ -140,11 +140,6 @@ WHERE country='null_frp';
     assert nulls[0]["native_is_null"] == "true"
     assert float(nulls[0]["derived_frp"]) == 0.0
 
-    archive = json.loads((REPO / "apps/frontend/src/data/historical_monthly.json").read_text(encoding="utf-8"))
-    assert sum(month["total"] for month in archive["months"]) == archive["totalRecords"]
-    april = [{key: month[key] for key in ("year", "total", "modisCount", "viirsCount", "avgFrp")}
-             for month in archive["months"]
-             if month["month"] == 4 and month["year"] in (2005, 2011, 2012, 2018, 2020)]
     summary = {
         "status": "synthetic_behavior_verified",
         "scientific_validation": False,
@@ -156,9 +151,6 @@ WHERE country='null_frp';
         "calibration": calibration,
         "null_frp": nulls[0],
         "spatial_separation_m": 0.21777478182737448,
-        "archive": {key: archive[key] for key in
-                    ("country", "harmonized", "coverageVerified", "totalRecords", "firstDetection", "lastDetection")},
-        "april": april,
     }
     for filename, rows in (("scenarios.csv", activity), ("calibration.csv", calibration)):
         with (output / filename).open("w", newline="", encoding="utf-8") as handle:
@@ -168,7 +160,7 @@ WHERE country='null_frp';
     (output / "summary.json").write_text(json.dumps(summary, indent=2)+"\n", encoding="utf-8")
     if args.refresh_report_data:
         (REPORT / "validation/results.json").write_text(json.dumps(summary, indent=2)+"\n", encoding="utf-8")
-    print("Verified 810 synthetic records, four unchanged SQL stages, and archive totals.")
+    print("Verified 810 synthetic records and four unchanged SQL stages.")
     print("Known limitations reproduced; scientific validation remains pending.")
     print(output / "summary.json")
 

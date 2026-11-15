@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 import pytest
 from nats.js.errors import KeyNotFoundError
+from shared_core.sse import SSE_BROADCAST_SUBJECT, SSEEventEnvelope, SSETargetScope
 from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, select
 
@@ -325,5 +326,95 @@ def test_firms_client_raises_after_exhausting_500_retries():
                 await client.check_budget(http_client)
 
         assert attempts == 3
+
+    asyncio.run(_run())
+
+
+class _FakeNatsPublisher:
+    def __init__(self) -> None:
+        self.published: list[tuple[str, bytes]] = []
+        self.flush_calls = 0
+
+    async def publish(self, subject: str, payload: bytes = b"") -> None:
+        self.published.append((subject, payload))
+
+    async def flush(self, timeout: int = 1) -> None:
+        self.flush_calls += 1
+
+
+def test_insert_new_hotspots_with_details_returns_only_newly_inserted():
+    writer = _make_sqlite_writer()
+    rows = [
+        {
+            "latitude": "12.50000",
+            "longitude": "-86.10000",
+            "acq_date": "2026-11-15",
+            "acq_time": "1800",
+            "satellite": "N20",
+            "instrument": "VIIRS",
+            "confidence": "h",
+            "frp": "35.5",
+        },
+        {
+            "latitude": "10.00000",
+            "longitude": "-84.20000",
+            "acq_date": "2026-11-15",
+            "acq_time": "1805",
+            "satellite": "Aqua",
+            "instrument": "MODIS",
+            "confidence": "85",
+            "frp": "14.0",
+        },
+    ]
+
+    first = writer.insert_new_hotspots_with_details(rows, country_name="Nicaragua")
+    assert len(first) == 2
+    assert {item.instrument for item in first} == {"VIIRS", "MODIS"}
+
+    # Re-inserting identical rows should skip duplicates and return []
+    second = writer.insert_new_hotspots_with_details(rows, country_name="Nicaragua")
+    assert second == []
+
+
+def test_nrt_sync_broadcasts_sse_envelope_per_inserted_hotspot():
+    async def _run() -> None:
+        writer = _make_sqlite_writer()
+        kv = _FakeKV()
+        firms = _FakeFirmsClient()
+        nats_pub = _FakeNatsPublisher()
+        process = NrtSyncProcess(
+            firms_client=firms,
+            writer=writer,
+            kv=kv,
+            bbox="-92.5,7.0,-77.0,18.5",
+            country_name="Nicaragua",
+            nats_client=nats_pub,
+        )
+
+        async with httpx.AsyncClient() as http_client:
+            first_inserted = await process.run_once(
+                http_client=http_client,
+                today_utc=date(2026, 11, 15),
+            )
+            # Second run with identical detections inserts 0 and broadcasts 0
+            second_inserted = await process.run_once(
+                http_client=http_client,
+                today_utc=date(2026, 11, 15),
+            )
+
+        assert first_inserted == 2
+        assert second_inserted == 0
+        assert len(nats_pub.published) == 2
+        assert nats_pub.flush_calls == 2
+
+        for subject, raw_payload in nats_pub.published:
+            assert subject == SSE_BROADCAST_SUBJECT
+            envelope = SSEEventEnvelope.model_validate_json(raw_payload.decode("utf-8"))
+            assert envelope.emitter_service == "firms-worker"
+            assert envelope.target_scope == SSETargetScope.ALL
+            assert envelope.event_type == "notification"
+            assert envelope.event_id.startswith("hotspot-inserted-")
+            assert envelope.payload["metadata"]["kind"] == "hotspot_inserted"
+            assert envelope.payload["metadata"]["country"] == "Nicaragua"
 
     asyncio.run(_run())
