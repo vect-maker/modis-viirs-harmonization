@@ -47,7 +47,7 @@ const ResponseSchema = z.object({
 type ComparisonResponse = z.infer<typeof ResponseSchema>
 
 /** null = el año más reciente con datos (lo resuelve el backend). */
-const requestedYear = shallowRef<number | null>(null)
+const requestedYear = defineModel<number | null>('year', { default: null })
 
 const result = shallowRef<ComparisonResponse | null>(null)
 const isLoading = shallowRef(false)

@@ -1,13 +1,23 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import { ChartColumn, MapPin } from '@lucide/vue'
 import { useCalendarStore } from '@/stores/calendar'
+import { useHotspotsStore } from '@/stores/hotspots'
 import BaseSensorFilter from '@/components/ui/BaseSensorFilter.vue'
 import BurningCalendar from '@/components/common/BurningCalendar.vue'
 import { getThermalPalette } from '@/utils/themeColors'
+
+const emit = defineEmits<{
+  'load-month': []
+  'compare-year': [year: number]
+}>()
+
 const store = useCalendarStore()
+const hotspotsStore = useHotspotsStore()
 const { archive, sensor, rows, maxCount, total, selectedPeriod, selectedMonth, selectedCount } =
   storeToRefs(store)
+const { isLoading: isMapLoading, dateRange: mapDateRange } = storeToRefs(hotspotsStore)
 
 onMounted(() => {
   void store.fetchHistoricalCalendar()
@@ -27,6 +37,38 @@ const selectedLabel = computed(() =>
 const palette = computed(() => getThermalPalette())
 function formatCount(value: number | null | undefined) {
   return value == null ? 'No records' : value.toLocaleString()
+}
+
+const selectedMonthRange = computed(() => {
+  const period = selectedPeriod.value
+  if (!period) return null
+  const monthStr = String(period.month).padStart(2, '0')
+  const lastDay = new Date(Date.UTC(period.year, period.month, 0)).getUTCDate()
+  return {
+    start: `${period.year}-${monthStr}-01`,
+    end: `${period.year}-${monthStr}-${String(lastDay).padStart(2, '0')}`,
+  }
+})
+
+const isMonthLoadedOnMap = computed(
+  () =>
+    selectedMonthRange.value !== null &&
+    mapDateRange.value?.start === selectedMonthRange.value.start &&
+    mapDateRange.value?.end === selectedMonthRange.value.end,
+)
+
+const exceedsLargeFetchThreshold = computed(() => (selectedCount.value ?? 0) > 1000)
+
+async function loadSelectedMonthOnMap() {
+  if (!selectedMonthRange.value || !selectedMonth.value || isMapLoading.value) return
+  hotspotsStore.setSensor(sensor.value)
+  await hotspotsStore.selectDateRange(selectedMonthRange.value)
+  emit('load-month')
+}
+
+function compareSelectedYear() {
+  if (!selectedPeriod.value) return
+  emit('compare-year', selectedPeriod.value.year)
 }
 </script>
 
@@ -101,8 +143,35 @@ function formatCount(value: number | null | undefined) {
       <p v-else class="text-xs text-ink-muted">
         No records are present for this month. Fire absence cannot be inferred.
       </p>
-      <p class="text-[11px] text-ink-muted">
-        The map continues to show the daily sample. Historical point loading is not connected yet.
+      <div class="flex flex-wrap items-center gap-2 pt-1">
+        <button
+          v-if="selectedMonth"
+          type="button"
+          :disabled="isMapLoading || (selectedCount ?? 0) === 0"
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-surface-base transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-50"
+          @click="loadSelectedMonthOnMap"
+        >
+          <MapPin aria-hidden="true" class="h-3.5 w-3.5" />
+          {{
+            isMapLoading
+              ? 'Loading month...'
+              : isMonthLoadedOnMap
+                ? 'Reload month on map'
+                : 'Load month on map'
+          }}
+        </button>
+        <button
+          type="button"
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border-strong bg-surface-elevated px-3 py-1.5 text-xs font-medium text-ink-primary transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-focus"
+          @click="compareSelectedYear"
+        >
+          <ChartColumn aria-hidden="true" class="h-3.5 w-3.5 text-accent" />
+          Compare {{ selectedPeriod.year }} in Statistics
+        </button>
+      </div>
+      <p v-if="selectedMonth && exceedsLargeFetchThreshold" class="text-[11px] text-ink-muted">
+        More than 1,000 detections in this month — you will be asked to confirm before downloading
+        all batches.
       </p>
     </div>
     <p v-else class="text-xs text-ink-muted">

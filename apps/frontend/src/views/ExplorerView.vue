@@ -16,9 +16,11 @@ import MapActionBar from '@/components/common/MapActionBar.vue'
 import type { HotspotResponse } from '@/api'
 import { useHotspotsStore } from '@/stores/hotspots'
 import { useFeedbackStore } from '@/stores/feedback'
+import { useCalendarStore } from '@/stores/calendar'
 
 const hotspotsStore = useHotspotsStore()
 const feedbackStore = useFeedbackStore()
+const calendarStore = useCalendarStore()
 const {
   availableDates,
   availableDateSet,
@@ -57,6 +59,19 @@ const datePromptPending = shallowRef(false)
 const hasInitializedDates = shallowRef(false)
 const locationPromptOpen = shallowRef(false)
 const statsOpen = shallowRef(false)
+const statsYear = shallowRef<number | null>(null)
+
+watch(
+  () => calendarStore.selectedPeriod?.year,
+  (year) => {
+    if (year !== undefined) statsYear.value = year
+  },
+)
+
+function onCompareYear(year: number) {
+  statsYear.value = year
+  statsOpen.value = true
+}
 
 const locationPermission = usePermission('geolocation')
 const {
@@ -194,7 +209,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
               class="absolute bottom-3 left-3 right-3 z-20 md:bottom-5 md:left-5"
               :class="panelOpen ? 'md:right-[22.5rem]' : 'md:right-5'"
             >
-              <HotspotTimeline v-model:open="timelineOpen">
+              <HotspotTimeline v-model:open="timelineOpen" @compare-year="onCompareYear">
                 <template #tools>
                   <MapActionBar
                     :has-area="areaKm2 !== null"
@@ -221,7 +236,12 @@ function onRoiChange(payload: { areaKm2: number | null }) {
           :area-km2="areaKm2"
           class="pointer-events-auto"
         />
-        <MapStatsPanel v-model:open="statsOpen" stage-id="map-stage" class="pointer-events-auto" />
+        <MapStatsPanel
+          v-model:open="statsOpen"
+          v-model:year="statsYear"
+          stage-id="map-stage"
+          class="pointer-events-auto"
+        />
         <HotspotFeedbackDrawer
           :open="feedbackHotspot !== null"
           :hotspot="feedbackHotspot"

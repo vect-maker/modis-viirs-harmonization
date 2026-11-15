@@ -9,6 +9,10 @@ import DailyActivityChart from '@/components/common/DailyActivityChart.vue'
 import BaseActivityTabs from '@/components/ui/BaseActivityTabs.vue'
 import HistoricalCalendar from './HistoricalCalendar.vue'
 
+const emit = defineEmits<{
+  'compare-year': [year: number]
+}>()
+
 const open = defineModel<boolean>('open', { required: true })
 const view = shallowRef<'daily' | 'history'>('daily')
 const store = useHotspotsStore()
@@ -78,7 +82,12 @@ function selectDay(date: string) {
           </p>
         </div>
       </template>
-      <template #history><HistoricalCalendar /></template>
+      <template #history>
+        <HistoricalCalendar
+          @load-month="view = 'daily'"
+          @compare-year="emit('compare-year', $event)"
+        />
+      </template>
     </BaseActivityTabs>
   </BaseTimelinePanel>
 </template>

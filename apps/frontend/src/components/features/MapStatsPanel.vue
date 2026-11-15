@@ -17,6 +17,7 @@ defineProps<{
 defineOptions({ inheritAttrs: false })
 
 const open = defineModel<boolean>('open', { required: true })
+const comparisonYear = defineModel<number | null>('year', { default: null })
 const panelId = useId()
 const titleId = useId()
 const expandButton = useTemplateRef<HTMLButtonElement>('expandButton')
@@ -138,7 +139,11 @@ const triggerClass =
               {{ metricHelp }} {{ areaHelp }}
             </p>
           </div>
-          <MonthlyComparisonPanel :metric="metric" :polygon="activePolygon" />
+          <MonthlyComparisonPanel
+            v-model:year="comparisonYear"
+            :metric="metric"
+            :polygon="activePolygon"
+          />
           <AnnualActivityPanel
             :metric="metric"
             :polygon="activePolygon"
