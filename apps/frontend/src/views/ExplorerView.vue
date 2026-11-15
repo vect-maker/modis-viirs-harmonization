@@ -11,6 +11,7 @@ import DashboardLoadingOverlay from '@/components/features/DashboardLoadingOverl
 import DashboardNavbar from '@/components/features/DashboardNavbar.vue'
 import LargeFetchDialog from '@/components/features/LargeFetchDialog.vue'
 import LocationPromptDialog from '@/components/features/LocationPromptDialog.vue'
+import MapStatsPanel from '@/components/features/MapStatsPanel.vue'
 import MapActionBar from '@/components/common/MapActionBar.vue'
 import type { HotspotResponse } from '@/api'
 import { useHotspotsStore } from '@/stores/hotspots'
@@ -30,6 +31,7 @@ const datePromptOpen = shallowRef(false)
 const datePromptPending = shallowRef(false)
 const hasInitializedDates = shallowRef(false)
 const locationPromptOpen = shallowRef(false)
+const statsOpen = shallowRef(false)
 
 const locationPermission = usePermission('geolocation')
 const {
@@ -153,7 +155,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
     class="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface-base font-sans text-ink-primary selection:bg-accent selection:text-surface-base"
   >
     <DashboardNavbar />
-    <main class="relative min-h-0 flex-1" aria-label="PyroTrace hotspot map">
+    <main id="map-stage" class="relative min-h-0 flex-1" aria-label="PyroTrace hotspot map">
       <h1 class="sr-only">PyroTrace — Fire Activity</h1>
       <div class="absolute inset-0">
         <FireMap
@@ -191,7 +193,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
         </FireMap>
       </div>
       <aside
-        class="pointer-events-none absolute right-3 top-3 z-20 w-[min(20rem,calc(100%_-_4.5rem))] md:right-5 md:top-5"
+        class="pointer-events-none absolute right-3 top-3 z-20 flex w-[min(20rem,calc(100%_-_4.5rem))] flex-col gap-3 md:right-5 md:top-5"
         aria-label="Map filters and results"
       >
         <HotspotControlPanel
@@ -199,6 +201,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
           :area-km2="areaKm2"
           class="pointer-events-auto"
         />
+        <MapStatsPanel v-model:open="statsOpen" stage-id="map-stage" class="pointer-events-auto" />
       </aside>
       <HotspotDetails
         v-if="selectedHotspot"
