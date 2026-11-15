@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "@lucide/vue";
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, WifiOff, X } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { useNotificationStore } from "@/stores/notifications";
 import type { NotificationSeverity, ToastNotification } from "@/types/notifications";
 
 const notificationStore = useNotificationStore();
-const { items } = storeToRefs(notificationStore);
+const { items, isStreamDisconnected } = storeToRefs(notificationStore);
 
 const SEVERITY_META: Record<
   NotificationSeverity,
@@ -57,7 +57,7 @@ function formatTimestamp(isoString: string): string {
 <template>
   <Teleport to="body">
     <div
-      class="pointer-events-none fixed right-4 bottom-4 z-50 flex w-full max-w-sm flex-col gap-2.5 sm:right-6 sm:bottom-6"
+      class="pointer-events-none fixed right-4 bottom-4 z-50 flex w-full max-w-sm flex-col items-end gap-2.5 sm:right-6 sm:bottom-6"
       aria-live="polite"
       aria-atomic="false"
     >
@@ -67,7 +67,7 @@ function formatTimestamp(isoString: string): string {
           :key="item.id"
           role="status"
           :class="[
-            'pointer-events-auto relative overflow-hidden rounded-xl border bg-surface-panel/95 p-3.5 shadow-2xl backdrop-blur-md transition-colors',
+            'pointer-events-auto relative w-full overflow-hidden rounded-xl border bg-surface-panel/95 p-3.5 shadow-2xl backdrop-blur-md transition-colors',
             SEVERITY_META[item.severity].borderClass,
           ]"
           @mouseenter="notificationStore.pause(item.id)"
@@ -117,6 +117,20 @@ function formatTimestamp(isoString: string): string {
           </div>
         </article>
       </TransitionGroup>
+
+      <div
+        v-if="isStreamDisconnected"
+        role="status"
+        aria-live="assertive"
+        class="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-red-400/40 bg-surface-panel/95 px-3 py-1.5 text-xs font-medium text-red-300 shadow-lg backdrop-blur-md"
+      >
+        <span class="relative flex size-2" aria-hidden="true">
+          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+          <span class="relative inline-flex size-2 rounded-full bg-red-400" />
+        </span>
+        <WifiOff class="size-3.5 shrink-0 text-red-400" aria-hidden="true" />
+        <span>Backend offline · Reconnecting…</span>
+      </div>
     </div>
   </Teleport>
 </template>

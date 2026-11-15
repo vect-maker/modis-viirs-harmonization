@@ -5,7 +5,6 @@ from shared_core.constants import (
     FIRMS_NAMESPACE,
     firms_uuid5,
 )
-from shared_core.db import normalize_postgres_url
 from shared_core.models import (
     AvailableDatesResponse,
     CountryBase,
@@ -55,5 +54,4 @@ __all__ = [
     "SSEEventEnvelope",
     "SSETargetScope",
     "firms_uuid5",
-    "normalize_postgres_url",
 ]

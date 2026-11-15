@@ -109,3 +109,43 @@ test('NotificationToasts renders active notifications', async () => {
   assert.match(teleportedHtml, /Stream SSE conectado/)
   assert.match(teleportedHtml, /firms-api/)
 })
+
+test('NotificationToasts shows disconnect popup and badge when SSE stream is lost and clears on reconnect', async () => {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  const store = useNotificationStore()
+
+  // Initial connecting state should not show disconnect indicators
+  store.setConnectionStatus('CLOSED')
+  store.setConnectionStatus('CONNECTING')
+  assert.equal(store.isStreamDisconnected, false)
+  assert.equal(store.items.length, 0)
+
+  // Connected, then lost -> persistent popup + badge
+  store.setConnectionStatus('OPEN')
+  assert.equal(store.isStreamDisconnected, false)
+  store.setConnectionStatus('CLOSED')
+  assert.equal(store.isStreamDisconnected, true)
+  assert.equal(store.items.length, 1)
+  assert.equal(store.items[0].title, 'Backend connection lost')
+
+  // Retry cycles stay disconnected without duplicating the popup
+  store.setConnectionStatus('CONNECTING')
+  store.setConnectionStatus('CLOSED')
+  assert.equal(store.isStreamDisconnected, true)
+  assert.equal(store.items.length, 1)
+
+  const app = createSSRApp({ render: () => h(NotificationToasts) })
+  app.use(pinia)
+  const ssrContext = {}
+  await renderToString(app, ssrContext)
+  const teleportedHtml = ssrContext.teleports?.body ?? ''
+  assert.match(teleportedHtml, /Backend connection lost/)
+  assert.match(teleportedHtml, /Backend offline · Reconnecting…/)
+
+  // Reconnect clears disconnected state and replaces popup with restored toast
+  store.setConnectionStatus('OPEN')
+  assert.equal(store.isStreamDisconnected, false)
+  assert.equal(store.items.length, 1)
+  assert.equal(store.items[0].title, 'Backend connection restored')
+})

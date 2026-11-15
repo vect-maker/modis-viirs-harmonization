@@ -7,7 +7,6 @@ from datetime import date, datetime
 from typing import Any
 
 from shared_core.constants import firms_uuid5
-from shared_core.db import normalize_postgres_url
 from shared_core.models import DimCountry, DimPlatform, FactHotspot
 from sqlalchemy import Engine, create_engine, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -24,7 +23,7 @@ def build_db_engine(database_url: str | None = None) -> Engine:
     url = (database_url or os.getenv("DATABASE_URL", "")).strip()
     if not url:
         raise RuntimeError("DATABASE_URL is required for worker DB access.")
-    return create_engine(normalize_postgres_url(url), pool_pre_ping=True)
+    return create_engine(url, pool_pre_ping=True)
 
 
 def _float_or_none(val: Any) -> float | None:

@@ -15,7 +15,7 @@ services:
       dockerfile: apps/backend/debug.containerfile
     image: localhost/firms-backend:debug
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}
       NATS_URL: ${NATS_URL:-nats://nats:4222}
       SSE_PRESENCE_TTL_SECONDS: ${SSE_PRESENCE_TTL_SECONDS:-45}
     volumes:
@@ -29,7 +29,7 @@ services:
       dockerfile: apps/worker/debug.containerfile
     image: localhost/firms-worker:debug
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}
       NATS_URL: ${NATS_URL:-nats://nats:4222}
       FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
       FIRMS_AREA_BBOX: ${FIRMS_AREA_BBOX:--92.3,7.2,-77.1,18.5}

@@ -13,6 +13,8 @@ const DEFAULT_DURATION_MS = 5000;
 const TICK_INTERVAL_MS = 100;
 const MAX_VISIBLE_TOASTS = 5;
 const MAX_SEEN_EVENT_IDS = 200;
+const STREAM_DISCONNECTED_TOAST_ID = "sse-connection-lost";
+const STREAM_RECONNECTED_TOAST_ID = "sse-connection-restored";
 
 function normalizeSeverity(raw: unknown): NotificationSeverity {
   if (typeof raw !== "string") return "info";
@@ -81,6 +83,8 @@ function extractToastFromRecord(
 export const useNotificationStore = defineStore("notifications", () => {
   const items = ref<ToastNotification[]>([]);
   const connectionStatus = ref<SSEConnectionStatus>("CLOSED");
+  const hasAttemptedConnection = ref(false);
+  const isStreamDisconnected = ref(false);
   const lastEventId = ref<string | null>(null);
   const lastHeartbeatAt = ref<string | null>(null);
   const seenEventIds: string[] = [];
@@ -156,6 +160,9 @@ export const useNotificationStore = defineStore("notifications", () => {
       payload: input.payload ?? {},
     };
 
+    if (input.id) {
+      items.value = items.value.filter((item) => item.id !== toast.id);
+    }
     items.value.push(toast);
     if (items.value.length > MAX_VISIBLE_TOASTS) {
       items.value.splice(0, items.value.length - MAX_VISIBLE_TOASTS);
@@ -271,12 +278,52 @@ export const useNotificationStore = defineStore("notifications", () => {
   }
 
   function setConnectionStatus(status: SSEConnectionStatus): void {
+    const wasDisconnected = isStreamDisconnected.value;
     connectionStatus.value = status;
+
+    if (status === "OPEN") {
+      hasAttemptedConnection.value = true;
+      isStreamDisconnected.value = false;
+      dismiss(STREAM_DISCONNECTED_TOAST_ID);
+      if (wasDisconnected) {
+        notify({
+          id: STREAM_RECONNECTED_TOAST_ID,
+          title: "Backend connection restored",
+          message: "Live alert stream reconnected.",
+          severity: "success",
+          emitterService: "sse-stream",
+          eventType: "connection_restored",
+          durationMs: 3500,
+        });
+      }
+      return;
+    }
+
+    if (status === "CONNECTING") {
+      hasAttemptedConnection.value = true;
+      return;
+    }
+
+    if (hasAttemptedConnection.value) {
+      isStreamDisconnected.value = true;
+      if (!wasDisconnected) {
+        notify({
+          id: STREAM_DISCONNECTED_TOAST_ID,
+          title: "Backend connection lost",
+          message: "Live alert stream disconnected. Reconnecting automatically...",
+          severity: "error",
+          emitterService: "sse-stream",
+          eventType: "connection_lost",
+          durationMs: 0,
+        });
+      }
+    }
   }
 
   return {
     items,
     connectionStatus,
+    isStreamDisconnected,
     lastEventId,
     lastHeartbeatAt,
     notify,
