@@ -5,6 +5,8 @@ export interface AnnualRow {
   year: number
   months_in_archive: number
   complete: boolean
+  /** Meses del año que vienen del feed casi en tiempo real (sin armonizar). */
+  provisional_months: number
   total_hotspots: number
   modis_count: number
   viirs_count: number
@@ -54,6 +56,7 @@ const props = defineProps<{
   description: string
 }>()
 
+const PROVISIONAL_OUTLINE = '#f3f4f6'
 const PARTIAL_OPACITY = 0.35
 const fractionDigits = computed(() => (props.metric === 'harmonized' ? 1 : 0))
 const valueFormat = computed(
@@ -83,9 +86,14 @@ function tooltipHtml(index: number): string {
     )
   }
   const value = annualValue(row, props.metric)
+  if (row.provisional_months > 0) {
+    lines.push(
+      `<div style="margin-top:6px;color:#e69f00">${row.provisional_months} months from the near-real-time feed, not harmonized yet</div>`,
+    )
+  }
   if (!row.complete) {
     lines.push(
-      `<div style="margin-top:6px;color:#94a3b8">Incomplete year: ${row.months_in_archive} of 12 months in the archive</div>`,
+      `<div style="margin-top:6px;color:#94a3b8">Incomplete year: ${row.months_in_archive} of 12 complete months</div>`,
     )
   } else if (median.value !== null && median.value > 0) {
     const pct = ((value - median.value) / median.value) * 100
@@ -103,6 +111,9 @@ function barItem(value: number, row: AnnualRow, color: string, isTop: boolean) {
       color,
       opacity: row.complete ? 1 : PARTIAL_OPACITY,
       borderRadius: isTop ? [3, 3, 0, 0] : 0,
+      ...(row.provisional_months > 0
+        ? { borderColor: PROVISIONAL_OUTLINE, borderWidth: 1, borderType: 'dashed' }
+        : {}),
     },
     label: {
       show: isTop && !row.complete,

@@ -301,3 +301,25 @@ def test_empty_period_and_invalid_parameters():
     with pytest.raises(HTTPException) as exc_dn:
         _call_calendar(session, year=2025, daynight="X")
     assert exc_dn.value.status_code == 422
+
+
+def test_estimated_fires_when_cluster_table_empty_and_polygon_filter():
+    session = _seed_calendar_session()
+    session.execute(text(f"DELETE FROM {FireCluster.__tablename__}"))
+    session.commit()
+
+    res_month = _call_calendar(session, year=2025, aggregation="month")
+    assert res_month.total_hotspots == 4
+    # Con fire_clusters vacía, total_fires se estima a partir de celdas espaciales (0.05°)
+    assert res_month.total_fires > 0
+    assert res_month.intervals[2].active_fires > 0
+
+    nicaragua_poly = (
+        '{"type":"Polygon","coordinates":[[[-87.0,11.5],[-85.5,11.5],'
+        '[-85.5,13.0],[-87.0,13.0],[-87.0,11.5]]]}'
+    )
+    res_poly = _call_calendar(
+        session, year=2025, polygon=nicaragua_poly, aggregation="month"
+    )
+    assert res_poly.total_hotspots == 3
+

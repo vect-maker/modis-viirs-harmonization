@@ -449,7 +449,12 @@ class HotspotRepository:
         min_lon: float | None = None,
         max_lon: float | None = None,
         max_rows: int = 20000,
+        country: str | None = None,
+        polygon_wkt: str | None = None,
     ) -> Iterator[dict[str, Any]]:
+        bind = self.session.get_bind()
+        dialect = bind.dialect.name if bind is not None else "postgresql"
+
         stmt = sa_select(
             col(Hotspots.id),
             col(Hotspots.latitude),
@@ -469,9 +474,31 @@ class HotspotRepository:
             stmt = stmt.where(col(Hotspots.longitude) >= min_lon)
         if max_lon is not None:
             stmt = stmt.where(col(Hotspots.longitude) <= max_lon)
+        if country is not None and country.strip():
+            stmt = stmt.where(
+                text("LOWER(TRIM(country)) = LOWER(TRIM(:country))").bindparams(
+                    country=country
+                )
+            )
+        if polygon_wkt is not None:
+            conds, params = build_spatial_sql(
+                SpatialAreaFilter(polygon_wkt=polygon_wkt),
+                dialect=dialect,
+                geom_col="geom",
+                lat_col="latitude",
+                lon_col="longitude",
+            )
+            for cond in conds:
+                stmt = stmt.where(text(cond).bindparams(**params))
 
-        stmt = stmt.order_by(col(Hotspots.acq_datetime)).limit(max_rows)
-        for row in self.session.execute(stmt):
+        if dialect == "postgresql":
+            stmt = stmt.order_by(text("hashtext(CAST(id AS TEXT)) ASC")).limit(max_rows)
+        else:
+            stmt = stmt.order_by(col(Hotspots.acq_datetime)).limit(max_rows)
+
+        rows = list(self.session.execute(stmt))
+        rows.sort(key=lambda r: str(r[3] or ""))
+        for row in rows:
             yield {
                 "id": str(row[0]),
                 "latitude": row[1],

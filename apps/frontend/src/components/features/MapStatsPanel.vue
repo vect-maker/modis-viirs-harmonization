@@ -4,9 +4,24 @@ import { onKeyStroke } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ChartColumn, ChevronDown } from '@lucide/vue'
 import { useHotspotsStore } from '@/stores/hotspots'
+import BaseLazySection from '@/components/ui/BaseLazySection.vue'
+import BaseSelect from '@/components/ui/BaseSelect.vue'
+import BaseStatsBreadcrumb, {
+  STATS_SECTIONS,
+  type StatsSectionId,
+} from '@/components/ui/BaseStatsBreadcrumb.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import AnnualActivityPanel from './AnnualActivityPanel.vue'
+import AnnualDistributionsPanel from './AnnualDistributionsPanel.vue'
+import ClusterMovementPanel, { type ActiveClusterContext } from './ClusterMovementPanel.vue'
+import ConfidenceDbscanPanel from './ConfidenceDbscanPanel.vue'
+import CorrelationsPanel from './CorrelationsPanel.vue'
+import FireCalendarStatsPanel from './FireCalendarStatsPanel.vue'
 import MonthlyComparisonPanel from './MonthlyComparisonPanel.vue'
+import MonthlyForecastPanel from './MonthlyForecastPanel.vue'
+import SpatialAnomaliesPanel from './SpatialAnomaliesPanel.vue'
+import SpatialDensityPanel from './SpatialDensityPanel.vue'
+import WeatherCorrelationPanel from './WeatherCorrelationPanel.vue'
 
 defineProps<{
   /** Id del contenedor del mapa donde se dibuja el panel expandido. */
@@ -49,8 +64,17 @@ const AREA_OPTIONS = [
   { value: 'all', label: 'All regions' },
 ] as const satisfies readonly { value: AreaScope; label: string }[]
 
-// Métrica y área se comparten entre todos los gráficos para que muestren lo mismo.
-const { selectedPolygon } = storeToRefs(useHotspotsStore())
+const activeSection = shallowRef<StatsSectionId>('all')
+const activeSectionMeta = computed(
+  () => STATS_SECTIONS.find((s) => s.id === activeSection.value) ?? STATS_SECTIONS[0]!,
+)
+
+function showSection(section: Exclude<StatsSectionId, 'all'>): boolean {
+  return activeSection.value === 'all' || activeSection.value === section
+}
+
+// Métrica, año y área se comparten entre los gráficos para que muestren el mismo contexto.
+const { selectedPolygon, dateRange } = storeToRefs(useHotspotsStore())
 const metric = shallowRef<Metric>('raw')
 const areaScope = shallowRef<AreaScope>(selectedPolygon.value ? 'area' : 'all')
 const activePolygon = computed(() =>
@@ -59,6 +83,53 @@ const activePolygon = computed(() =>
 watch(selectedPolygon, (polygon) => {
   areaScope.value = polygon ? 'area' : 'all'
 })
+
+const YEAR_OPTIONS = Array.from({ length: 26 }, (_, i) => {
+  const y = 2026 - i
+  return { value: y, label: String(y) }
+})
+
+function resolveInitialYear(startIso: string | undefined): number {
+  if (!startIso) return 2025
+  const parsed = Number(startIso.slice(0, 4))
+  // Si el mapa está en el año provisional 2026, iniciamos las estadísticas en 2025 (último año completo armonizado)
+  // salvo que el usuario lo cambie explícitamente en el selector global.
+  return Number.isInteger(parsed) && parsed >= 2001 && parsed <= 2025 ? parsed : 2025
+}
+
+const selectedYear = shallowRef<number>(resolveInitialYear(dateRange.value?.start))
+watch(
+  comparisonYear,
+  (val) => {
+    if (val !== null && val !== selectedYear.value) {
+      selectedYear.value = val
+    }
+  },
+  { immediate: true },
+)
+watch(selectedYear, (val) => {
+  if (comparisonYear.value !== val) {
+    comparisonYear.value = val
+  }
+})
+watch(
+  () => dateRange.value?.start,
+  (startIso) => {
+    if (!startIso) return
+    const parsed = Number(startIso.slice(0, 4))
+    if (Number.isInteger(parsed) && parsed >= 2001 && parsed <= 2026) {
+      selectedYear.value = parsed
+    }
+  },
+)
+
+const activeClusterContext = shallowRef<ActiveClusterContext | null>(null)
+
+const supportsAreaFilter = computed(() => true)
+
+const showMetricToggle = computed(
+  () => activeSection.value !== 'movement' && activeSection.value !== 'weather',
+)
 
 const metricHelp = computed(() =>
   metric.value === 'harmonized'
@@ -124,31 +195,127 @@ const triggerClass =
           <span class="hidden text-xs text-ink-muted sm:inline">Esc to close</span>
           <ChevronDown aria-hidden="true" class="h-4 w-4 rotate-180 text-ink-muted" />
         </button>
-        <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <div
-            class="flex flex-wrap items-center gap-x-5 gap-y-3 border-b border-border-subtle px-5 py-4"
-          >
-            <BaseToggleGroup v-model="metric" :options="METRIC_OPTIONS" label="Metric" />
+
+        <BaseStatsBreadcrumb v-model="activeSection" class="shrink-0" />
+
+        <div class="min-h-0 flex-1 divide-y divide-border-subtle overflow-y-auto overscroll-contain">
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-3 px-5 py-4">
+            <BaseSelect
+              v-model="selectedYear"
+              :options="YEAR_OPTIONS"
+              label="Reference year"
+            />
             <BaseToggleGroup
-              v-if="selectedPolygon"
+              v-if="showMetricToggle"
+              v-model="metric"
+              :options="METRIC_OPTIONS"
+              label="Metric"
+            />
+            <BaseToggleGroup
+              v-if="selectedPolygon && supportsAreaFilter"
               v-model="areaScope"
               :options="AREA_OPTIONS"
               label="Area"
             />
             <p class="min-w-0 flex-1 basis-80 text-xs leading-relaxed text-ink-muted">
-              {{ metricHelp }} {{ areaHelp }}
+              <template v-if="showMetricToggle">
+                {{ metricHelp }} {{ areaHelp }}
+              </template>
+              <template v-else>
+                {{ activeSectionMeta.description }}
+              </template>
             </p>
           </div>
-          <MonthlyComparisonPanel
-            v-model:year="comparisonYear"
-            :metric="metric"
-            :polygon="activePolygon"
-          />
-          <AnnualActivityPanel
-            :metric="metric"
-            :polygon="activePolygon"
-            class="border-t border-border-subtle"
-          />
+
+          <template v-if="showSection('overview')">
+            <MonthlyComparisonPanel
+              v-model:year="selectedYear"
+              :metric="metric"
+              :polygon="activePolygon"
+            />
+            <AnnualActivityPanel :metric="metric" :polygon="activePolygon" />
+          </template>
+
+          <BaseLazySection
+            v-if="showSection('distributions')"
+            :eager="activeSection === 'distributions'"
+          >
+            <AnnualDistributionsPanel
+              :year="selectedYear"
+              :metric="metric"
+              :polygon="activePolygon"
+            />
+          </BaseLazySection>
+
+          <BaseLazySection
+            v-if="showSection('fire-calendar')"
+            :eager="activeSection === 'fire-calendar'"
+          >
+            <FireCalendarStatsPanel
+              v-model:year="selectedYear"
+              :metric="metric"
+              :polygon="activePolygon"
+            />
+          </BaseLazySection>
+
+          <template v-if="showSection('spatial')">
+            <BaseLazySection :eager="activeSection === 'spatial'">
+              <SpatialDensityPanel
+                v-model:year="selectedYear"
+                :metric="metric"
+                :polygon="activePolygon"
+              />
+            </BaseLazySection>
+            <BaseLazySection :eager="activeSection === 'spatial'">
+              <SpatialAnomaliesPanel v-model:year="selectedYear" :polygon="activePolygon" />
+            </BaseLazySection>
+          </template>
+
+          <template v-if="showSection('diagnostics')">
+            <BaseLazySection :eager="activeSection === 'diagnostics'">
+              <CorrelationsPanel
+                v-model:year="selectedYear"
+                :metric="metric"
+                :polygon="activePolygon"
+              />
+            </BaseLazySection>
+            <BaseLazySection :eager="activeSection === 'diagnostics'">
+              <ConfidenceDbscanPanel
+                v-model:year="selectedYear"
+                :metric="metric"
+                :polygon="activePolygon"
+              />
+            </BaseLazySection>
+          </template>
+
+          <BaseLazySection
+            v-if="showSection('forecast')"
+            :eager="activeSection === 'forecast'"
+          >
+            <MonthlyForecastPanel :metric="metric" :polygon="activePolygon" />
+          </BaseLazySection>
+
+          <BaseLazySection
+            v-if="showSection('movement')"
+            :eager="activeSection === 'movement'"
+          >
+            <ClusterMovementPanel
+              v-model:year="selectedYear"
+              v-model:cluster-context="activeClusterContext"
+              :polygon="activePolygon"
+            />
+          </BaseLazySection>
+
+          <BaseLazySection
+            v-if="showSection('weather')"
+            :eager="activeSection === 'weather'"
+          >
+            <WeatherCorrelationPanel
+              v-model:year="selectedYear"
+              :polygon="activePolygon"
+              :cluster-context="activeClusterContext"
+            />
+          </BaseLazySection>
         </div>
       </section>
     </Transition>

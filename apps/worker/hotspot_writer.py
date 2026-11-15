@@ -46,20 +46,20 @@ def _parse_confidence(raw: str | None) -> tuple[int | None, str | None]:
         return None, None
     lower = cleaned.lower()
     if lower in {"l", "low"}:
-        return 25, "low"
+        return 20, "l"
     if lower in {"n", "nominal"}:
-        return 50, "nominal"
+        return 50, "n"
     if lower in {"h", "high"}:
-        return 90, "high"
+        return 90, "h"
     try:
         num = int(float(cleaned))
     except ValueError:
         return None, cleaned[:20]
     if num >= 80:
-        return num, "high"
+        return num, "h"
     if num >= 30:
-        return num, "nominal"
-    return num, "low"
+        return num, "n"
+    return num, "l"
 
 
 def _parse_acq_datetime(acq_date: str, acq_time: str) -> datetime:
@@ -77,6 +77,34 @@ def _normalize_instrument(raw: str) -> str:
     if "MODIS" in upper:
         return "MODIS"
     return upper[:20]
+
+
+def _normalize_satellite(raw: str) -> str:
+    cleaned = raw.strip()
+    upper = cleaned.upper()
+    mapping = {
+        "N": "Suomi-NPP",
+        "SNPP": "Suomi-NPP",
+        "SUOMI NPP": "Suomi-NPP",
+        "N20": "NOAA-20",
+        "NOAA20": "NOAA-20",
+        "N21": "NOAA-21",
+        "NOAA21": "NOAA-21",
+        "T": "Terra",
+        "TERRA": "Terra",
+        "A": "Aqua",
+        "AQUA": "Aqua",
+    }
+    return mapping.get(upper, cleaned[:50])
+
+
+def _classify_overpass_window(acq_dt: datetime, lon: float) -> str:
+    solar_hour = (acq_dt.hour + acq_dt.minute / 60.0 + lon / 15.0) % 24.0
+    if 6.0 <= solar_hour < 12.0:
+        return "MORNING"
+    if 12.0 <= solar_hour < 18.0:
+        return "AFTERNOON"
+    return "NIGHT"
 
 
 class HotspotWriter:
@@ -153,14 +181,15 @@ class HotspotWriter:
             countries[country_id] = resolved_country
 
             instrument = _normalize_instrument(instrument_raw)
+            satellite_norm = _normalize_satellite(satellite)
             platform_id = firms_uuid5(
-                f"platform:{satellite.lower()}:{instrument.lower()}"
+                f"platform:{satellite_norm.lower()}:{instrument.lower()}"
             )
-            platforms[platform_id] = (satellite[:50], instrument)
+            platforms[platform_id] = (satellite_norm, instrument)
 
             acq_dt = _parse_acq_datetime(acq_date_raw, acq_time_raw)
             hotspot_id = firms_uuid5(
-                f"hotspot:{resolved_country.lower()}:{satellite.lower()}:"
+                f"hotspot:{resolved_country.lower()}:{satellite_norm.lower()}:"
                 f"{instrument.lower()}:{acq_dt.isoformat()}:{lat:.5f}:{lon:.5f}"
             )
             bright_mir = _float_or_none(
@@ -174,6 +203,16 @@ class HotspotWriter:
             conf_num, conf_cls = _parse_confidence(
                 str(raw_conf) if raw_conf is not None else None
             )
+            overpass_win = _classify_overpass_window(acq_dt, lon)
+            # Peso armonizado por plataforma (3 satélites VIIRS activos en era post-2024: 1/3)
+            if instrument == "VIIRS":
+                h_weight = round(1.0 / 3.0, 4) if acq_dt.year >= 2024 else 0.5
+            else:
+                h_weight = (
+                    2.65
+                    if overpass_win == "MORNING"
+                    else (1.85 if overpass_win == "AFTERNOON" else 1.45)
+                )
 
             fact_rows.append(
                 {
@@ -201,15 +240,39 @@ class HotspotWriter:
                         if row.get("version")
                         else None
                     ),
-                    "overpass_window": None,
+                    "overpass_window": overpass_win,
                     "harmonization_category": harmonization_category,
-                    "harmonized_weight": 1.0,
-                    "harmonized_frp": frp,
+                    "harmonized_weight": h_weight,
+                    "harmonized_frp": (
+                        round(frp * h_weight, 4) if frp is not None else None
+                    ),
                 }
             )
 
         if not fact_rows:
             return 0
+
+        # Si MODIS coincide espacial (~2 km) y temporalmente (<= 4 h) con VIIRS, peso = 0.0
+        viirs_pts = [
+            (item["latitude"], item["longitude"], item["acq_datetime"])
+            for item in fact_rows
+            if platforms.get(item["platform_id"], ("", ""))[1] == "VIIRS"
+        ]
+        if viirs_pts:
+            for item in fact_rows:
+                if platforms.get(item["platform_id"], ("", ""))[1] != "MODIS":
+                    continue
+                lat_m = item["latitude"]
+                lon_m = item["longitude"]
+                dt_m = item["acq_datetime"]
+                if any(
+                    abs(lat_m - v_lat) <= 0.02
+                    and abs(lon_m - v_lon) <= 0.02
+                    and abs((dt_m - v_dt).total_seconds()) <= 14400
+                    for v_lat, v_lon, v_dt in viirs_pts
+                ):
+                    item["harmonized_weight"] = 0.0
+                    item["harmonized_frp"] = 0.0 if item["frp"] is not None else None
 
         dialect = self.engine.dialect.name
         insert_fn = pg_insert if dialect == "postgresql" else sqlite_insert
