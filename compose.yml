@@ -51,8 +51,8 @@ services:
     container_name: firms-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/firms}
-      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      DATABASE_URL: ${EXTERNAL_DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}}
+      NATS_URL: ${CONTAINER_NATS_URL:-nats://nats:4222}
       SSE_PRESENCE_TTL_SECONDS: ${SSE_PRESENCE_TTL_SECONDS:-45}
       ROOT_PATH: /api
       JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/etc/keys/auth-private.pem}
@@ -77,8 +77,8 @@ services:
     container_name: firms-worker
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@db:5432/firms}
-      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      DATABASE_URL: ${EXTERNAL_DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}}
+      NATS_URL: ${CONTAINER_NATS_URL:-nats://nats:4222}
       FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
       FIRMS_AREA_BBOX: ${FIRMS_AREA_BBOX:--92.3,7.2,-77.1,18.5}
       FIRMS_COUNTRY_NAME: ${FIRMS_COUNTRY_NAME:-Central_America}
