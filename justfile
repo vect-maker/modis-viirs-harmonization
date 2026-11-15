@@ -20,6 +20,10 @@ skills-install:
 skills-update:
     npx -y skills update -y
 
+# Bootstrap Ed25519 JWT signing keys for the backend
+bootstrap-keys:
+    just backend::bootstrap-keys
+
 # Start PostgreSQL + PostGIS via Podman Compose
 db-up:
     podman compose up -d db

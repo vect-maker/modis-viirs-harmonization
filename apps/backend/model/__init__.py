@@ -12,6 +12,7 @@ from model.StarSchema import (
     HotspotPublic,
     PlatformPublic,
 )
+from model.User import User
 
 __all__ = [
     "Alert",
@@ -29,4 +30,5 @@ __all__ = [
     "HotspotPublic",
     "Hotspots",
     "PlatformPublic",
+    "User",
 ]

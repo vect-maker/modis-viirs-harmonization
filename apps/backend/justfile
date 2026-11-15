@@ -1,9 +1,33 @@
 set dotenv-load
 set positional-arguments
 
+engine := env("CONTAINER_ENGINE", "podman")
+
 # List available backend recipes
 default:
     @just --list
+
+# Generate an Ed25519 keypair using an ephemeral Alpine/OpenSSL container
+_generate-key path name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ engine }} run -i --rm -v ".:/workspace:z" -w /workspace docker.io/library/alpine:latest sh << 'EOF'
+    apk add --no-cache openssl >/dev/null
+    mkdir -p "{{ path }}"
+    priv="{{ path }}/{{ name }}-private.pem"
+    pub="{{ path }}/{{ name }}-public.pem"
+    if [ ! -f "$priv" ]; then
+        openssl genpkey -algorithm ed25519 -out "$priv"
+        chmod 600 "$priv"
+    fi
+    if [ ! -f "$pub" ]; then
+        openssl pkey -in "$priv" -pubout -out "$pub"
+    fi
+    EOF
+
+# Bootstrap Ed25519 JWT signing keys in apps/backend/keys/
+bootstrap-keys:
+    @just _generate-key "keys" "auth"
 
 # Create virtual environment with uv and install dependencies
 setup-env:

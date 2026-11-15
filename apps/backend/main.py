@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from api.alerts import router as alerts_router
+from api.auth import router as auth_router
 from api.cluster_hotspots import router as cluster_hotspots_router
 from api.clusters import router as clusters_router
 from api.dashboard import router as dashboard_router
@@ -73,6 +74,7 @@ app = FastAPI(
 )
 
 app.include_router(alerts_router)
+app.include_router(auth_router)
 app.include_router(weather_router)
 app.include_router(clusters_router)
 app.include_router(cluster_hotspots_router)

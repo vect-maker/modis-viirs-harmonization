@@ -55,6 +55,14 @@ services:
       NATS_URL: ${NATS_URL:-nats://nats:4222}
       SSE_PRESENCE_TTL_SECONDS: ${SSE_PRESENCE_TTL_SECONDS:-45}
       ROOT_PATH: /api
+      JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/etc/keys/auth-private.pem}
+      JWT_PUBLIC_KEY_PATH: ${JWT_PUBLIC_KEY_PATH:-/etc/keys/auth-public.pem}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-access_token}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+      AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
+    volumes:
+      - ./apps/backend/keys:/etc/keys:ro,z
     depends_on:
       db:
         condition: service_healthy

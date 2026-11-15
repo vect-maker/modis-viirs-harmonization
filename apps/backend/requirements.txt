@@ -12,3 +12,5 @@ scikit-learn
 scipy
 shapely>=2.0.0
 sqlmodel
+pyjwt[crypto]>=2.9.0
+pwdlib[argon2]>=0.2.1

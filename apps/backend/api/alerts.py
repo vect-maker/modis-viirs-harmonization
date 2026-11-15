@@ -34,6 +34,7 @@ from services.AlertDetectionService import AlertDetectionService
 from services.AlertManagementService import AlertManagementService
 from services.AlertRuleService import AlertRuleService
 from services.AlertSchedulerService import alert_scheduler
+from services.AuthService import OptionalUserDep
 from services.NotificationService import ws_manager
 from services.SSEConnectionService import SSEConnectionService, parse_last_event_id
 from services.SSENotificationService import SSENotifierDep
@@ -196,6 +197,7 @@ async def dispatch_sse_notification(
 )
 async def stream_alerts(
     request: Request,
+    current_user: OptionalUserDep,
     last_event_id_header: str | None = Header(default=None, alias="Last-Event-ID"),
     last_event_id: int | None = Query(default=None, ge=0),
     max_events: int | None = Query(default=None, ge=1, include_in_schema=False),
@@ -209,6 +211,8 @@ async def stream_alerts(
             session=session,
             last_event_id=resolved_last_id,
             max_events=max_events,
+            user_id=str(current_user.id) if current_user is not None else None,
+            is_authenticated=current_user is not None,
         ),
         media_type="text/event-stream",
         headers={
