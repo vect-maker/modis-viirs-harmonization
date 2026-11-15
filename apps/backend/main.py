@@ -20,6 +20,7 @@ from database.session import get_session
 from model.StarSchema import (
     AvailableDatesResponse,
     CountryPublic,
+    DailyActivityResponse,
     HotspotPublic,
     PlatformPublic,
 )
@@ -110,6 +111,18 @@ def get_hotspots(
 @app.get("/hotspots/available-dates", tags=["Hotspots"])
 def get_hotspot_available_dates(session: SessionDep) -> AvailableDatesResponse:
     return HotspotRepository(session).get_available_dates()
+
+
+@app.get("/hotspots/daily-activity", tags=["Hotspots"])
+def get_hotspot_daily_activity(
+    session: SessionDep,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    instrument: str | None = Query(default=None),
+) -> DailyActivityResponse:
+    return HotspotRepository(session).get_daily_activity(
+        start_date=start_date, end_date=end_date, instrument=instrument
+    )
 
 
 @app.get("/countries", tags=["Countries"])

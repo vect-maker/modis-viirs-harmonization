@@ -7,40 +7,6 @@ import BaseSensorFilter from '@/components/ui/BaseSensorFilter.vue'
 
 const store = useHotspotsStore()
 const { dateRange, availableDates, availableDateSet, selectedSensor } = storeToRefs(store)
-
-function updateStartDate(start: string | null) {
-  if (!availableDates.value) return
-  if (!start) {
-    if (!dateRange.value) return
-    void store.selectDateRange({
-      start: availableDates.value.start,
-      end: dateRange.value.end,
-    })
-    return
-  }
-  const end = dateRange.value?.end ?? availableDates.value.end
-  void store.selectDateRange({
-    start,
-    end: end < start ? start : end,
-  })
-}
-
-function updateEndDate(end: string | null) {
-  if (!availableDates.value) return
-  if (!end) {
-    if (!dateRange.value) return
-    void store.selectDateRange({
-      start: dateRange.value.start,
-      end: availableDates.value.end,
-    })
-    return
-  }
-  const start = dateRange.value?.start ?? availableDates.value.start
-  void store.selectDateRange({
-    start: start > end ? end : start,
-    end,
-  })
-}
 </script>
 
 <template>
@@ -64,7 +30,7 @@ function updateEndDate(end: string | null) {
           :min-date="availableDates.start"
           :max-date="dateRange?.end ?? availableDates.end"
           :available-date-set="availableDateSet"
-          @update:model-value="updateStartDate"
+          @update:model-value="void store.updateStartDate($event)"
         />
         <BaseDatePicker
           label="End Date"
@@ -72,7 +38,7 @@ function updateEndDate(end: string | null) {
           :min-date="dateRange?.start ?? availableDates.start"
           :max-date="availableDates.end"
           :available-date-set="availableDateSet"
-          @update:model-value="updateEndDate"
+          @update:model-value="void store.updateEndDate($event)"
         />
       </div>
     </div>

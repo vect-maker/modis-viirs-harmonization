@@ -1,8 +1,14 @@
 import { useApiFetch } from "@/api/useApiFetch";
-import { HotspotFiltersRequestSchema } from "./requests";
-import { AvailableDatesResponseSchema, PaginatedHotspotResponseSchema } from "./responses";
+import { DailyActivityRequestSchema, HotspotFiltersRequestSchema } from "./requests";
+import {
+  AvailableDatesResponseSchema,
+  DailyActivityResponseSchema,
+  PaginatedHotspotResponseSchema,
+} from "./responses";
 import type {
   AvailableDatesResponse,
+  DailyActivityRequest,
+  DailyActivityResponse,
   HotspotFiltersRequest,
   PaginatedHotspotResponse,
 } from "./types";
@@ -51,8 +57,28 @@ export const useHotspotsApi = () => {
     return AvailableDatesResponseSchema.parse(data.value);
   }
 
+  // GET /hotspots/daily-activity
+  async function getDailyActivity(params?: DailyActivityRequest): Promise<DailyActivityResponse> {
+    const validated = params ? DailyActivityRequestSchema.parse(params) : undefined;
+    const queryParams = new URLSearchParams();
+    if (validated?.start_date) queryParams.append("start_date", validated.start_date);
+    if (validated?.end_date) queryParams.append("end_date", validated.end_date);
+    if (validated?.instrument) queryParams.append("instrument", validated.instrument);
+    const qs = queryParams.toString();
+    const endpoint = `/hotspots/daily-activity${qs ? `?${qs}` : ""}`;
+
+    const { data, error } = await useApiFetch(endpoint).get().json();
+
+    if (error.value || !data.value) {
+      throw error.value || new Error("Failed to fetch daily hotspot activity");
+    }
+
+    return DailyActivityResponseSchema.parse(data.value);
+  }
+
   return {
     getHotspots,
     getAvailableDates,
+    getDailyActivity,
   };
 };

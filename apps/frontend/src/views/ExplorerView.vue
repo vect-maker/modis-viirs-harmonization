@@ -7,13 +7,16 @@ import HotspotDetails from '@/components/map/HotspotDetails.vue'
 import HotspotControlPanel from '@/components/features/HotspotControlPanel.vue'
 import HotspotTimeline from '@/components/features/HotspotTimeline.vue'
 import DatePromptDialog from '@/components/features/DatePromptDialog.vue'
+import DashboardLoadingOverlay from '@/components/features/DashboardLoadingOverlay.vue'
+import DashboardNavbar from '@/components/features/DashboardNavbar.vue'
 import LocationPromptDialog from '@/components/features/LocationPromptDialog.vue'
 import MapActionBar from '@/components/common/MapActionBar.vue'
 import type { HotspotResponse } from '@/api'
 import { useHotspotsStore } from '@/stores/hotspots'
 
 const hotspotsStore = useHotspotsStore()
-const { filteredHotspots, availableDates, availableDateSet } = storeToRefs(hotspotsStore)
+const { filteredHotspots, availableDates, availableDateSet, isLoading, loadingProgress } =
+  storeToRefs(hotspotsStore)
 const todayUtc = new Date().toISOString().slice(0, 10)
 const datePromptOpen = shallowRef(false)
 const datePromptPending = shallowRef(false)
@@ -125,6 +128,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
   <div
     class="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface-base font-sans text-ink-primary selection:bg-accent selection:text-surface-base"
   >
+    <DashboardNavbar />
     <main class="relative min-h-0 flex-1" aria-label="PyroTrace Nicaragua hotspot map">
       <h1 class="sr-only">PyroTrace — Nicaragua Fire Activity</h1>
       <div class="absolute inset-0">
@@ -189,6 +193,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
         :available-date-set="availableDateSet"
         @select-date="onPromptSelectDate"
       />
+      <DashboardLoadingOverlay :visible="isLoading" :progress="loadingProgress" />
     </main>
   </div>
 </template>

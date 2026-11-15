@@ -12,10 +12,13 @@ import HistoricalCalendar from './HistoricalCalendar.vue'
 const open = defineModel<boolean>('open', { required: true })
 const view = shallowRef<'daily' | 'history'>('daily')
 const store = useHotspotsStore()
-const { dailyActivity, dateRange, contextHotspots, availableDates } = storeToRefs(store)
+const { dailyActivity, dateRange, fetchedDateRange, contextHotspots } = storeToRefs(store)
+const totalDetections = computed(() =>
+  dailyActivity.value.reduce((sum, day) => sum + day.count, 0),
+)
 const summary = computed(
   () =>
-    `${contextHotspots.value.length.toLocaleString()} detections · ${dailyActivity.value.length} days`,
+    `${totalDetections.value.toLocaleString()} detections · ${dailyActivity.value.length} days`,
 )
 const formatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -23,14 +26,13 @@ const formatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
   timeZone: 'UTC',
 })
-const periodLabel = computed(() =>
-  availableDates.value
-    ? formatter.formatRange(
-        parseDate(availableDates.value.start).toDate('UTC'),
-        parseDate(availableDates.value.end).toDate('UTC'),
-      )
-    : '',
-)
+const periodLabel = computed(() => {
+  const start = fetchedDateRange.value?.start ?? dailyActivity.value[0]?.date
+  const end =
+    fetchedDateRange.value?.end ?? dailyActivity.value[dailyActivity.value.length - 1]?.date
+  if (!start || !end) return ''
+  return formatter.formatRange(parseDate(start).toDate('UTC'), parseDate(end).toDate('UTC'))
+})
 function selectDay(date: string) {
   store.setDateRange({ start: date, end: date })
 }
@@ -49,7 +51,7 @@ function selectDay(date: string) {
           <div
             class="flex flex-wrap items-center justify-between gap-2 pl-12 text-xs text-neutral-400"
           >
-            <p v-if="availableDates">{{ periodLabel }} · UTC</p>
+            <p v-if="periodLabel">{{ periodLabel }} · UTC</p>
             <button
               v-if="dateRange"
               type="button"

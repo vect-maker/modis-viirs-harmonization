@@ -31,3 +31,14 @@ export const AvailableDatesResponseSchema = z.object({
   min_date: z.iso.date().nullable(),
   max_date: z.iso.date().nullable(),
 });
+
+export const DailyActivityItemSchema = z.object({
+  date: z.iso.date(),
+  count: z.number().int().nonnegative(),
+});
+
+export const DailyActivityResponseSchema = z.object({
+  days: z.array(DailyActivityItemSchema),
+  min_date: z.iso.date().nullable(),
+  max_date: z.iso.date().nullable(),
+});

@@ -12,7 +12,7 @@ const { stats } = storeToRefs(useHotspotsStore())
 </script>
 
 <template>
-  <BaseMapPanel v-model:open="open" title="PyroTrace · Fire Activity" home-to="/">
+  <BaseMapPanel v-model:open="open" title="Fire Activity">
     <div class="space-y-4 p-4">
       <div class="flex items-center gap-2 text-xs text-ink-secondary">
         <Pentagon v-if="areaKm2 !== null" aria-hidden="true" class="h-3.5 w-3.5 text-ink-muted" />

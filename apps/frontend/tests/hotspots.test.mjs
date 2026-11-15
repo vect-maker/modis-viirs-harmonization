@@ -205,7 +205,7 @@ test('download prepares UTF-8 CSV bytes, uses the requested filename and skips e
   }
 })
 
-test('chart exposes every day as a labelled button and highlights only the selected UTC day', async () => {
+test('timeline chart renders accessible region and empty state for dated records', async () => {
   const { default: Chart } = await server.ssrLoadModule(
     '/src/components/common/DailyActivityChart.vue',
   )
@@ -221,10 +221,14 @@ test('chart exposes every day as a labelled button and highlights only the selec
       }),
   })
   const html = await renderToString(app)
-  assert.equal((html.match(/<button /g) ?? []).length, 3)
-  assert.equal((html.match(/aria-pressed="true"/g) ?? []).length, 1)
-  assert(html.includes('2024-05-24: 0 detections. Select this day.'))
-  assert(html.includes('2024-05-23: 10 detections. Select this day.'))
+  assert(html.includes('role="region"'))
+  assert(html.includes('Daily detections timeline'))
+
+  const emptyApp = createSSRApp({
+    render: () => h(Chart, { days: [], selectedRange: null }),
+  })
+  const emptyHtml = await renderToString(emptyApp)
+  assert(emptyHtml.includes('No dated records are available.'))
 })
 
 test('CSV control disables export when the active query has no results', async () => {

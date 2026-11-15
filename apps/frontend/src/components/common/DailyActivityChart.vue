@@ -1,88 +1,233 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { parseDate } from '@internationalized/date'
+import { use } from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import {
+  DataZoomComponent,
+  GridComponent,
+  MarkAreaComponent,
+  TooltipComponent,
+} from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import type { ECElementEvent } from 'echarts/core'
+import VChart from 'vue-echarts'
 import type { DailyHotspotActivity } from '@/types/hotspot'
 import type { HotspotDateRange } from '@/types/filters'
 import { getChartColors } from '@/utils/themeColors'
 
-const chartColors = computed(() => getChartColors())
+use([
+  CanvasRenderer,
+  LineChart,
+  GridComponent,
+  TooltipComponent,
+  DataZoomComponent,
+  MarkAreaComponent,
+])
 
 const props = defineProps<{
   days: DailyHotspotActivity[]
   selectedRange: HotspotDateRange | null
 }>()
+
 const emit = defineEmits<{ select: [date: string] }>()
-const formatter = new Intl.DateTimeFormat('en-US', {
+
+const chartColors = computed(() => getChartColors())
+
+const axisFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
+  year: '2-digit',
   timeZone: 'UTC',
 })
-const maxCount = computed(() => Math.max(1, ...props.days.map((day) => day.count)))
-const bars = computed(() =>
-  props.days.map((day) => ({
-    ...day,
-    label: formatter.format(parseDate(day.date).toDate('UTC')),
-    height: (day.count / maxCount.value) * 90,
-    selected:
-      !!props.selectedRange &&
-      day.date >= props.selectedRange.start &&
-      day.date <= props.selectedRange.end,
-  })),
-)
+
+const tooltipFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+
+function formatUtcDate(dateStr: string, formatter: Intl.DateTimeFormat): string {
+  return formatter.format(parseDate(dateStr).toDate('UTC'))
+}
+
+const showSlider = computed(() => props.days.length > 1)
+
+const chartOption = computed(() => {
+  const colors = chartColors.value
+  const range = props.selectedRange
+  const dates = props.days.map((day) => day.date)
+  const lastIndex = Math.max(0, props.days.length - 1)
+  const points = props.days.map((day) => {
+    const isSelected = !range || (day.date >= range.start && day.date <= range.end)
+    return {
+      value: day.count,
+      symbolSize: day.count > 0 ? 7 : 3,
+      itemStyle: {
+        color: isSelected ? colors.barActive : colors.barDimmed,
+        borderColor: '#11161d',
+        borderWidth: 1,
+      },
+    }
+  })
+
+  const markAreaData = range
+    ? [[{ xAxis: range.start }, { xAxis: range.end }]]
+    : []
+
+  const dataZoom = showSlider.value
+    ? [
+        {
+          type: 'inside',
+          xAxisIndex: 0,
+          startValue: 0,
+          endValue: lastIndex,
+        },
+        {
+          type: 'slider',
+          xAxisIndex: 0,
+          height: 20,
+          bottom: 6,
+          startValue: 0,
+          endValue: lastIndex,
+          borderColor: 'rgba(255, 255, 255, 0.12)',
+          backgroundColor: 'rgba(255, 255, 255, 0.03)',
+          fillerColor: 'rgba(230, 159, 0, 0.18)',
+          handleStyle: {
+            color: '#e69f00',
+            borderColor: '#e69f00',
+          },
+          moveHandleStyle: {
+            color: 'rgba(230, 159, 0, 0.6)',
+          },
+          dataBackground: {
+            lineStyle: { color: 'rgba(230, 159, 0, 0.45)', width: 1 },
+            areaStyle: { color: 'rgba(230, 159, 0, 0.12)' },
+          },
+          selectedDataBackground: {
+            lineStyle: { color: '#e69f00', width: 1 },
+            areaStyle: { color: 'rgba(230, 159, 0, 0.28)' },
+          },
+          textStyle: {
+            color: '#9ca3af',
+            fontSize: 10,
+          },
+          labelFormatter: (_value: number, valueStr: string) =>
+            valueStr ? formatUtcDate(valueStr, axisFormatter) : '',
+        },
+      ]
+    : []
+
+  return {
+    animationDuration: 250,
+    grid: {
+      top: 14,
+      right: 14,
+      bottom: showSlider.value ? 52 : 26,
+      left: 44,
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'line',
+        lineStyle: { color: 'rgba(230, 159, 0, 0.45)', type: 'dashed' },
+      },
+      backgroundColor: '#11161d',
+      borderColor: '#28323e',
+      borderWidth: 1,
+      textStyle: {
+        color: '#f3f4f6',
+        fontSize: 12,
+      },
+      formatter(params: unknown) {
+        const list = Array.isArray(params) ? params : [params]
+        const first = list[0] as { dataIndex?: number } | undefined
+        const day = first?.dataIndex !== undefined ? props.days[first.dataIndex] : undefined
+        if (!day) return ''
+        const label = formatUtcDate(day.date, tooltipFormatter)
+        const count = day.count.toLocaleString()
+        return `<div class="font-medium">${label} · UTC</div><div class="mt-0.5 text-amber-400 font-mono">${count} detections</div>`
+      },
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: props.days.length <= 1,
+      data: dates,
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.12)' } },
+      axisTick: { show: false },
+      axisLabel: {
+        color: '#9ca3af',
+        fontSize: 10,
+        formatter: (value: string) => formatUtcDate(value, axisFormatter),
+      },
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: {
+        color: '#9ca3af',
+        fontSize: 10,
+      },
+      splitLine: {
+        lineStyle: {
+          color: 'rgba(255, 255, 255, 0.08)',
+          type: 'dashed',
+        },
+      },
+    },
+    dataZoom,
+    series: [
+      {
+        name: 'Detections',
+        type: 'line',
+        smooth: false,
+        showAllSymbol: true,
+        symbol: 'circle',
+        lineStyle: {
+          color: colors.barActive,
+          width: 2,
+        },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(230, 159, 0, 0.28)' },
+              { offset: 1, color: 'rgba(230, 159, 0, 0.02)' },
+            ],
+          },
+        },
+        markArea: range
+          ? {
+              silent: true,
+              itemStyle: { color: 'rgba(230, 159, 0, 0.12)' },
+              data: markAreaData,
+            }
+          : undefined,
+        data: points,
+      },
+    ],
+  }
+})
+
+function onChartClick(params: ECElementEvent) {
+  const day = typeof params.dataIndex === 'number' ? props.days[params.dataIndex] : undefined
+  if (day) emit('select', day.date)
+}
 </script>
 
 <template>
-  <div v-if="days.length" class="flex gap-2">
-    <div
-      aria-hidden="true"
-      class="flex w-10 shrink-0 flex-col justify-between pb-7 pt-5 text-right font-mono text-[10px] text-ink-muted"
-    >
-      <span>{{ maxCount.toLocaleString() }}</span
-      ><span>0</span>
-    </div>
-    <div
-      class="min-w-0 flex-1 overflow-x-auto pb-1"
-      role="group"
-      aria-label="Daily detections. Select a day to filter the map."
-    >
-      <div
-        class="grid gap-1"
-        :style="{ gridTemplateColumns: `repeat(${days.length}, minmax(2.5rem, 1fr))` }"
-      >
-        <button
-          v-for="bar in bars"
-          :key="bar.date"
-          type="button"
-          class="group flex min-w-0 flex-col items-center rounded-md px-0.5 py-1 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus"
-          :class="bar.selected && 'bg-accent/10 ring-1 ring-inset ring-accent/30'"
-          :aria-pressed="bar.selected"
-          :aria-label="`${bar.date}: ${bar.count.toLocaleString()} detections. Select this day.`"
-          :title="`${bar.label}: ${bar.count.toLocaleString()} detections`"
-          @click="emit('select', bar.date)"
-        >
-          <span class="h-4 font-mono text-[10px] tabular-nums text-ink-muted">{{
-            bar.count.toLocaleString()
-          }}</span>
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            class="h-24 w-full overflow-visible border-b border-border-subtle"
-          >
-            <rect
-              x="22"
-              :y="100 - bar.height"
-              width="56"
-              :height="bar.height"
-              rx="3"
-              class="group-hover:fill-accent-bright"
-              :fill="selectedRange && !bar.selected ? chartColors.barDimmed : chartColors.barActive"
-            />
-          </svg>
-          <span class="mt-1.5 whitespace-nowrap text-[10px] text-ink-muted">{{ bar.label }}</span>
-        </button>
-      </div>
-    </div>
+  <div
+    v-if="days.length"
+    role="region"
+    aria-label="Daily detections timeline. Drag the slider to zoom or click a day to filter the map."
+    class="h-44 w-full"
+  >
+    <VChart class="h-full w-full" :option="chartOption" autoresize @click="onChartClick" />
   </div>
   <p v-else role="status" class="py-5 text-center text-sm text-ink-muted">
     No dated records are available.

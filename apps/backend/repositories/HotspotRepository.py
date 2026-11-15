@@ -4,7 +4,14 @@ from typing import overload
 from sqlmodel import Session, col, func, select
 
 from model.Hotspots import Hotspots
-from model.StarSchema import AvailableDatesResponse, FactHotspot, HotspotPublic
+from model.StarSchema import (
+    AvailableDatesResponse,
+    DailyActivityItem,
+    DailyActivityResponse,
+    DimPlatform,
+    FactHotspot,
+    HotspotPublic,
+)
 from repositories.pagination import paginate_statement
 from schemas.pagination import PaginatedResponse, PaginationParams
 
@@ -173,6 +180,62 @@ class HotspotRepository:
             dates=dates,
             min_date=dates[0] if dates else None,
             max_date=dates[-1] if dates else None,
+        )
+
+    def get_daily_activity(
+        self,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        instrument: str | None = None,
+    ) -> DailyActivityResponse:
+        date_expr = func.date(col(FactHotspot.acq_datetime))
+        count_expr = func.count(col(FactHotspot.id))
+        statement = select(date_expr, count_expr)
+
+        if instrument and instrument.strip().upper() in {"MODIS", "VIIRS"}:
+            statement = statement.join(
+                DimPlatform, col(FactHotspot.platform_id) == col(DimPlatform.id)
+            ).where(func.upper(col(DimPlatform.instrument)) == instrument.strip().upper())
+
+        if start_date is not None:
+            statement = statement.where(
+                col(FactHotspot.acq_datetime) >= datetime.combine(start_date, time.min)
+            )
+        if end_date is not None:
+            statement = statement.where(
+                col(FactHotspot.acq_datetime)
+                < datetime.combine(end_date + timedelta(days=1), time.min)
+            )
+
+        statement = statement.group_by(date_expr).order_by(date_expr.asc())
+        rows = self.session.exec(statement).all()
+
+        counts_by_date: dict[date, int] = {}
+        for raw_day, raw_count in rows:
+            if raw_day is None:
+                continue
+            parsed_day = (
+                raw_day if isinstance(raw_day, date) else date.fromisoformat(str(raw_day))
+            )
+            counts_by_date[parsed_day] = int(raw_count)
+
+        resolved_start = start_date or (min(counts_by_date) if counts_by_date else None)
+        resolved_end = end_date or (max(counts_by_date) if counts_by_date else None)
+        if resolved_start is None or resolved_end is None or resolved_start > resolved_end:
+            return DailyActivityResponse(days=[], min_date=None, max_date=None)
+
+        days: list[DailyActivityItem] = []
+        cursor = resolved_start
+        while cursor <= resolved_end:
+            days.append(
+                DailyActivityItem(date=cursor, count=counts_by_date.get(cursor, 0))
+            )
+            cursor += timedelta(days=1)
+
+        return DailyActivityResponse(
+            days=days,
+            min_date=resolved_start,
+            max_date=resolved_end,
         )
 
     def get_hostspot_by_dates(

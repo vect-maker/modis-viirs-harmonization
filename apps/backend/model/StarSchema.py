@@ -82,3 +82,18 @@ class AvailableDatesResponse(BaseModel):
     dates: list[date]
     min_date: date | None
     max_date: date | None
+
+
+class DailyActivityItem(BaseModel):
+    """Aggregated hotspot count for a single UTC calendar date."""
+
+    date: date
+    count: int
+
+
+class DailyActivityResponse(BaseModel):
+    """Aggregated daily hotspot counts for a queried UTC date range."""
+
+    days: list[DailyActivityItem]
+    min_date: date | None
+    max_date: date | None
