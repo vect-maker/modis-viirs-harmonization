@@ -1,116 +1,165 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { use } from 'echarts/core'
+import { HeatmapChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import type { ECElementEvent } from 'echarts/core'
+import VChart from 'vue-echarts'
 import type { CalendarCell } from '@/types/calendar'
 import { calendarColor } from '@/utils/historicalCalendar'
+
+use([CanvasRenderer, HeatmapChart, GridComponent, TooltipComponent, VisualMapComponent])
+
 const props = defineProps<{
   rows: { year: number; cells: CalendarCell[] }[]
   maxCount: number
   selectedPeriod: { year: number; month: number } | null
 }>()
+
 const emit = defineEmits<{ select: [year: number, month: number] }>()
-const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' })
+
+const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' })
 const months = Array.from({ length: 12 }, (_, i) =>
-  formatter.format(new Date(Date.UTC(2024, i, 1))),
+  monthFormatter.format(new Date(Date.UTC(2024, i, 1))),
 )
-const number = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 })
-const rows = computed(() =>
-  props.rows.map((row) => ({
-    ...row,
-    cells: row.cells.map((cell) => ({
-      ...cell,
-      label: `${months[cell.month - 1]} ${cell.year}: ${cell.count === null ? 'no records; coverage unverified' : cell.count.toLocaleString() + ' observed detections'}`,
-      color: calendarColor(cell.count, props.maxCount),
-      selected:
-        props.selectedPeriod?.year === cell.year && props.selectedPeriod?.month === cell.month,
-    })),
-  })),
-)
+const compactNumber = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
+
+const chartHeightPx = computed(() => Math.max(240, props.rows.length * 28 + 44))
+
+const chartOption = computed(() => {
+  const years = props.rows.map((row) => String(row.year))
+  const data = props.rows.flatMap((row, yearIdx) =>
+    row.cells.map((cell, monthIdx) => {
+      const selected =
+        props.selectedPeriod?.year === cell.year && props.selectedPeriod?.month === cell.month
+      return {
+        value: [monthIdx, yearIdx, cell.count ?? -1] as [number, number, number],
+        year: cell.year,
+        month: cell.month,
+        count: cell.count,
+        itemStyle: {
+          color: calendarColor(cell.count, props.maxCount),
+          borderColor: selected ? '#ffffff' : '#0b0f14',
+          borderWidth: selected ? 2 : 1.5,
+          borderRadius: 4,
+        },
+      }
+    }),
+  )
+
+  return {
+    animation: false,
+    grid: {
+      top: 28,
+      right: 8,
+      bottom: 8,
+      left: 48,
+    },
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#11161d',
+      borderColor: '#28323e',
+      borderWidth: 1,
+      textStyle: {
+        color: '#f3f4f6',
+        fontSize: 12,
+      },
+      formatter(params: unknown) {
+        const item = params as { data?: { year?: number; month?: number; count?: number | null } }
+        const year = item.data?.year
+        const month = item.data?.month
+        const count = item.data?.count
+        if (!year || !month) return ''
+        const label = `${months[month - 1]} ${year}`
+        const detail =
+          count === null || count === undefined
+            ? 'No records · coverage unverified'
+            : `${count.toLocaleString()} observed detections`
+        return `<div class="font-medium">${label}</div><div class="mt-0.5 text-amber-400 font-mono">${detail}</div>`
+      },
+    },
+    xAxis: {
+      type: 'category',
+      position: 'top',
+      data: months,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: {
+        color: '#9ca3af',
+        fontSize: 11,
+      },
+      splitArea: { show: false },
+    },
+    yAxis: {
+      type: 'category',
+      inverse: true,
+      data: years,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: {
+        color: '#cbd5e1',
+        fontSize: 11,
+        fontFamily: 'monospace',
+      },
+      splitArea: { show: false },
+    },
+    visualMap: {
+      show: false,
+      min: -1,
+      max: props.maxCount,
+    },
+    series: [
+      {
+        name: 'Monthly Detections',
+        type: 'heatmap',
+        data,
+        label: {
+          show: true,
+          fontSize: 10,
+          color: '#ffedd5',
+          formatter(params: unknown) {
+            const item = params as { data?: { count?: number | null } }
+            const count = item.data?.count
+            return count === null || count === undefined ? '—' : compactNumber.format(count)
+          },
+        },
+        emphasis: {
+          itemStyle: {
+            borderColor: '#ffffff',
+            borderWidth: 1.5,
+          },
+        },
+      },
+    ],
+  }
+})
+
+function onChartClick(params: ECElementEvent) {
+  const data = params.data as { year?: number; month?: number } | undefined
+  if (typeof data?.year === 'number' && typeof data?.month === 'number') {
+    emit('select', data.year, data.month)
+  }
+}
 </script>
 
 <template>
   <div
-    class="max-h-72 overflow-auto rounded-lg border border-white/10"
+    class="max-h-72 overflow-y-auto rounded-lg border border-white/10 p-1"
     tabindex="0"
-    aria-label="Historical monthly detections. Scroll to explore years."
+    role="region"
+    aria-label="Historical monthly detections heatmap. Click a month cell to inspect totals."
   >
-    <table class="w-full min-w-[36rem] border-separate border-spacing-1 text-xs">
-      <caption class="sr-only">
-        Monthly observed hotspot detections in Nicaragua. Missing records do not indicate zero
-        fires.
-      </caption>
-      <thead class="sticky top-0 z-10 bg-surface-panel">
-        <tr>
-          <th
-            scope="col"
-            class="sticky left-0 bg-surface-panel p-2 text-left font-medium text-ink-muted"
-          >
-            Year
-          </th>
-          <th
-            v-for="month in months"
-            :key="month"
-            scope="col"
-            class="py-2 font-normal text-ink-muted"
-          >
-            {{ month }}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.year">
-          <th
-            scope="row"
-            class="sticky left-0 bg-surface-panel px-2 text-left font-mono font-normal text-ink-secondary"
-          >
-            {{ row.year }}
-          </th>
-          <td v-for="cell in row.cells" :key="cell.month" class="p-0">
-            <button
-              type="button"
-              class="calendar-cell"
-              :class="{
-                'calendar-cell-missing': cell.count === null,
-                'calendar-cell-selected': cell.selected,
-              }"
-              :style="{ backgroundColor: cell.color }"
-              :aria-label="cell.label"
-              :title="cell.label"
-              :aria-pressed="cell.selected"
-              @click="emit('select', cell.year, cell.month)"
-            >
-              {{ cell.count === null ? '—' : number.format(cell.count) }}
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="w-full" :style="{ height: `${chartHeightPx}px` }">
+      <VChart
+        class="h-full w-full"
+        :option="chartOption"
+        autoresize
+        @click="onChartClick"
+      />
+    </div>
   </div>
 </template>
-
-<style scoped>
-.calendar-cell {
-  display: block;
-  width: 100%;
-  min-height: 30px;
-  border-radius: 4px;
-  color: #ffedd5;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-.calendar-cell:hover {
-  outline: 1px solid #ffffff80;
-  outline-offset: -1px;
-}
-.calendar-cell:focus-visible {
-  outline: 2px solid white;
-  outline-offset: -2px;
-}
-.calendar-cell-selected {
-  box-shadow: inset 0 0 0 2px white;
-}
-.calendar-cell-missing {
-  color: #65717a;
-  background-image: repeating-linear-gradient(135deg, #ffffff06 0 3px, transparent 3px 6px);
-}
-</style>

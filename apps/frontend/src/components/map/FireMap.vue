@@ -48,9 +48,12 @@ const emit = defineEmits<{
 defineSlots<{
   dock?(props: {
     drawArea: () => void
+    confirmDraw: () => void
+    cancelDraw: () => void
     clearArea: () => void
     locateUser: () => void
     showGlobe: () => void
+    isDrawing: boolean
   }): unknown
 }>()
 
@@ -61,6 +64,7 @@ const draw = shallowRef<MapboxDraw | null>(null)
 const hotspotsStore = useHotspotsStore()
 const { filteredHotspots } = storeToRefs(hotspotsStore)
 const activeRoiArea = shallowRef<number | null>(null)
+const isDrawing = shallowRef(false)
 const filteredCount = computed(() => hotspotsStore.filteredHotspots.length)
 const activePopup = shallowRef<maplibregl.Popup | null>(null)
 
@@ -209,7 +213,24 @@ function startDrawPolygon() {
   const drawControl = draw.value
   if (!drawControl) return
   if ((map.value?.getZoom() ?? 0) < 5) fitNicaragua()
+  isDrawing.value = true
   drawControl.changeMode('draw_polygon')
+}
+
+function confirmDrawPolygon() {
+  const drawControl = draw.value
+  if (!drawControl) return
+  drawControl.changeMode('simple_select')
+  isDrawing.value = false
+  handleRoiUpdate()
+}
+
+function cancelDrawPolygon() {
+  const drawControl = draw.value
+  if (!drawControl) return
+  drawControl.trash()
+  drawControl.changeMode('simple_select')
+  isDrawing.value = false
 }
 
 function handleRoiUpdate() {
@@ -319,6 +340,9 @@ onMounted(() => {
   mapWithEvents.on('draw.create', handleRoiUpdate)
   mapWithEvents.on('draw.update', handleRoiUpdate)
   mapWithEvents.on('draw.delete', handleRoiUpdate)
+  mapWithEvents.on('draw.modechange', (event: { mode: string }) => {
+    isDrawing.value = event.mode === 'draw_polygon'
+  })
 
   m.on('load', () => {
     const geojsonData = buildGeoJson(filteredHotspots.value)
@@ -418,9 +442,12 @@ onUnmounted(() => {
     <slot
       name="dock"
       :draw-area="startDrawPolygon"
+      :confirm-draw="confirmDrawPolygon"
+      :cancel-draw="cancelDrawPolygon"
       :clear-area="clearRoi"
       :locate-user="locateUser"
       :show-globe="showGlobe"
+      :is-drawing="isDrawing"
     />
 
     <div

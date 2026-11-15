@@ -82,3 +82,38 @@ class AvailableDatesResponse(BaseModel):
     dates: list[date]
     min_date: date | None
     max_date: date | None
+
+
+class DailyActivityItem(BaseModel):
+    """Aggregated hotspot count for a single UTC calendar date."""
+
+    date: date
+    count: int
+
+
+class DailyActivityResponse(BaseModel):
+    """Aggregated daily hotspot counts for a queried UTC date range."""
+
+    days: list[DailyActivityItem]
+    min_date: date | None
+    max_date: date | None
+
+
+class HistoricalMonthSummary(BaseModel):
+    """Monthly aggregated hotspot counts across MODIS and VIIRS."""
+
+    year: int
+    month: int
+    total: int
+    modis_count: int | None
+    viirs_count: int | None
+    observed_days: int
+
+
+class HistoricalCalendarResponse(BaseModel):
+    """Full historical monthly archive summary for the heatmap calendar."""
+
+    first_detection: date | None
+    last_detection: date | None
+    total_records: int
+    months: list[HistoricalMonthSummary]

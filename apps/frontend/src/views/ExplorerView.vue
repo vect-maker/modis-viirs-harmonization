@@ -7,16 +7,26 @@ import HotspotDetails from '@/components/map/HotspotDetails.vue'
 import HotspotControlPanel from '@/components/features/HotspotControlPanel.vue'
 import HotspotTimeline from '@/components/features/HotspotTimeline.vue'
 import DatePromptDialog from '@/components/features/DatePromptDialog.vue'
+import DashboardLoadingOverlay from '@/components/features/DashboardLoadingOverlay.vue'
+import DashboardNavbar from '@/components/features/DashboardNavbar.vue'
 import LocationPromptDialog from '@/components/features/LocationPromptDialog.vue'
 import MapActionBar from '@/components/common/MapActionBar.vue'
 import type { HotspotResponse } from '@/api'
 import { useHotspotsStore } from '@/stores/hotspots'
 
 const hotspotsStore = useHotspotsStore()
-const { filteredHotspots, availableDates, availableDateSet } = storeToRefs(hotspotsStore)
+const {
+  filteredHotspots,
+  availableDates,
+  availableDateSet,
+  dateRange,
+  isLoading,
+  loadingProgress,
+} = storeToRefs(hotspotsStore)
 const todayUtc = new Date().toISOString().slice(0, 10)
 const datePromptOpen = shallowRef(false)
 const datePromptPending = shallowRef(false)
+const hasInitializedDates = shallowRef(false)
 const locationPromptOpen = shallowRef(false)
 
 const locationPermission = usePermission('geolocation')
@@ -87,6 +97,7 @@ onMounted(async () => {
   await hotspotsStore.fetchAvailableDates()
   if (hotspotsStore.availableDateSet.has(todayUtc)) {
     await hotspotsStore.selectDateRange({ start: todayUtc, end: todayUtc })
+    hasInitializedDates.value = true
     return
   }
   if (hotspotsStore.availableDateSet.size > 0) {
@@ -95,9 +106,23 @@ onMounted(async () => {
     } else {
       datePromptOpen.value = true
     }
+    hasInitializedDates.value = true
     return
   }
   await hotspotsStore.fetchHotspots({ limit: 100 })
+  hasInitializedDates.value = true
+})
+
+watch(dateRange, (range) => {
+  if (!hasInitializedDates.value || range !== null) return
+  if (availableDateSet.value.has(todayUtc)) {
+    void hotspotsStore.selectDateRange({ start: todayUtc, end: todayUtc })
+    return
+  }
+  if (availableDateSet.value.size > 0) {
+    hotspotsStore.clearHotspots()
+    datePromptOpen.value = true
+  }
 })
 
 function onPromptSelectDate(date: string) {
@@ -125,8 +150,9 @@ function onRoiChange(payload: { areaKm2: number | null }) {
   <div
     class="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface-base font-sans text-ink-primary selection:bg-accent selection:text-surface-base"
   >
-    <main class="relative min-h-0 flex-1" aria-label="PyroTrace Nicaragua hotspot map">
-      <h1 class="sr-only">PyroTrace — Nicaragua Fire Activity</h1>
+    <DashboardNavbar />
+    <main class="relative min-h-0 flex-1" aria-label="PyroTrace hotspot map">
+      <h1 class="sr-only">PyroTrace — Fire Activity</h1>
       <div class="absolute inset-0">
         <FireMap
           :side-panel-open="panelOpen"
@@ -136,7 +162,9 @@ function onRoiChange(payload: { areaKm2: number | null }) {
           @roi-change="onRoiChange"
           @request-location="onRequestLocation"
         >
-          <template #dock="{ drawArea, clearArea, locateUser, showGlobe }">
+          <template
+            #dock="{ drawArea, confirmDraw, cancelDraw, clearArea, locateUser, showGlobe, isDrawing }"
+          >
             <div
               ref="timelineElement"
               class="absolute bottom-3 left-3 right-3 z-20 md:bottom-5 md:left-5"
@@ -146,7 +174,10 @@ function onRoiChange(payload: { areaKm2: number | null }) {
                 <template #tools>
                   <MapActionBar
                     :has-area="areaKm2 !== null"
+                    :is-drawing="isDrawing"
                     @draw="drawArea"
+                    @confirm="confirmDraw"
+                    @cancel="cancelDraw"
                     @locate="locateUser"
                     @globe="showGlobe"
                     @clear="clearArea"
@@ -189,6 +220,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
         :available-date-set="availableDateSet"
         @select-date="onPromptSelectDate"
       />
+      <DashboardLoadingOverlay :visible="isLoading" :progress="loadingProgress" />
     </main>
   </div>
 </template>

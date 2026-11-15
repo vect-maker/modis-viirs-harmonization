@@ -31,3 +31,30 @@ export const AvailableDatesResponseSchema = z.object({
   min_date: z.iso.date().nullable(),
   max_date: z.iso.date().nullable(),
 });
+
+export const DailyActivityItemSchema = z.object({
+  date: z.iso.date(),
+  count: z.number().int().nonnegative(),
+});
+
+export const DailyActivityResponseSchema = z.object({
+  days: z.array(DailyActivityItemSchema),
+  min_date: z.iso.date().nullable(),
+  max_date: z.iso.date().nullable(),
+});
+
+export const HistoricalMonthSummarySchema = z.object({
+  year: z.number().int(),
+  month: z.number().int().min(1).max(12),
+  total: z.number().int().nonnegative(),
+  modis_count: z.number().int().nonnegative().nullable(),
+  viirs_count: z.number().int().nonnegative().nullable(),
+  observed_days: z.number().int().nonnegative(),
+});
+
+export const HistoricalCalendarResponseSchema = z.object({
+  first_detection: z.iso.date().nullable(),
+  last_detection: z.iso.date().nullable(),
+  total_records: z.number().int().nonnegative(),
+  months: z.array(HistoricalMonthSummarySchema),
+});
