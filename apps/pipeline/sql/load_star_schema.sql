@@ -1,6 +1,6 @@
 -- Execution settings
-SET max_memory = '10GB';
-SET threads = 8;
+SET max_memory = '6GB';
+SET threads = 4;
 
 -- Load required DuckDB extensions
 LOAD postgres;

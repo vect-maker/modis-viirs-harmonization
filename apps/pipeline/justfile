@@ -55,7 +55,7 @@ normalize-data:
     mkdir -p data/processed/star data/temp/duckdb
     duckdb -dark-mode -f sql/normalize_star_schema.sql
 
-# Export a sample slice of Nicaragua 2024 hotspots as JSON for the frontend
+# Export a sample slice of 2024 hotspots as JSON for the frontend
 export-sample limit="5000":
     mkdir -p ../frontend/src/data
     duckdb -dark-mode -c "COPY ( \
@@ -91,12 +91,12 @@ db-setup:
 db-schema:
     psql "$DATABASE_URL" -f sql/schema.sql
 
-# Ingest Nicaragua dev dataset from Parquet into PostGIS via DuckDB
-db-load-nicaragua:
-    duckdb -dark-mode -f sql/load_nicaragua_sample.sql
+# Ingest Star Schema Parquet datasets into PostGIS via DuckDB
+db-load:
+    duckdb -dark-mode -f sql/load_star_schema.sql
 
 # Full reset and reload of dev database
-db-reset-load: db-schema db-load-nicaragua
+db-reset-load: db-schema db-load
 
 # Auto-format and auto-fix pipeline code
 format:
