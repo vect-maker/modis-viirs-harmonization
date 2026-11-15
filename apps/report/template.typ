@@ -30,6 +30,7 @@
   set par(justify: true, leading: 0.58em, spacing: 0.65em)
   set heading(numbering: "1.1")
   set math.equation(numbering: "(1)")
+  show raw: set text(size: 8pt)
 
   show heading: set text(weight: "bold")
   show heading.where(level: 1): it => block(above: 1.2em, below: 0.6em, text(size: 12pt)[#it])

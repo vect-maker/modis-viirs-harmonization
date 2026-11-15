@@ -1,49 +1,57 @@
-#import "../template.typ": todo
+#let evidence = json("../validation/results.json")
 
-= Results
+= Results and Verification
 
-== Nicaragua Historical Archive Summary (2000–2025)
+== Bundled Nicaragua archive
 
-Using `sql/export_nicaragua_calendar.sql`, we aggregated the Silver-layer dataset (`data/processed/hotspots.parquet`) for Nicaragua into `apps/frontend/src/data/historical_monthly.json`. The archive spans `2000-11-01` through `2025-12-31` and contains *800,480* raw active fire detections across MODIS (2000–2025), VIIRS Suomi-NPP (2012–2025), and VIIRS NOAA-20/JPSS-1 (2018–2025).
+The checked monthly JSON reports #evidence.archive.totalRecords raw observations between #evidence.archive.firstDetection and #evidence.archive.lastDetection. Summing its monthly totals reproduces the declared total. The processing flag is #raw(repr(evidence.archive.harmonized)) and verified coverage is #raw(repr(evidence.archive.coverageVerified)). These checks concern the stored aggregate, not independent reprocessing of the original FIRMS data.
 
-Table 1 illustrates peak dry-season (April) detection counts across key sensor-transition eras, demonstrating why raw hotspot counts cannot be compared directly without harmonization:
-
-#table(
-  columns: (auto, auto, auto, auto, auto),
-  align: (left, right, right, right, right),
-  table.header([Period], [MODIS], [VIIRS], [Total], [Avg FRP (MW)]),
-  [Apr 2005 (MODIS only)], [5,074], [--], [5,074], [31.09],
-  [Apr 2011 (MODIS only)], [2,419], [--], [2,419], [32.92],
-  [Apr 2012 (+ VIIRS SNPP)], [1,169], [7,964], [9,133], [11.19],
-  [Apr 2018 (+ JPSS-1)], [2,318], [31,587], [33,905], [10.32],
-  [Apr 2020 (All active)], [3,660], [45,365], [49,025], [10.64],
+#figure(
+  table(
+    columns: (17%, 27%, 27%, 29%),
+    align: (x, y) => if x == 0 { left } else { right },
+    table.header([April], [MODIS], [VIIRS], [Raw total]),
+    [2005], [5,074], [--], [5,074],
+    [2011], [2,419], [--], [2,419],
+    [2012], [1,169], [7,964], [9,133],
+    [2018], [2,318], [31,587], [33,905],
+    [2020], [3,660], [45,365], [49,025],
+  ),
+  caption: [Values verified against the bundled monthly JSON. These are raw detections, not harmonization performance metrics.],
 )
-#v(0.3em)
 
-As shown in Table 1, introducing VIIRS SNPP (2012) and NOAA-20 (2018) increases April hotspot counts by an order of magnitude while reducing mean FRP from \~31–33 MW (MODIS) to \~10–11 MW due to VIIRS's 375 m spatial resolution and higher sensitivity to smaller fires.
+Different years can differ in real burning activity as well as observing systems. This table alone cannot attribute the increase to sensor changes, establish a counterfactual VIIRS count for 2011, or validate a scaling factor. No reconstructed total of 12,800 fires is claimed.
 
-== Spatial Harmonization Prototype Benchmark
+== Reproducible synthetic checks
 
-`sql/test_spatial_harmonization.sql` evaluates the 5-class spatio-temporal co-detection model on a regional bounding polygon in Chilecito / La Rioja, Argentina (`POLYGON((-68.2 -29.8, -66.8 -29.8, -66.8 -28.5, -68.2 -28.5, -68.2 -29.8))`).
+The checked-in Python runner constructs 810 synthetic records and executes the four unchanged production SQL files with DuckDB #evidence.duckdb_version. It requires no downloaded FIRMS archive and uses only Python's standard library plus the DuckDB CLI. Scenario names occupy the country field solely to isolate experiments.
 
-#todo[Execute `just pipeline benchmark-spatial` and populate Table 2 with observed quadrant-hour counts, MODIS/VIIRS point totals, co-detection pixel ratios ($N_"VIIRS" / N_"MODIS"$), and mean FRP per anomaly class A–E.]
+All 810 native record tuples were preserved, with #evidence.native_mismatches mismatches in country, coordinates, UTC time, instrument, satellite, and native FRP. The remaining constructed attributes are placeholders; this is not a complete quality assessment of FIRMS metadata.
 
-#table(
-  columns: (auto, auto, auto, auto),
-  align: (left, right, right, right),
-  table.header([Anomaly Class], [Quadrant-Hours], [MODIS Pts], [VIIRS Pts]),
-  [A: Simultaneous Co-Detection], [#todo[N]], [#todo[N]], [#todo[N]],
-  [B: VIIRS Afternoon Solo], [#todo[N]], [0], [#todo[N]],
-  [C: Terra Morning Solo], [#todo[N]], [#todo[N]], [0],
-  [D: VIIRS Night/Off-Cycle], [#todo[N]], [0], [#todo[N]],
-  [E: MODIS Other Solo], [#todo[N]], [#todo[N]], [0],
+#figure(
+  table(
+    columns: (66%, 17%, 17%),
+    align: (left, right, right),
+    table.header([Constructed scenario], [Rows], [Index]),
+    [Same location; 18:31 / 18:33], [2], [1.00],
+    [Same location; 18:59 / 19:01], [2], [7.12],
+    [Spatial boundary; 0.218 m apart], [2], [7.12],
+    [MODIS plus two VIIRS platforms], [3], [2.00],
+    [100 groups; one VIIRS platform], [300], [200.00],
+    [Same activity; two VIIRS platforms], [500], [400.00],
+    [VIIRS with missing FRP], [1], [1.00],
+  ),
+  caption: [Observed software behavior on synthetic inputs. Outputs reproduce known limitations; they do not establish real-world accuracy.],
 )
-#v(0.3em)
 
-== Pipeline, PostGIS Ingestion, and Backend Verification
+For the first three cases, there are fewer than 100 co-occurrence groups, so isolated afternoon MODIS receives the fallback 6.12. Crossing a time or spatial boundary therefore changes the index from 1 to $6.12+1=7.12$. The extremely short spatial separation is a constructed mathematical boundary case, not a claim about satellite geolocation precision.
 
-Pure DuckDB SQL spatio-temporal grid clustering (`sql/cluster_hotspots.sql`, $0.009 degree$ cell, $24 "h"$ slot) across the full `data/raw/**/*.parquet` archive (`2000-11-01 02:31:00` to `2025-12-31 19:30:00`) produced `fire_clusters.parquet` (`16.5 MB`, `570,387` clusters) and `cluster_hotspots.parquet` (`25.0 MB`, `809,149` hotspots; global average FRP `12.0 MW`, maximum FRP `3,041.7 MW`). PostGIS loading via `sql/load_clusters.sql` (`just pipeline db-load-clusters` and `db-load-nicaragua`) ingested `570,387` `firecluster` rows in `3.515 s`, `809,149` `clusterhotspots` rows in `9.881 s`, and `809,149` `fact_hotspots` rows (`6` `dim_country`, `4` `dim_platform`) in `32.795 s`.
+In the calibration experiments, each of 100 MODIS records has two VIIRS pixels per platform at the same afternoon observation. Adding a second platform reproduces the same simulated signal. The morning, afternoon, and FRP factors change from 2.00 to 4.00. This demonstrates sensitivity to the number of pooled observing platforms.
 
-In `apps/backend`, static type checking with `basedpyright` passes with `0 errors, 0 warnings, 0 notes` across the analytics, repository, schema, service, and API modules (including `api/fire_cluster_forecast.py`, `DashboardRepository.py`, `DashboardAnalytics.py`, `api/dashboard.py`, `FireCalendarRepository.py`, `FireCalendarService.py`, and `api/fire_calendar.py`), and the full backend `pytest` unit/API suite passes (`26 passed in 5.96s` across `test_clustering.py`, `test_movement.py`, `test_weather.py`, `test_predictor.py`, `test_api_analysis.py`, `test_dashboard.py`, and `test_fire_calendar.py`).
+The missing-FRP case preserves native null but outputs derived FRP 0.00. This documents the current missing-data policy; it does not establish that the physical radiative power was zero.
 
-#todo[Record DuckDB execution times for `just pipeline fuse-data` and `just pipeline normalize-data`, as well as frontend MapLibre GL JS rendering frame rates on 5,000+ points.]
+== What the checks establish
+
+The software can execute its documented transformations, preserve the tested native fields, and reproduce the reported boundary and sampling effects. Source hashes, machine-readable results, and reproduction instructions accompany the report.
+
+No accuracy, precision, recall, uncertainty interval, or real-data cross-sensor bias reduction has yet been measured for this prototype. The former Argentina benchmark placeholder and references to absent benchmark files have been removed. Backend unit tests and successful PDF compilation are not substituted for scientific validation.

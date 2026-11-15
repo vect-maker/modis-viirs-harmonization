@@ -1,136 +1,112 @@
-#import "../template.typ": todo
+= Implemented Method
 
-= Methods
+== Inputs and schema alignment
 
-== Data Ingestion and Metadata Orchestration
+The source is a Silver Parquet table with country, native coordinates, UTC acquisition time, satellite, instrument, brightness temperatures, confidence, FRP, pixel scan/track dimensions, day/night flag, version, and anomaly type.
 
-We access NASA FIRMS country-level yearly archive files (`modis`, `viirs-snpp`, `viirs-jpss1`) via the FIRMS API (`https://firms.modaps.eosdis.nasa.gov/api`). Pipeline state is tracked in a local SQLite database (`data/pipeline.db`) using the `ArchiveFile` SQLModel table, which records remote file attributes (`filename`, `instrument`, `year`, `country`, `remote_subpath`, `remote_size`), download state (`status`, `download_attempts`, `local_path`), and ingestion status.
+The fusion SQL renames MODIS brightness and VIIRS I4 to a shared MIR column, and MODIS band 31 and VIIRS I5 to a shared TIR column. Shared names do not make the spectral measurements identical. VIIRS confidence categories are mapped to numeric codes 20, 50, and 90 for storage; these codes are not calibrated detection probabilities or demonstrated equivalents of MODIS confidence. The weighting stages do not currently restrict anomaly type or confidence. A vegetation-fire study must define these filters explicitly @firmsmodis @firmsviirs.
 
-*Ingestion Features:*
-+ *Quota-Aware Async Fetching:* `pipeline/fetcher.py` queries `/mapserver/mapkey_status/` before downloading and streams CSV payloads over HTTP/2 via `httpx2.AsyncClient`.
-+ *Strict Type Parsing & Atomic Storage:* Raw CSVs are parsed with explicit `CSV_DTYPES` (`acq_time`, `version`, `confidence`, `satellite`, `instrument`, `daynight` as strings; `type` as `Int64`) and written atomically as Parquet files partitioned by `data/raw/{instrument}/{year}/{country}.parquet`.
+== Local solar time and candidate cells
 
-== Silver-Layer Sensor Fusion
+Let $h$ and $m$ be UTC acquisition hour and minute, and $lambda$ longitude in degrees, positive eastward. The code calculates:
+$ h_s = h + m/60 + lambda/15 $ <eq:solar-hour>
+$ "LST" = ((h_s " mod " 24) + 24) " mod " 24 $
 
-`sql/fuse_datasets.sql` executes in DuckDB (configured with `max_memory = '10GB'`, `threads = 8`, `preserve_insertion_order = false`) to consolidate all `completed` archive files into a unified Silver dataset (`data/processed/hotspots.parquet`, ZSTD-compressed).
-
-#text(size: 8.5pt)[
-  #table(
-    columns: (30%, 35%, 35%),
-    align: (left, left, left),
-    table.header([Column], [MODIS Mapping], [VIIRS Mapping]),
-    [`bright_mir`], [`brightness`], [`bright_ti4`],
-    [`bright_tir`], [`bright_t31`], [`bright_ti5`],
-    [`acq_datetime`], [`strptime(acq_date || ' ' || acq_time, '%Y-%m-%d %H%M')`], [Same],
-    [`satellite`], [`Terra` / `Aqua`], [`N` $->$ `Suomi-NPP`, `N20` $->$ `NOAA-20`, `N21` $->$ `NOAA-21`],
-    [`confidence`], [`try_cast(confidence AS INT)`], [`l` $->$ `20`, `n` $->$ `50`, `h` $->$ `90`],
-    [`confidence_class`], [`<30` $->$ `l`, `<80` $->$ `n`, `>=80` $->$ `h`], [`lower(confidence)`],
-  )
-]
-#v(0.3em)
-
-== Gold-Layer Star Schema and Deterministic Identity
-
-To prevent duplicate hotspot ingestion across overlapping archive updates and support relational/GIS queries in PostGIS, `sql/normalize_star_schema.sql` and `sql/schema.sql` normalize the Silver dataset into a Star Schema using RFC 4122 UUIDv5 keys seeded with the DNS namespace for `firms.nasa.gov` (`98b00dc4-63e7-5855-bfed-2cdc66170e68`):
-
-- *`dim_country`:* `firms_uuid5('country:' || lower(trim(country)))`.
-- *`dim_platform`:* `firms_uuid5('platform:' || lower(trim(satellite)) || ':' || lower(trim(instrument)))`.
-- *`fact_hotspots`:* Keyed on `'detection:' || round(latitude, 5) || ':' || round(longitude, 5) || ':' || strftime(acq_datetime, '%Y-%m-%dT%H:%M:%S') || ':' || lower(trim(satellite)) || ':' || lower(trim(instrument))`.
-
-In PostGIS (`sql/schema.sql`), `fact_hotspots` stores `geom GEOMETRY(Point, 4326)` indexed with a GIST spatial index (`idx_fact_hotspots_geom`), B-tree indexes on `acq_datetime`, `(country_id, acq_datetime)`, and `platform_id`, plus a backward-compatible `hotspots` view joining all three tables. Alongside the Star Schema, `sql/schema.sql` defines relational tables for cluster-level fire tracking and meteorological linkage: `firecluster` (using the `clusterstatus` enum), `clusterhotspots`, and `environmentalrecord`.
-
-For full-archive spatial grouping prior to relational loading, `sql/cluster_hotspots.sql` executes a pure DuckDB SQL spatio-temporal grid clustering pass over `data/raw/**/*.parquet` using an approximate $1 "km"$ spatial cell ($0.009 degree$) and a $24 "h"$ temporal slot (`FLOOR(EPOCH(acq_datetime) / 86400.0)`), writing `fire_clusters.parquet` and `cluster_hotspots.parquet`. The `sql/load_clusters.sql` script and `justfile` (`db-load-clusters`, `db-load-nicaragua`) stream these Parquet outputs into PostGIS. Direction and speed expansion estimates (`dirExpansion`, `veloExpansion`) are decoupled from the ETL pipeline into a backend-only `FireClusterForecast` model (`apps/backend/model/FireClusterForecast.py`) and `FireForecastService.py` (invoked via `POST /fire-cluster-forecasts/calculate` using `fireClusterId` to query stored cluster hotspots).
-
-== Multi-Stage Spatio-Temporal Harmonization Pipeline
-
-To eliminate the sensor-transition discontinuity without discarding native point-grain coordinates, timestamps, or raw radiative energy measurements, `apps/pipeline/sql/harmonize/` executes a 4-stage out-of-core DuckDB SQL harmonization pipeline (`01_base_points.sql` through `04_harmonize_points.sql`), invoked via `just pipeline harmonize-data`:
-
-+ *Stage 1: Base Point Enrichment & Local Solar Time (`01_base_points.sql`):*
-  Because sun-synchronous orbital overpasses occur at constant local solar times ($"LST"$) rather than constant UTC, timestamps are transformed using the point longitude $lambda$:
-  $ "LST" = ((( "hour"(t) + "minute"(t)/60.0 + lambda/15.0 ) mod 24.0) + 24.0) mod 24.0 $ <eq:solar-hour>
-  Points are discretized into isotropic $~2.2 "km"$ quadrants using latitude-cosine meridian convergence correction ($"lat"_q = "round"(phi / 0.02) dot 0.02$, $"lon"_q = "round"((lambda dot cos("radians"(phi))) / 0.02) dot 0.02$) and 1-hour temporal bins ($"hour\_window" = "date\_trunc"("hour", t)$). Hours are partitioned into five orbital overpass regimes:
-  - `MORNING_TERRA`: $8.5 <= "LST" < 12.0$ (Terra morning pass $~10:30$ LST);
-  - `AFTERNOON_AQUA_VIIRS`: $12.0 <= "LST" < 16.0$ (Aqua $~13:30$ and VIIRS $~13:20–13:30$ LST);
-  - `NIGHT_TERRA`: $20.0 <= "LST" < 23.5$ (Terra descending pass $~22:30$ LST);
-  - `NIGHT_DAWN_AQUA_VIIRS`: $23.5 <= "LST" <= 24.0$ or $0.0 <= "LST" < 4.0$ (Aqua / VIIRS night passes);
-  - `OFF_CYCLE`: other off-cycle or drifting overpasses.
-
-+ *Stage 2: Quadrant-Hourly Co-Occurrence Aggregation (`02_quadrant_hourly.sql`):*
-  Detections are aggregated by `(country, lat_q, lon_q, hour_window)` to tabulate `modis_in_cluster`, `viirs_in_cluster`, `modis_frp_sum`, and `viirs_frp_sum`.
-
-+ *Stage 3: Empirical Per-Country Calibration (`03_country_calibration.sql`):*
-  Across the concurrent overlap era ($"year" >= 2012$), national calibration factors are derived from simultaneous co-detections (Class A: `modis_in_cluster > 0` and `viirs_in_cluster > 0`) and regime totals:
-  $ "raw\_pixel\_ratio" = (sum "viirs\_in\_cluster") / (sum "modis\_in\_cluster"), quad "raw\_frp\_ratio" = (sum "viirs\_frp\_sum") / (sum "modis\_frp\_sum") $ <eq:calibration-ratios>
-  To ensure statistical significance, countries with $>= 100$ Class A clusters receive clamped empirical factors:
-  - $f_"morning" = "round"("clamp"("raw\_pixel\_ratio", 1.0, 10.0), 2)$ (fallback: $2.20$);
-  - $f_"afternoon" = "round"("clamp"("raw\_afternoon\_ratio", 1.0, 20.0), 2)$ (fallback: $6.12$);
-  - $f_"night" = "round"("clamp"("raw\_night\_ratio", 1.0, 15.0), 2)$ (fallback: $4.50$);
-  - $f_"frp" = "round"("clamp"("raw\_frp\_ratio", 0.5, 5.0), 2)$ (fallback: $1.14$).
-
-+ *Stage 4: Point-Level Taxonomy, Weighting, and Calibrated FRP (`04_harmonize_points.sql`):*
-  Every original detection is classified into one of six physical regimes and receives a VIIRS-equivalent weight $w_i$ and calibrated $"FRP"_"harm"$:
-  $ w_i = cases(
-    1.00 & "if" "VIIRS" quad ("VIIRS\_PRESERVED"),
-    0.00 & "if MODIS and" "viirs\_in\_cluster" > 0 quad ("MODIS\_REDUNDANT\_CODETECTION"),
-    f_"morning" & "if MODIS and" "overpass\_window" = "MORNING\_TERRA" quad ("MODIS\_UNIQUE\_MORNING"),
-    f_"afternoon" & "if MODIS and" "overpass\_window" = "AFTERNOON\_AQUA\_VIIRS" quad ("MODIS\_SOLO\_AFTERNOON"),
-    cases(
-      f_"morning" & "if morning",
-      f_"afternoon" & "if afternoon",
-      f_"night" & "otherwise"
-    ) & "if MODIS and" "year" < 2012 quad ("MODIS\_HISTORICAL\_PRE\_2012"),
-    f_"night" & "otherwise" quad ("MODIS\_SOLO\_OTHER")
-  ) $ <eq:weight>
-
-  Calibrated FRP is assigned as:
-  $ "FRP"_"harm" = cases(
-    "FRP"_"native" & "if" "VIIRS",
-    0.00 & "if MODIS and" "viirs\_in\_cluster" > 0,
-    "round"("FRP"_"native" dot f_"frp", 2) & "otherwise"
-  ) $ <eq:frp-harm>
-
-  This design prevents duplicate fire counts during the 2012–2025 overlap era, captures Terra's exclusive morning diurnal signal, and scales pre-2012 MODIS counts and radiative power to VIIRS 375 m equivalence. Outputs are saved to `data/processed/hotspots_harmonized.parquet` and normalized into `fact_hotspots` in PostGIS.
-
-== Interactive Burning Activity Calendar Frontend
-
-The web application (`apps/frontend`) separates presentational components (`components/common/`, `components/ui/`) from Pinia-connected container components (`components/features/`, `components/map/`):
-
-- *Spatial Map & ROI Selection:* `FireMap.vue` initializes MapLibre GL JS with a custom WebGL worker, NASA GIBS (MODIS Terra / VIIRS SNPP True Color) and Esri World Imagery basemaps, and `@mapbox/mapbox-gl-draw` + `@turf/turf` to compute exact ROI area ($"km"^2$) and filter hotspots in real time.
-- *Burning Activity Calendar:* `HistoricalCalendar.vue` and `BurningCalendar.vue` render a year-by-month matrix (`2000`–`2025`) with sensor toggling (`All` / `MODIS` / `VIIRS`). Cell colors use a 5-step colorblind-safe logarithmic Thermal Inferno scale (`#2D1E3E` to `#FFE066`, with `#1F2730` for zero detections and transparent for missing/unverified coverage):
-$ "level" = min(4, floor((ln(1 + c) / ln(1 + max(1, c_max))) dot 5)) $ <eq:logscale>
-- *Daily Timeline & CSV Export:* `hotspotActivity.ts` aggregates detections per UTC day over the selected range, and `hotspotCsv.ts` exports filtered subsets as RFC-4180 CSV (`acq_datetime_utc`, `latitude`, `longitude`, `instrument`, `satellite`, `confidence_class`, `confidence`, `frp`, `bright_mir`, `daynight`).
-
-== Backend Wildfire Spread Analytics and Predictive Modeling (`apps/backend`)
-
-To serve live PostGIS queries and analyze fire propagation without loading large Pandas DataFrames into memory, `apps/backend` exposes paginated REST endpoints (`limit`, `offset`) across all core tables and views (`/hotspots/`, `/weather/`, `/clusters/`, `/clusters/{cluster_id}`, `/cluster-hotspots/`, `/environmental-records/`, `/countries/`, `/platforms/`, `/fact-hotspots/`, `/fire-cluster-forecasts/`), paired with a NumPy- and Scikit-learn-based analytics pipeline (`apps/backend/analytics/`) accessible via `/analysis/cluster-movement`, `/analysis/weather-correlation`, and `/analysis/predict`:
-
-+ *Array-Based Preprocessing (`HotspotProcessor.py`):* Validates coordinates, timestamps, and FRP values from batched `HotspotRepository.iter_hotspots_filtered(...)` streams into `PreparedHotspots` (`float64` arrays and precomputed `coords_rad` in radians).
-+ *Spatio-Temporal Clustering (`FireClusterer.py`):* Applies Scikit-learn `DBSCAN(metric="haversine", algorithm="ball_tree")` and `BallTree` spatial indexing over radian coordinates, paired with a dynamic temporal window (`time_window_hours = 24.0`, extending in `window_extension_hours = 12.0` increments up to `max_time_window_hours = 72.0` for confirmed fires reaching `min_samples`) while flagging isolated detections as noise (`-1`).
-+ *Movement & Bearing Analysis (`FireMovementAnalyzer.py`):* Groups detections into configurable `interval_hours` bins, computes interval centroids, tracks gaps (`empty_intervals_before`), and calculates Haversine displacement, forward geographic bearing ($theta = "atan2"(y, x)$ mapped to $[0 degree, 360 degree)$ and 8 cardinal sectors), apparent centroid velocity ($"km/h"$, explicitly distinguished from physical flame-front speed), accumulated FRP, and direction-change flags (`direction_changed`).
-+ *Meteorological Vector Integration (`WeatherDataClient.py`, `RequestWeather.py`, `WeatherAnalyzer.py`):* Queries NASA POWER daily parameters (`T2M`, `RH2M`, `WS10M`, `WD10M`, `PRECTOTCORR`), sanitizes `-999` sentinel values to `None` without fabricating missing records, converts meteorological "from" wind directions via $("wd" + 180 degree) mod 360 degree$ into displacement vector components ($u = V sin(theta)$, $v = V cos(theta)$), and evaluates wind–fire cosine alignment.
-+ *Displacement Prediction (`FirePredictor.py`):* Trains a multi-output `RandomForestRegressor` predicting future eastward (`east_km`) and northward (`north_km`) centroid displacements from 10 historical predictors (latitude, longitude, FRP, hotspot count, wind speed, $u$, $v$, relative humidity, temperature, and prior displacement velocity). Models enforce a minimum sample threshold (`min_training_samples = 20`), use chronological fire-grouped splits to prevent future data leakage, reconstruct predicted bearing and distance, and report MAE, RMSE, $R^2$, mean angular error (degrees), and `feature_importances_`.
-+ *SQL-First Dashboard & Chart Endpoints (`DashboardRepository.py`, `DashboardAnalytics.py`, `api/dashboard.py`):* Replaces heavy `pandas`/`geopandas`/`statsmodels` exploratory scripts with SQLModel/SQLAlchemy pushdown aggregations and NumPy/Scikit-learn analytics across 7 `/dashboard/*` endpoints:
-  - `/dashboard/confidence-dbscan`: Maps `confidence` (`l -> 15`, `n -> 50`, `h -> high_value`) and aggregates unique value counts in SQL before running `DBSCAN`.
-  - `/dashboard/correlations`: Computes Pearson $r$, $R^2$, $n$, mean, and standard deviation directly in SQL across `frp`, `confidence`, `bright_tir`, and `bright_mir`.
-  - `/dashboard/annual-stats`: Computes per-year `count`, `sum`, `mean`, `std`, `min`, `p25`, `median`, `p75`, `p90`, `iqr`, and `max` (using `PERCENTILE_CONT` in PostgreSQL).
-  - `/dashboard/spatial-density`: Bins detections into `cell_size_deg` spatial grid cells in SQL (`count`, `sum_frp`, `avg_frp`, `max_frp`) plus cell-count descriptive statistics.
-  - `/dashboard/monthly-comparison`: Compares a target year against the historic monthly baseline (`mean`, `median`, `std`, `p25`, `p75`, `anomaly_abs`, `anomaly_pct`, `z_score`).
-  - `/dashboard/spatial-anomalies`: Runs `IsolationForest` over `(latitude, longitude)` NumPy arrays returning anomaly counts, score statistics, and prioritized outlier points.
-  - `/dashboard/monthly-forecast`: Trains a seasonal autoregressive `Ridge` model (lags 1, 2, 12, seasonal harmonics, and trend) on SQL-aggregated monthly series with 80%/95% prediction intervals and `MAE`, `MSE`, `RMSE`, `MAPE`, `SMAPE`, `R^2`, and `MBE`.
-+ *Fire Calendar Aggregation (`FireCalendarRepository.py`, `FireCalendarService.py`, `api/fire_calendar.py`):* Exposes `GET /fire-calendar` with strict Pydantic validation (`FireCalendarQuery`: `year`, `month`, `start_date`, `end_date`, `country`, `min_confidence`, `confidence_class`, `satellite`, `instrument`, `daynight`, `min_frp`, `max_frp`, `cluster_id`, `aggregation` in `{day, week, month}`). Applies filters prior to PostgreSQL `DATE_TRUNC` grouping, tracks `new_fires` and `active_fires` from `FireCluster` lifespans (`datetimeStart`, `datetimeEnd`), and zero-fills intervals without detections.
+Here 60 converts minutes to hours; 15 follows from 360 degrees per 24 hours. The result is a longitude-based local mean solar-hour approximation, not civil time or an exact apparent-solar-time solution. The code does not use a solar-time-shifted date for grouping.
 
 #figure(
   table(
-    columns: 4,
-    table.header([*Module*], [*Statistical / ML Model*], [*Inputs & Features*], [*Outputs & Evaluation Metrics*]),
-    [`FireClusterer`], [DBSCAN (`haversine`, `ball_tree`) + dynamic window ($24–72 "h"$)], [Radians `(lat, lon)`, `acq_datetime`], [Cluster labels, noise (`-1`)],
-    [`DashboardRepository` / `dbscan`], [SQL `GROUP BY` + 1D `DBSCAN`], [Unique mapped `confidence` (`l/n/h`, int)], [Anomaly counts & percentages],
-    [`DashboardRepository` / `corr`], [SQL Pearson $r$ & $R^2$], [`frp`, `confidence`, `bright_tir`, `bright_mir`], [$r$, $R^2$, $n$, mean, std],
-    [`DashboardRepository` / `annual`], [SQL `PERCENTILE_CONT` & moments], [`frp`, `confidence`, `bright_tir`, `bright_mir`], [Count, sum, mean, std, `P25/P50/P75/P90`, `IQR`],
-    [`DashboardAnalytics` / `iforest`], [`IsolationForest` (`n_estimators = 300`)], [`(latitude, longitude)`], [Outlier flags (`-1`/`1`), `decision_function` stats],
-    [`DashboardAnalytics` / `forecast`], [Seasonal AR `Ridge` (lags 1, 2, 12 + harmonics)], [SQL monthly hotspot counts], [80%/95% PI, `MAE`, `MSE`, `RMSE`, `MAPE`, `SMAPE`, $R^2$, `MBE`],
-    [`FirePredictor`], [Multi-output `RandomForestRegressor`], [10 historical & NASA POWER wind/weather features], [`east_km`, `north_km`, `MAE`, `RMSE`, $R^2$, angular error],
-    [`FireCalendarService`], [SQL `DATE_TRUNC` + cluster overlap], [`hotspots`, `firecluster`], [`hotspot_count`, `new_fires`, `active_fires`, FRP & day/night],
+    columns: (48%, 52%),
+    table.header([Window label], [Solar-hour interval]),
+    [Morning], [08:30 to before 12:00],
+    [Afternoon], [12:00 to before 16:00],
+    [Terra-night label], [20:00 to before 23:30],
+    [Dawn/night label], [23:30 to 24:00; 00:00 to before 04:00],
+    [Off-cycle], [All remaining hours],
   ),
-  caption: [Summary of statistical and machine-learning models implemented in `apps/backend`.],
-) <tab:backend-models>
+  caption: [Project-selected windows. Labels describe time bins; they do not identify the satellite or prove simultaneous observation.],
+)
+
+With latitude $phi$ and a project-selected angular step $d=0.02 degree$, spatial keys are:
+$ y_q = d "round"(phi/d) $ <eq:grid-lat>
+$ x_q = d "round"((lambda cos(phi))/d) $ <eq:grid-lon>
+
+The SQL converts latitude to radians before evaluating cosine. A 0.02-degree latitude step is about 2.2 km. The longitude transformation is an approximate indexing rule; it is not a validated equal-distance or equal-area projection. Neighboring detections can fall on opposite cell boundaries. Pixel footprint dimensions are retained but not used in this matching rule.
+
+Acquisition time is truncated to the UTC hour. The key is country, $y_q$, $x_q$, and truncated hour. Thus 18:59 and 19:01 are separated despite being only two minutes apart.
+
+== Co-occurrence and country ratios
+
+For each key $q$, define $M_q$ and $V_q$ as MODIS and VIIRS record counts. A candidate co-occurrence belongs to set $A$ when both counts are positive. This is a bin-level association, not a verified physical duplicate.
+
+For records from 2012 onward, the implementation calculates:
+$ r_c = (sum_(q in A) V_q)/(sum_(q in A) M_q) $ <eq:pixel-ratio>
+$ r_p = (sum_(q in A) P_(V,q))/(sum_(q in A) P_(M,q)) $ <eq:frp-ratio>
+
+$P_(V,q)$ and $P_(M,q)$ are sums of recorded FRP values, with missing values treated as zero by the current SQL. In addition:
+$ r_a = N_(V,a)/N_(M,a), quad r_n = N_(V,n)/N_(M,n) $ <eq:regime-ratios>
+
+The subscript $a$ denotes afternoon totals; $n$ combines both night windows and off-cycle observations. These totals do not require spatially matched observations. All VIIRS platforms are pooled.
+
+The code uses $r_c$ for the morning factor even though $A$ is not restricted to morning observations. Transfer of that relationship to Terra morning observations is an untested assumption.
+
+== Parameter selection
+
+When at least 100 candidate co-occurrence groups exist for a country and the required ratio is defined, factors are computed with:
+$ f = "round"(max(l,min(r,u)),2) $ <eq:clamp>
+
+Here $l$ and $u$ are bounds; 2 is the number of decimal places. Undefined ratios or insufficient groups invoke the following fallbacks.
+
+#figure(
+  table(
+    columns: (18%, 22%, 30%, 30%),
+    align: (left, center, center, center),
+    table.header([Factor], [Ratio], [Bounds], [Fallback]),
+    [$f_m$], [$r_c$], [1 to 10], [2.20],
+    [$f_a$], [$r_a$], [1 to 20], [6.12],
+    [$f_n$], [$r_n$], [1 to 15], [4.50],
+    [$f_p$], [$r_p$], [0.5 to 5], [1.14],
+  ),
+  caption: [Implemented project parameters. Published empirical derivations of these fallback values were not found.],
+)
+
+The threshold 100 is a minimum-sample heuristic; it is not a statistical significance test. No confidence intervals, effective sample sizes, or uncertainty propagation are currently produced. Clipping bounds and two-decimal rounding are engineering choices, not validation results. Unsupported regional or physical interpretations of the fallback values are not asserted.
+
+== Point weights and the monthly index
+
+Let $C_i=1$ when a MODIS record shares its candidate key with at least one VIIRS record, and $C_i=0$ otherwise. The actual weighting rule is:
+$ w_i = cases(
+  1 & i in V,
+  0 & i in M " and " C_i=1,
+  f_m & i in M " in morning",
+  f_a & i in M " in afternoon",
+  f_n & "remaining MODIS"
+) $ <eq:weight>
+
+The morning and afternoon branches apply after the co-occurrence branch. Six stored categories distinguish VIIRS-preserved, MODIS-suppressed, unique-morning MODIS, historical MODIS, afternoon-only MODIS, and other MODIS records. The historical label does not introduce a separate historical coefficient: the same time-window factors apply before 2012. The morning category takes precedence over the historical category in the SQL.
+
+For month $t$, the experimental activity index is:
+$ A_t = sum_(i in t) w_i $ <eq:activity>
+
+This sum does not create additional point locations. Fractional units are weighted contributions, not independently counted fires, hectares, or a demonstrated reconstruction of missing VIIRS observations.
+
+== Derived FRP and interpretation
+
+With native FRP $P_i$, the derived field follows:
+$ P_i^* = cases(
+  P_i & i in V,
+  0 & i in M " and " C_i=1,
+  "round"(P_i f_p,2) & "other MODIS"
+) $ <eq:frp-harm>
+
+The actual SQL replaces missing native FRP with zero in this derived field, while retaining the native nullable field. Missing retrievals and measured zero power must remain distinguishable in downstream interpretation.
+
+NASA's Collection 2 guide describes a hybrid retrieval using VIIRS I-band detections and M13 radiance; co-located 375 m detections share fractional FRP from the underlying retrieval @viirsguide2024. A smaller mean FRP per VIIRS record therefore does not by itself imply lower physical fire intensity.
+
+A monthly sum of $P_i^*$ is an observation-summed power statistic. Energy requires time integration, for example $E=integral P(t) dif t$, together with assumptions about the intervals not observed. Neither energy nor burned area is estimated here.
+
+== Current application integration
+
+The export SQL computes the experimental index and derived FRP alongside raw counts. Its processing flag is set by the export command, not by an independent validation gate.
+
+The bundled JSON remains explicitly unharmonized, and the frontend calendar reads raw total or sensor-specific counts. The backend fire-calendar aggregation also uses raw counts and FRP. The weighted workflow is implemented in the pipeline but is not the metric currently displayed by this demonstration calendar.

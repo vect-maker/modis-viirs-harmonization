@@ -1,0 +1,123 @@
+{
+  "status": "synthetic_behavior_verified",
+  "scientific_validation": false,
+  "synthetic_records": 810,
+  "native_mismatches": 0,
+  "duckdb_version": "v1.5.6",
+  "sql_sha256": {
+    "01_base_points.sql": "31f0dce84979f503e68ff964e54d8858809f416bebf7f68a4f623227bb22e5a3",
+    "02_quadrant_hourly.sql": "25658c9b8711f2f729a07b32e721b328717de64a4e57720eca3772bb43ebbb45",
+    "03_country_calibration.sql": "e53319c73bb076e36c524a4330e8766bf26e825e99ba33e5036b0b94763bc1ad",
+    "04_harmonize_points.sql": "87654dd6385eb3ec900ae543c8e55c2d466e8b6eeaa818a028a6cd5da5981400"
+  },
+  "scenarios": [
+    {
+      "scenario": "hour_boundary",
+      "records": "2",
+      "activity": "7.12",
+      "suppressed_modis": "0"
+    },
+    {
+      "scenario": "multiple_viirs",
+      "records": "3",
+      "activity": "2.0",
+      "suppressed_modis": "1"
+    },
+    {
+      "scenario": "null_frp",
+      "records": "1",
+      "activity": "1.0",
+      "suppressed_modis": "0"
+    },
+    {
+      "scenario": "one_viirs",
+      "records": "300",
+      "activity": "200.0",
+      "suppressed_modis": "100"
+    },
+    {
+      "scenario": "same_hour",
+      "records": "2",
+      "activity": "1.0",
+      "suppressed_modis": "1"
+    },
+    {
+      "scenario": "spatial_boundary",
+      "records": "2",
+      "activity": "7.12",
+      "suppressed_modis": "0"
+    },
+    {
+      "scenario": "two_viirs",
+      "records": "500",
+      "activity": "400.0",
+      "suppressed_modis": "100"
+    }
+  ],
+  "calibration": [
+    {
+      "country": "one_viirs",
+      "f_morning": "2.0",
+      "f_afternoon": "2.0",
+      "f_night": "4.5",
+      "f_frp": "2.0"
+    },
+    {
+      "country": "two_viirs",
+      "f_morning": "4.0",
+      "f_afternoon": "4.0",
+      "f_night": "4.5",
+      "f_frp": "4.0"
+    }
+  ],
+  "null_frp": {
+    "native_is_null": "true",
+    "derived_frp": "0.0"
+  },
+  "spatial_separation_m": 0.21777478182737448,
+  "archive": {
+    "country": "Nicaragua",
+    "harmonized": false,
+    "coverageVerified": false,
+    "totalRecords": 800480,
+    "firstDetection": "2000-11-01",
+    "lastDetection": "2025-12-31"
+  },
+  "april": [
+    {
+      "year": 2005,
+      "total": 5074,
+      "modisCount": 5074,
+      "viirsCount": null,
+      "avgFrp": 31.09
+    },
+    {
+      "year": 2011,
+      "total": 2419,
+      "modisCount": 2419,
+      "viirsCount": null,
+      "avgFrp": 32.92
+    },
+    {
+      "year": 2012,
+      "total": 9133,
+      "modisCount": 1169,
+      "viirsCount": 7964,
+      "avgFrp": 11.19
+    },
+    {
+      "year": 2018,
+      "total": 33905,
+      "modisCount": 2318,
+      "viirsCount": 31587,
+      "avgFrp": 10.32
+    },
+    {
+      "year": 2020,
+      "total": 49025,
+      "modisCount": 3660,
+      "viirsCount": 45365,
+      "avgFrp": 10.64
+    }
+  ]
+}
