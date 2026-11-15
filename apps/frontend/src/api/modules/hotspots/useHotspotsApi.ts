@@ -29,6 +29,9 @@ function buildHotspotQueryString(params?: HotspotFiltersRequest): string {
   if (params?.end_date) {
     queryParams.append("end_date", params.end_date);
   }
+  if (params?.polygon) {
+    queryParams.append("polygon", JSON.stringify(params.polygon));
+  }
   const qs = queryParams.toString();
   return qs ? `?${qs}` : "";
 }
@@ -66,6 +69,7 @@ export const useHotspotsApi = () => {
     if (validated?.start_date) queryParams.append("start_date", validated.start_date);
     if (validated?.end_date) queryParams.append("end_date", validated.end_date);
     if (validated?.instrument) queryParams.append("instrument", validated.instrument);
+    if (validated?.polygon) queryParams.append("polygon", JSON.stringify(validated.polygon));
     const qs = queryParams.toString();
     const endpoint = `/hotspots/daily-activity${qs ? `?${qs}` : ""}`;
 

@@ -9,6 +9,7 @@ import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import * as turf from '@turf/turf'
 import type { Feature, Point, Polygon } from 'geojson'
+import { GeoJSONPolygonSchema } from 'zod-geojson'
 
 import type { HotspotResponse } from '@/api'
 import { storeToRefs } from 'pinia'
@@ -68,7 +69,6 @@ const isDrawing = shallowRef(false)
 const filteredCount = computed(() => hotspotsStore.filteredHotspots.length)
 const activePopup = shallowRef<maplibregl.Popup | null>(null)
 
-const allHotspots = hotspotsStore.hotspots
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const reducedMotion = usePreferredReducedMotion()
 const spaceVisible = shallowRef(true)
@@ -168,8 +168,9 @@ function showGlobe() {
 
 function fitNicaragua() {
   const m = map.value
-  if (!m || !allHotspots.length) return
-  const [west, south, east, north] = turf.bbox(buildGeoJson(allHotspots))
+  const currentHotspots = hotspotsStore.hotspots
+  if (!m || !currentHotspots.length) return
+  const [west, south, east, north] = turf.bbox(buildGeoJson(currentHotspots))
   m.fitBounds(
     [
       [west, south],
@@ -244,17 +245,12 @@ function handleRoiUpdate() {
   }
 
   const polygon = drawnData.features[drawnData.features.length - 1] as Feature<Polygon>
+  const validatedPolygon = GeoJSONPolygonSchema.parse(polygon.geometry)
   const areaM2 = turf.area(polygon)
   const areaKm2 = Math.round((areaM2 / 1_000_000) * 100) / 100
   activeRoiArea.value = areaKm2
 
-  // Filter hotspots within polygon using Turf
-  const matching = allHotspots.filter((h) => {
-    const pt = turf.point([h.longitude, h.latitude])
-    return turf.booleanPointInPolygon(pt, polygon)
-  })
-
-  hotspotsStore.setAreaHotspots(matching)
+  void hotspotsStore.setSelectedPolygon(validatedPolygon)
 }
 
 function emitRoiChange() {
@@ -271,7 +267,7 @@ function clearRoi() {
 
   drawControl.deleteAll()
   activeRoiArea.value = null
-  hotspotsStore.setAreaHotspots(null)
+  void hotspotsStore.setSelectedPolygon(null)
 }
 
 onMounted(() => {

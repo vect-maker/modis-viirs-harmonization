@@ -18,7 +18,7 @@ async function exportCsv() {
   const filename = hotspotCsvFilename(
     store.dateRange ?? store.availableDates,
     store.selectedSensor,
-    store.areaHotspots !== null,
+    store.selectedPolygon !== null,
   )
   message.value = ''
   if (await download(rows, filename, store.platformsById, store.countriesById))

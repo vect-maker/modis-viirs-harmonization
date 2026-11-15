@@ -4,12 +4,14 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]",
+    "geojson-pydantic>=2.0.0",
     "httpx",
     "numpy",
     "pytest",
     "python-dotenv",
     "scikit-learn",
     "scipy",
+    "shapely>=2.0.0",
     "sqlmodel",
     "ruff",
     "basedpyright",

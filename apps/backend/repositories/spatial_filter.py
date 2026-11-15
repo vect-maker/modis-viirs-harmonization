@@ -1,8 +1,45 @@
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass
 from typing import Any
+
+from geojson_pydantic import MultiPolygon, Polygon
+from pydantic import TypeAdapter, ValidationError
+from shapely.geometry import shape
+
+_GEOJSON_POLYGON_ADAPTER: TypeAdapter[Polygon | MultiPolygon] = TypeAdapter(
+    Polygon | MultiPolygon
+)
+
+
+def parse_geojson_polygon_to_wkt(
+    raw_geojson: str | dict[str, Any] | None,
+) -> str | None:
+    """Validate a GeoJSON Polygon/MultiPolygon (RFC 7946) and return its WKT."""
+    if raw_geojson is None:
+        return None
+    if isinstance(raw_geojson, str):
+        stripped = raw_geojson.strip()
+        if not stripped:
+            return None
+        try:
+            payload: Any = json.loads(stripped)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Invalid GeoJSON JSON: {exc.msg}") from exc
+    else:
+        payload = raw_geojson
+
+    try:
+        geojson_geom = _GEOJSON_POLYGON_ADAPTER.validate_python(payload)
+    except ValidationError as exc:
+        raise ValueError(f"Invalid GeoJSON Polygon/MultiPolygon: {exc}") from exc
+
+    geom = shape(geojson_geom)
+    if geom.is_empty or not geom.is_valid:
+        raise ValueError("Invalid polygon geometry")
+    return geom.wkt
 
 
 @dataclass(slots=True)

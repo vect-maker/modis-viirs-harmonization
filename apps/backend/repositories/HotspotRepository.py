@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, overload
 
 from sqlalchemy import select as sa_select
+from sqlalchemy import text
 from sqlmodel import Session, col, func, select
 
 from model.Hotspots import Hotspots
@@ -17,6 +18,7 @@ from model.StarSchema import (
     HotspotPublic,
 )
 from repositories.pagination import paginate_statement
+from repositories.spatial_filter import SpatialAreaFilter, build_spatial_sql
 from schemas.pagination import PaginatedResponse, PaginationParams
 
 
@@ -114,6 +116,22 @@ class HotspotRepository:
             "type": hotspot.type,
         }
 
+    def _apply_polygon_filter(self, statement: Any, polygon_wkt: str | None) -> Any:
+        if not polygon_wkt:
+            return statement
+        bind = self.session.get_bind()
+        dialect = bind.dialect.name if bind is not None else "postgresql"
+        conds, params = build_spatial_sql(
+            SpatialAreaFilter(polygon_wkt=polygon_wkt),
+            dialect=dialect,
+            geom_col="fact_hotspots.geom",
+            lat_col="fact_hotspots.latitude",
+            lon_col="fact_hotspots.longitude",
+        )
+        for cond in conds:
+            statement = statement.where(text(cond).bindparams(**params))
+        return statement
+
     @overload
     def get_hotspots(
         self,
@@ -121,6 +139,7 @@ class HotspotRepository:
         *,
         start_date: date | None = None,
         end_date: date | None = None,
+        polygon_wkt: str | None = None,
     ) -> PaginatedResponse[HotspotPublic]: ...
 
     @overload
@@ -139,6 +158,7 @@ class HotspotRepository:
         *,
         start_date: date | None = None,
         end_date: date | None = None,
+        polygon_wkt: str | None = None,
         satellite_type: str | None = None,
         offset: int = 0,
         limit: int = 50,
@@ -155,6 +175,7 @@ class HotspotRepository:
                     col(FactHotspot.acq_datetime)
                     < datetime.combine(end_date + timedelta(days=1), time.min)
                 )
+            statement = self._apply_polygon_filter(statement, polygon_wkt)
             statement = statement.order_by(
                 col(FactHotspot.acq_datetime).desc(),
                 col(FactHotspot.id),
@@ -191,6 +212,7 @@ class HotspotRepository:
         start_date: date | None = None,
         end_date: date | None = None,
         instrument: str | None = None,
+        polygon_wkt: str | None = None,
     ) -> DailyActivityResponse:
         date_expr = func.date(col(FactHotspot.acq_datetime))
         count_expr = func.count(col(FactHotspot.id))
@@ -211,6 +233,7 @@ class HotspotRepository:
                 < datetime.combine(end_date + timedelta(days=1), time.min)
             )
 
+        statement = self._apply_polygon_filter(statement, polygon_wkt)
         statement = statement.group_by(date_expr).order_by(date_expr.asc())
         rows = self.session.exec(statement).all()
 

@@ -92,7 +92,8 @@ test('selecting a day changes map results but preserves timeline context', () =>
     store.dailyActivity.map((day) => day.count),
     [0, 1, 0],
   )
-  store.setAreaHotspots([])
+  const savedHotspots = [...store.hotspots]
+  store.hotspots = [detection('2024-05-23 23:59:59'), detection('2024-05-25 00:00:00')]
   assert.equal(store.stats.total, 0)
   assert.deepEqual(
     store.dailyActivity.map((day) => day.count),
@@ -101,7 +102,7 @@ test('selecting a day changes map results but preserves timeline context', () =>
   store.setDateRange(null)
   assert.equal(store.selectedSensor, 'VIIRS')
   assert.equal(store.stats.total, 0)
-  store.setAreaHotspots(null)
+  store.hotspots = savedHotspots
   assert.equal(store.stats.total, 1)
 })
 
@@ -237,7 +238,7 @@ test('CSV control disables export when the active query has no results', async (
   )
   const pinia = createPinia()
   const store = useHotspotsStore(pinia)
-  store.setAreaHotspots([])
+  store.hotspots = []
   const app = createSSRApp({ render: () => h(CsvExport) })
   app.use(pinia)
   const html = await renderToString(app)
@@ -344,6 +345,58 @@ test('fetchHotspots loads hotspots, platforms, and countries directly from the A
       id: countryId,
       name: 'Nicaragua',
     })
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('setSelectedPolygon sends GeoJSON polygon query param to hotspots and daily-activity endpoints', async () => {
+  const previousFetch = globalThis.fetch
+  const requestedUrls = []
+  globalThis.fetch = async (input) => {
+    const url = typeof input === 'string' ? input : input.url
+    requestedUrls.push(url)
+    if (url.includes('/hotspots/daily-activity')) {
+      return new Response(
+        JSON.stringify({
+          days: [{ date: '2024-05-31', count: 1 }],
+          min_date: '2024-05-31',
+          max_date: '2024-05-31',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    return new Response(
+      JSON.stringify({ data: [], total: 0, limit: 100, offset: 0, has_more: false }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  try {
+    const store = createStore()
+    const polygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [-86.5, 11.9],
+          [-85.9, 11.9],
+          [-85.9, 12.3],
+          [-86.5, 12.3],
+          [-86.5, 11.9],
+        ],
+      ],
+    }
+    await store.setSelectedPolygon(polygon)
+    const hotspotReq = requestedUrls.find(
+      (u) => u.includes('/hotspots?') && !u.includes('daily-activity'),
+    )
+    const dailyReq = requestedUrls.find((u) => u.includes('/hotspots/daily-activity?'))
+    assert(hotspotReq && new URL(hotspotReq, 'http://localhost').searchParams.get('polygon'))
+    assert(dailyReq && new URL(dailyReq, 'http://localhost').searchParams.get('polygon'))
+    assert.deepEqual(
+      JSON.parse(new URL(hotspotReq, 'http://localhost').searchParams.get('polygon')),
+      polygon,
+    )
   } finally {
     globalThis.fetch = previousFetch
   }

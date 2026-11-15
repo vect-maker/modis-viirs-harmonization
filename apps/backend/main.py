@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import date
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Query, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -30,6 +30,7 @@ from model.StarSchema import (
 from repositories.CountryRepository import CountryRepository
 from repositories.HotspotRepository import HotspotRepository
 from repositories.PlatformRepository import PlatformRepository
+from repositories.spatial_filter import parse_geojson_polygon_to_wkt
 from schemas.health import HealthLiveResponse, HealthReadyResponse, HealthStatus
 from schemas.pagination import PaginatedResponse, PaginationDep
 
@@ -113,6 +114,18 @@ def get_platforms(
     return PlatformRepository(session).get_platforms(pagination)
 
 
+def _parse_polygon_or_422(polygon: str | None) -> str | None:
+    if polygon is None:
+        return None
+    try:
+        return parse_geojson_polygon_to_wkt(polygon)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+
 @app.get("/hotspots", tags=["Hotspots"])
 def get_hotspots(
     session: SessionDep,
@@ -125,9 +138,16 @@ def get_hotspots(
         default=None,
         description="Filter detections on or before this UTC date (YYYY-MM-DD)",
     ),
+    polygon: str | None = Query(
+        default=None,
+        description=(
+            "GeoJSON Polygon or MultiPolygon (RFC 7946, EPSG:4326) serialized as JSON"
+        ),
+    ),
 ) -> PaginatedResponse[HotspotPublic]:
+    polygon_wkt = _parse_polygon_or_422(polygon)
     return HotspotRepository(session).get_hotspots(
-        pagination, start_date=start_date, end_date=end_date
+        pagination, start_date=start_date, end_date=end_date, polygon_wkt=polygon_wkt
     )
 
 
@@ -142,9 +162,19 @@ def get_hotspot_daily_activity(
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
     instrument: str | None = Query(default=None),
+    polygon: str | None = Query(
+        default=None,
+        description=(
+            "GeoJSON Polygon or MultiPolygon (RFC 7946, EPSG:4326) serialized as JSON"
+        ),
+    ),
 ) -> DailyActivityResponse:
+    polygon_wkt = _parse_polygon_or_422(polygon)
     return HotspotRepository(session).get_daily_activity(
-        start_date=start_date, end_date=end_date, instrument=instrument
+        start_date=start_date,
+        end_date=end_date,
+        instrument=instrument,
+        polygon_wkt=polygon_wkt,
     )
 
 

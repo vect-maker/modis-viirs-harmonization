@@ -1,5 +1,6 @@
 import { computed, shallowRef } from 'vue'
 import { defineStore, storeToRefs } from 'pinia'
+import type { GeoJSONPolygon } from 'zod-geojson'
 import {
   useCountriesApi,
   useHotspotsApi,
@@ -34,7 +35,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
   const isLoading = shallowRef(false)
   const loadingProgress = shallowRef<{ loaded: number; total: number } | null>(null)
   const error = shallowRef<string | null>(null)
-  const areaHotspots = shallowRef<HotspotResponse[] | null>(null)
+  const selectedPolygon = shallowRef<GeoJSONPolygon | null>(null)
 
   const { getHotspots, getDailyActivity } = useHotspotsApi()
   const { getPlatforms } = usePlatformsApi()
@@ -61,7 +62,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
 
   // This context stays independent of date selection so the timeline never loses its other days.
   const contextHotspots = computed(() => {
-    const candidates = areaHotspots.value ?? hotspots.value
+    const candidates = hotspots.value
     return selectedSensor.value === 'ALL'
       ? candidates
       : candidates.filter(
@@ -70,7 +71,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
   })
 
   const dailyActivity = computed(() => {
-    if (!areaHotspots.value && aggregatedDailyActivity.value !== null) {
+    if (aggregatedDailyActivity.value !== null) {
       return aggregatedDailyActivity.value
     }
     return aggregateDailyActivity(
@@ -103,8 +104,19 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     }
   })
 
-  function setAreaHotspots(matches: HotspotResponse[] | null) {
-    areaHotspots.value = matches
+  async function setSelectedPolygon(polygon: GeoJSONPolygon | null) {
+    selectedPolygon.value = polygon
+    if (dateRange.value) {
+      await fetchHotspots({
+        start_date: dateRange.value.start,
+        end_date: dateRange.value.end,
+        limit: 100,
+      })
+      return
+    }
+    if (hotspots.value.length > 0 || polygon !== null) {
+      await fetchHotspots({ limit: 100 })
+    }
   }
 
   async function updateStartDate(start: string | null) {
@@ -124,6 +136,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
         start_date: activeRange?.start,
         end_date: activeRange?.end,
         instrument: selectedSensor.value === 'ALL' ? undefined : selectedSensor.value,
+        polygon: selectedPolygon.value ?? undefined,
       })
       aggregatedDailyActivity.value = res.days
     } catch {
@@ -159,8 +172,12 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     error.value = null
     try {
       const pageLimit = params?.limit ?? 100
+      const requestParams: HotspotFiltersRequest = {
+        ...params,
+        polygon: params?.polygon ?? selectedPolygon.value ?? undefined,
+      }
       const [firstPage, platformsRes, countriesRes] = await Promise.all([
-        getHotspots({ ...params, limit: pageLimit, offset: params?.offset ?? 0 }),
+        getHotspots({ ...requestParams, limit: pageLimit, offset: requestParams.offset ?? 0 }),
         getPlatforms({ limit: 100 }),
         getCountries({ limit: 100 }),
       ])
@@ -169,7 +186,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
       const allItems = [...firstPage.data]
 
       // When filtering by date range, fetch all remaining pages in concurrent batches.
-      if (params?.start_date && firstPage.total > allItems.length) {
+      if (requestParams.start_date && firstPage.total > allItems.length) {
         loadingProgress.value = { loaded: allItems.length, total: firstPage.total }
         const remainingOffsets: number[] = []
         for (let offset = pageLimit; offset < firstPage.total; offset += pageLimit) {
@@ -179,7 +196,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
         for (let i = 0; i < remainingOffsets.length; i += batchSize) {
           const batch = remainingOffsets.slice(i, i + batchSize)
           const pages = await Promise.all(
-            batch.map((offset) => getHotspots({ ...params, limit: pageLimit, offset })),
+            batch.map((offset) => getHotspots({ ...requestParams, limit: pageLimit, offset })),
           )
           for (const page of pages) {
             allItems.push(...page.data)
@@ -214,7 +231,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     loadingProgress,
     error,
     selectedSensor,
-    areaHotspots,
+    selectedPolygon,
     dateRange,
     fetchedDateRange,
     availableDates,
@@ -233,7 +250,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     updateStartDate,
     updateEndDate,
     setSensor,
-    setAreaHotspots,
+    setSelectedPolygon,
     setDateRange: filters.setDateRange,
   }
 })
