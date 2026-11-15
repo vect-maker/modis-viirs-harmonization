@@ -31,6 +31,10 @@ async def get_confidence_dbscan(
     end_date: datetime | None = None,
     session: Session = Depends(get_session),
 ):
+    if start_date is not None and end_date is not None and start_date > end_date:
+        raise HTTPException(
+            status_code=400, detail="start_date no puede ser posterior a end_date"
+        )
     repo = DashboardRepository(session)
     unique_counts = repo.get_confidence_value_counts(
         high_value=high_value,
@@ -50,6 +54,10 @@ async def get_correlations(
     end_date: datetime | None = None,
     session: Session = Depends(get_session),
 ):
+    if start_date is not None and end_date is not None and start_date > end_date:
+        raise HTTPException(
+            status_code=400, detail="start_date no puede ser posterior a end_date"
+        )
     repo = DashboardRepository(session)
     pairs = repo.get_correlations(
         high_value=high_value,
@@ -133,6 +141,10 @@ async def get_monthly_comparison(
     end_year: int | None = Query(default=None, ge=1990, le=2100),
     session: Session = Depends(get_session),
 ):
+    if start_year is not None and end_year is not None and start_year > end_year:
+        raise HTTPException(
+            status_code=400, detail="start_year debe ser menor o igual a end_year"
+        )
     repo = DashboardRepository(session)
     monthly = repo.get_monthly_counts(start_year=start_year, end_year=end_year)
     if not monthly:
@@ -246,6 +258,10 @@ async def get_monthly_forecast(
     end_year: int | None = Query(default=None, ge=1990, le=2100),
     session: Session = Depends(get_session),
 ):
+    if start_year is not None and end_year is not None and start_year > end_year:
+        raise HTTPException(
+            status_code=400, detail="start_year debe ser menor o igual a end_year"
+        )
     repo = DashboardRepository(session)
     monthly = repo.get_monthly_counts(start_year=start_year, end_year=end_year)
     if len(monthly) < 18:

@@ -23,23 +23,23 @@ class DashboardRepository:
         self.dialect = bind.dialect.name if bind is not None else "postgresql"
 
     def _confidence_sql(self, high_value: int = 90) -> str:
-        cast_type = "INTEGER"
         if self.dialect == "postgresql":
             return (
                 "CASE "
-                "WHEN LOWER(TRIM(confidence)) = 'l' THEN 15 "
-                "WHEN LOWER(TRIM(confidence)) = 'n' THEN 50 "
-                f"WHEN LOWER(TRIM(confidence)) = 'h' THEN {int(high_value)} "
-                "WHEN TRIM(confidence) ~ '^[0-9]+$' THEN CAST(TRIM(confidence) AS INTEGER) "
+                "WHEN LOWER(TRIM(CAST(confidence AS TEXT))) = 'l' THEN 15 "
+                "WHEN LOWER(TRIM(CAST(confidence AS TEXT))) = 'n' THEN 50 "
+                f"WHEN LOWER(TRIM(CAST(confidence AS TEXT))) = 'h' THEN {int(high_value)} "
+                "WHEN TRIM(CAST(confidence AS TEXT)) ~ '^[0-9]+$' "
+                "THEN CAST(TRIM(CAST(confidence AS TEXT)) AS INTEGER) "
                 "ELSE NULL END"
             )
         return (
             "CASE "
-            "WHEN LOWER(TRIM(confidence)) = 'l' THEN 15 "
-            "WHEN LOWER(TRIM(confidence)) = 'n' THEN 50 "
-            f"WHEN LOWER(TRIM(confidence)) = 'h' THEN {int(high_value)} "
-            "WHEN TRIM(confidence) GLOB '[0-9]*' AND TRIM(confidence) != '' "
-            f"THEN CAST(TRIM(confidence) AS {cast_type}) "
+            "WHEN LOWER(TRIM(CAST(confidence AS TEXT))) = 'l' THEN 15 "
+            "WHEN LOWER(TRIM(CAST(confidence AS TEXT))) = 'n' THEN 50 "
+            f"WHEN LOWER(TRIM(CAST(confidence AS TEXT))) = 'h' THEN {int(high_value)} "
+            "WHEN TRIM(CAST(confidence AS TEXT)) GLOB '[0-9]*' AND TRIM(CAST(confidence AS TEXT)) != '' "
+            "THEN CAST(TRIM(CAST(confidence AS TEXT)) AS INTEGER) "
             "ELSE NULL END"
         )
 

@@ -3,8 +3,10 @@ from contextlib import asynccontextmanager
 from datetime import date
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Query, Response, status
+from fastapi import Depends, FastAPI, Query, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from api.cluster_hotspots import router as cluster_hotspots_router
@@ -56,6 +58,26 @@ app.include_router(fire_cluster_forecast_router)
 app.include_router(fire_analysis_router)
 app.include_router(dashboard_router)
 app.include_router(fire_calendar_router)
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(_request: Request, exc: ValueError):
+    return JSONResponse(
+        status_code=400,
+        content={"error_type": "validation_error", "detail": str(exc)},
+    )
+
+
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_error_handler(_request: Request, exc: SQLAlchemyError):
+    return JSONResponse(
+        status_code=503,
+        content={
+            "error_type": "database_error",
+            "detail": "Error al consultar la base de datos",
+            "message": str(getattr(exc, "orig", exc)),
+        },
+    )
 
 
 @app.get("/health/live", tags=["Health"])

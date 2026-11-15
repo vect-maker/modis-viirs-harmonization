@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, col, select
 
 from analytics.FireForecastService import compute_cluster_expansion
@@ -33,13 +34,20 @@ async def calculate_forecast(
     if cluster is None:
         raise HTTPException(status_code=404, detail="FireCluster no encontrado")
 
-    stmt = (
-        select(Hotspots)
-        .join(ClusterHotspots, col(ClusterHotspots.hotspotsId) == col(Hotspots.id))
-        .where(col(ClusterHotspots.clusterId) == payload.fireClusterId)
-        .order_by(col(Hotspots.acq_datetime))
-    )
-    hotspots = session.exec(stmt).all()
+    try:
+        stmt = (
+            select(Hotspots)
+            .join(ClusterHotspots, col(ClusterHotspots.hotspotsId) == col(Hotspots.id))
+            .where(col(ClusterHotspots.clusterId) == payload.fireClusterId)
+            .order_by(col(Hotspots.acq_datetime))
+        )
+        hotspots = session.exec(stmt).all()
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Error de base de datos al consultar hotspots del cluster: {exc}",
+        ) from exc
+
     points = [
         (h.latitude, h.longitude, h.acq_datetime)
         for h in hotspots
@@ -54,7 +62,10 @@ async def calculate_forecast(
             detail="El cluster requiere al menos 2 hotspots válidos para calcular expansión",
         )
 
-    metrics = compute_cluster_expansion(points)
+    try:
+        metrics = compute_cluster_expansion(points)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     forecast = FireClusterForecast(
         fireClusterId=payload.fireClusterId,
@@ -63,8 +74,15 @@ async def calculate_forecast(
         veloExpansion=float(metrics["veloExpansion"]),
         distanceKm=float(metrics["distanceKm"]),
     )
-    session.add(forecast)
-    session.commit()
-    session.refresh(forecast)
+    try:
+        session.add(forecast)
+        session.commit()
+        session.refresh(forecast)
+    except SQLAlchemyError as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail=f"Error de base de datos al guardar el pronóstico: {exc}",
+        ) from exc
 
     return forecast

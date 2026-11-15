@@ -27,6 +27,13 @@ reset-db:
 fetch-data *args:
     uv run pipeline/fetcher.py {{args}}
 
+# Fetch archive files from NASA FIRMS for Central America only and convert to Parquet
+fetch-central-america *args="--all":
+    for country in Belize Costa_Rica El_Salvador Guatemala Honduras Nicaragua Panama; do \
+        echo "Fetching $country..."; \
+        uv run pipeline/fetcher.py --country "$country" {{args}} || exit 1; \
+    done
+
 # Synchronize downloaded Parquet files on disk with pipeline tracking database
 sync-local-files:
     uv run pipeline/sync_local_files.py

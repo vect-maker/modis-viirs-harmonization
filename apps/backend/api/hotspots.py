@@ -14,7 +14,7 @@ async def get_hotspots(
     session: Session = Depends(get_session),
 ):
     repository = HotspotRepository(session)
-    data = repository.get_hotspots(limit=limit, offset=offset)
+    data = repository.get_hotspots_paginated(limit=limit, offset=offset)
     return {
         "data": data,
         "limit": limit,

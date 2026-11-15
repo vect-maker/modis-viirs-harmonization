@@ -1,6 +1,8 @@
+from collections.abc import Iterator
 from datetime import UTC, date, datetime, time, timedelta
-from typing import overload
+from typing import Any, overload
 
+from sqlalchemy import select as sa_select
 from sqlmodel import Session, col, func, select
 
 from model.Hotspots import Hotspots
@@ -188,15 +190,17 @@ class HotspotRepository:
 
         statement = (
             select(Hotspots)
-            .where(Hotspots.acq_datetime >= start_dt)
-            .where(Hotspots.acq_datetime <= end_dt)
+            .where(col(Hotspots.acq_datetime) >= start_dt)
+            .where(col(Hotspots.acq_datetime) <= end_dt)
         )
         if satellite_type:
             sat = satellite_type.strip().upper()
             statement = statement.where(func.upper(Hotspots.instrument) == sat)
 
         statement = (
-            statement.order_by(Hotspots.acq_datetime.desc()).offset(offset).limit(limit)
+            statement.order_by(col(Hotspots.acq_datetime).desc())
+            .offset(offset)
+            .limit(limit)
         )
         results = self.session.exec(statement).all()
         return [self.serialize_hotspot(h) for h in results]
@@ -213,16 +217,16 @@ class HotspotRepository:
         if radius > 0:
             statement = (
                 select(Hotspots)
-                .where(Hotspots.latitude >= (latitude - radius))
-                .where(Hotspots.latitude <= (latitude + radius))
-                .where(Hotspots.longitude >= (longitude - radius))
-                .where(Hotspots.longitude <= (longitude + radius))
+                .where(col(Hotspots.latitude) >= (latitude - radius))
+                .where(col(Hotspots.latitude) <= (latitude + radius))
+                .where(col(Hotspots.longitude) >= (longitude - radius))
+                .where(col(Hotspots.longitude) <= (longitude + radius))
             )
         else:
             statement = (
                 select(Hotspots)
-                .where(Hotspots.latitude == latitude)
-                .where(Hotspots.longitude == longitude)
+                .where(col(Hotspots.latitude) == latitude)
+                .where(col(Hotspots.longitude) == longitude)
             )
 
         if satellite_type:
@@ -246,13 +250,66 @@ class HotspotRepository:
 
         if start_date:
             start_dt = parse_datetime(start_date, is_end=False)
-            statement = statement.where(Hotspots.acq_datetime >= start_dt)
+            statement = statement.where(col(Hotspots.acq_datetime) >= start_dt)
         if end_date:
             end_dt = parse_datetime(end_date, is_end=True)
-            statement = statement.where(Hotspots.acq_datetime <= end_dt)
+            statement = statement.where(col(Hotspots.acq_datetime) <= end_dt)
 
         statement = (
-            statement.order_by(Hotspots.acq_datetime.desc()).offset(offset).limit(limit)
+            statement.order_by(col(Hotspots.acq_datetime).desc())
+            .offset(offset)
+            .limit(limit)
         )
         results = self.session.exec(statement).all()
         return [self.serialize_hotspot(h) for h in results]
+
+    def get_hotspots_paginated(
+        self, limit: int = 50, offset: int = 0
+    ) -> list[Hotspots]:
+        stmt = (
+            select(Hotspots)
+            .order_by(col(Hotspots.acq_datetime).desc(), col(Hotspots.id))
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(self.session.exec(stmt).all())
+
+    def iter_hotspots_filtered(
+        self,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        min_lat: float | None = None,
+        max_lat: float | None = None,
+        min_lon: float | None = None,
+        max_lon: float | None = None,
+        max_rows: int = 20000,
+    ) -> Iterator[dict[str, Any]]:
+        stmt = sa_select(
+            col(Hotspots.id),
+            col(Hotspots.latitude),
+            col(Hotspots.longitude),
+            col(Hotspots.acq_datetime),
+            col(Hotspots.frp),
+        )
+        if start_date is not None:
+            stmt = stmt.where(col(Hotspots.acq_datetime) >= start_date)
+        if end_date is not None:
+            stmt = stmt.where(col(Hotspots.acq_datetime) <= end_date)
+        if min_lat is not None:
+            stmt = stmt.where(col(Hotspots.latitude) >= min_lat)
+        if max_lat is not None:
+            stmt = stmt.where(col(Hotspots.latitude) <= max_lat)
+        if min_lon is not None:
+            stmt = stmt.where(col(Hotspots.longitude) >= min_lon)
+        if max_lon is not None:
+            stmt = stmt.where(col(Hotspots.longitude) <= max_lon)
+
+        stmt = stmt.order_by(col(Hotspots.acq_datetime)).limit(max_rows)
+        for row in self.session.execute(stmt):
+            yield {
+                "id": str(row[0]),
+                "latitude": row[1],
+                "longitude": row[2],
+                "acq_datetime": row[3],
+                "frp": row[4],
+            }

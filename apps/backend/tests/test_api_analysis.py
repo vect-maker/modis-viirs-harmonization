@@ -10,6 +10,7 @@ from api.fire_analysis import (
     predict_fire_displacement,
 )
 from schemas.pagination import PaginationParams
+from schemas.pagination import PaginationParams
 
 
 def _run_coro(coro):
@@ -59,8 +60,7 @@ def test_cluster_movement_endpoint():
                 payload=ClusterMovementRequest(
                     eps_km=2.0, min_samples=2, interval_hours=6.0
                 ),
-                limit=10,
-                offset=0,
+                pagination=PaginationParams(limit=10, offset=0),
                 session=_DummySession(),  # type: ignore[arg-type]
             )
         )

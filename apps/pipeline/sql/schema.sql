@@ -109,7 +109,9 @@ CREATE TABLE firecluster (
     status clusterstatus NOT NULL DEFAULT 'ACTIVO',
     "datetimeStart" TIMESTAMP WITH TIME ZONE,
     "datetimeEnd" TIMESTAMP WITH TIME ZONE,
-    "maxFrp" DOUBLE PRECISION
+    "maxFrp" DOUBLE PRECISION,
+    "dirExpansion" DOUBLE PRECISION,
+    "veloExpansion" DOUBLE PRECISION
 );
 
 CREATE INDEX idx_firecluster_status ON firecluster (status);

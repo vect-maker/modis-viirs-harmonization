@@ -1,14 +1,25 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlmodel import Session, col, select
 
 from model import FireCluster
+from model.ClusterStatus import ClusterStatus
 from repositories.DashboardRepository import DashboardRepository
 from schemas.fire_calendar import FireCalendarQuery
+
+
+@dataclass(frozen=True)
+class FireClusterWindow:
+    """Proyección mínima de FireCluster necesaria para Fire Calendar."""
+
+    datetimeStart: datetime | None
+    datetimeEnd: datetime | None
+    status: ClusterStatus
 
 
 class FireCalendarRepository:
@@ -23,8 +34,20 @@ class FireCalendarRepository:
         self.dialect = bind.dialect.name if bind is not None else "postgresql"
         self._dashboard_repo = DashboardRepository(session)
 
-    def get_cluster(self, cluster_id: int) -> FireCluster | None:
-        return self.session.get(FireCluster, cluster_id)
+    def get_cluster(self, cluster_id: int) -> FireClusterWindow | None:
+        stmt = select(
+            col(FireCluster.datetimeStart),
+            col(FireCluster.datetimeEnd),
+            col(FireCluster.status),
+        ).where(col(FireCluster.id) == cluster_id)
+        row = self.session.exec(stmt).first()
+        if row is None:
+            return None
+        return FireClusterWindow(
+            datetimeStart=row[0],
+            datetimeEnd=row[1],
+            status=ClusterStatus(row[2]),
+        )
 
     def _bucket_expr(self, aggregation: Literal["day", "week", "month"]) -> str:
         if self.dialect == "postgresql":
@@ -152,24 +175,29 @@ class FireCalendarRepository:
         start_dt: datetime,
         end_dt_exclusive: datetime,
         cluster_id: int | None = None,
-    ) -> list[FireCluster]:
-        stmt = select(FireCluster).where(
+    ) -> list[FireClusterWindow]:
+        stmt = select(
+            col(FireCluster.datetimeStart),
+            col(FireCluster.datetimeEnd),
+            col(FireCluster.status),
+        ).where(
             col(FireCluster.datetimeStart).is_not(None),
             col(FireCluster.datetimeStart) < end_dt_exclusive,
+            func.coalesce(col(FireCluster.datetimeEnd), col(FireCluster.datetimeStart))
+            >= start_dt,
         )
         if cluster_id is not None:
             stmt = stmt.where(col(FireCluster.id) == cluster_id)
 
-        clusters = list(self.session.exec(stmt).all())
-        overlapping: list[FireCluster] = []
-        start_naive = start_dt.replace(tzinfo=None)
-        for c in clusters:
-            if c.datetimeStart is None:
-                continue
-            c_end = (c.datetimeEnd or c.datetimeStart).replace(tzinfo=None)
-            if c_end >= start_naive:
-                overlapping.append(c)
-        return overlapping
+        rows = self.session.exec(stmt).all()
+        return [
+            FireClusterWindow(
+                datetimeStart=row[0],
+                datetimeEnd=row[1],
+                status=ClusterStatus(row[2]),
+            )
+            for row in rows
+        ]
 
     @staticmethod
     def generate_bucket_dates(
