@@ -401,3 +401,73 @@ test('setSelectedPolygon sends GeoJSON polygon query param to hotspots and daily
     globalThis.fetch = previousFetch
   }
 })
+
+test('fetchHotspots prompts before downloading large datasets and respects cancel/confirm', async () => {
+  const previousFetch = globalThis.fetch
+  const hotspotOffsets = []
+  globalThis.fetch = async (input) => {
+    const url = typeof input === 'string' ? input : input.url
+    if (url.includes('/hotspots/daily-activity')) {
+      return new Response(
+        JSON.stringify({ days: [], min_date: '2024-05-01', max_date: '2024-05-31' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    if (url.includes('/hotspots?')) {
+      const offset = Number(new URL(url, 'http://localhost').searchParams.get('offset') ?? '0')
+      hotspotOffsets.push(offset)
+      return new Response(
+        JSON.stringify({
+          data: [detection('2024-05-31T12:00:00')],
+          total: 1200,
+          limit: 100,
+          offset,
+          has_more: offset + 100 < 1200,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    return new Response(
+      JSON.stringify({ data: [], total: 0, limit: 100, offset: 0, has_more: false }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  async function waitForPending(store) {
+    for (let i = 0; i < 50 && !store.pendingLargeFetch; i += 1) {
+      await new Promise((r) => setTimeout(r, 10))
+    }
+  }
+
+  try {
+    const store = createStore()
+    const cancelPromise = store.fetchHotspots({
+      start_date: '2024-05-01',
+      end_date: '2024-05-31',
+      limit: 100,
+    })
+    await waitForPending(store)
+    assert.deepEqual(store.pendingLargeFetch, { loaded: 1, total: 1200 })
+    store.cancelLargeFetch()
+    await cancelPromise
+    assert.equal(store.pendingLargeFetch, null)
+    assert.deepEqual(hotspotOffsets, [0])
+    assert.equal(store.hotspots.length, 1)
+
+    hotspotOffsets.length = 0
+    const confirmPromise = store.fetchHotspots({
+      start_date: '2024-05-01',
+      end_date: '2024-05-31',
+      limit: 100,
+    })
+    await waitForPending(store)
+    assert.deepEqual(store.pendingLargeFetch, { loaded: 1, total: 1200 })
+    store.confirmLargeFetch()
+    await confirmPromise
+    assert.equal(store.pendingLargeFetch, null)
+    assert.equal(hotspotOffsets.length, 12)
+    assert.equal(store.hotspots.length, 12)
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})

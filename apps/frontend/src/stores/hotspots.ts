@@ -32,8 +32,11 @@ export const useHotspotsStore = defineStore('hotspots', () => {
   const aggregatedDailyActivity = shallowRef<DailyHotspotActivity[] | null>(null)
   const platformsById = shallowRef<Map<string, PlatformResponse>>(new Map())
   const countriesById = shallowRef<Map<string, CountryResponse>>(new Map())
+  const LARGE_FETCH_THRESHOLD = 1000
   const isLoading = shallowRef(false)
   const loadingProgress = shallowRef<{ loaded: number; total: number } | null>(null)
+  const pendingLargeFetch = shallowRef<{ loaded: number; total: number } | null>(null)
+  let resolveLargeFetch: ((proceed: boolean) => void) | null = null
   const error = shallowRef<string | null>(null)
   const selectedPolygon = shallowRef<GeoJSONPolygon | null>(null)
 
@@ -166,6 +169,29 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     await fetchHotspots({ start_date: range.start, end_date: range.end, limit: 100 })
   }
 
+  function confirmLargeFetch() {
+    pendingLargeFetch.value = null
+    resolveLargeFetch?.(true)
+    resolveLargeFetch = null
+  }
+
+  function cancelLargeFetch() {
+    pendingLargeFetch.value = null
+    resolveLargeFetch?.(false)
+    resolveLargeFetch = null
+  }
+
+  function requestLargeFetchConfirmation(loaded: number, total: number): Promise<boolean> {
+    if (resolveLargeFetch) {
+      resolveLargeFetch(false)
+      resolveLargeFetch = null
+    }
+    pendingLargeFetch.value = { loaded, total }
+    return new Promise((resolve) => {
+      resolveLargeFetch = resolve
+    })
+  }
+
   async function fetchHotspots(params?: HotspotFiltersRequest) {
     isLoading.value = true
     loadingProgress.value = null
@@ -187,23 +213,34 @@ export const useHotspotsStore = defineStore('hotspots', () => {
 
       // When filtering by date range, fetch all remaining pages in concurrent batches.
       if (requestParams.start_date && firstPage.total > allItems.length) {
-        loadingProgress.value = { loaded: allItems.length, total: firstPage.total }
-        const remainingOffsets: number[] = []
-        for (let offset = pageLimit; offset < firstPage.total; offset += pageLimit) {
-          remainingOffsets.push(offset)
-        }
-        const batchSize = 5
-        for (let i = 0; i < remainingOffsets.length; i += batchSize) {
-          const batch = remainingOffsets.slice(i, i + batchSize)
-          const pages = await Promise.all(
-            batch.map((offset) => getHotspots({ ...requestParams, limit: pageLimit, offset })),
-          )
-          for (const page of pages) {
-            allItems.push(...page.data)
+        let shouldDownloadAll = true
+        if (firstPage.total > LARGE_FETCH_THRESHOLD) {
+          isLoading.value = false
+          shouldDownloadAll = await requestLargeFetchConfirmation(allItems.length, firstPage.total)
+          if (shouldDownloadAll) {
+            isLoading.value = true
           }
-          loadingProgress.value = {
-            loaded: Math.min(allItems.length, firstPage.total),
-            total: firstPage.total,
+        }
+
+        if (shouldDownloadAll) {
+          loadingProgress.value = { loaded: allItems.length, total: firstPage.total }
+          const remainingOffsets: number[] = []
+          for (let offset = pageLimit; offset < firstPage.total; offset += pageLimit) {
+            remainingOffsets.push(offset)
+          }
+          const batchSize = 5
+          for (let i = 0; i < remainingOffsets.length; i += batchSize) {
+            const batch = remainingOffsets.slice(i, i + batchSize)
+            const pages = await Promise.all(
+              batch.map((offset) => getHotspots({ ...requestParams, limit: pageLimit, offset })),
+            )
+            for (const page of pages) {
+              allItems.push(...page.data)
+            }
+            loadingProgress.value = {
+              loaded: Math.min(allItems.length, firstPage.total),
+              total: firstPage.total,
+            }
           }
         }
       }
@@ -229,6 +266,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     countriesById,
     isLoading,
     loadingProgress,
+    pendingLargeFetch,
     error,
     selectedSensor,
     selectedPolygon,
@@ -251,6 +289,8 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     updateEndDate,
     setSensor,
     setSelectedPolygon,
+    confirmLargeFetch,
+    cancelLargeFetch,
     setDateRange: filters.setDateRange,
   }
 })

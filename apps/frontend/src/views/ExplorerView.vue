@@ -9,6 +9,7 @@ import HotspotTimeline from '@/components/features/HotspotTimeline.vue'
 import DatePromptDialog from '@/components/features/DatePromptDialog.vue'
 import DashboardLoadingOverlay from '@/components/features/DashboardLoadingOverlay.vue'
 import DashboardNavbar from '@/components/features/DashboardNavbar.vue'
+import LargeFetchDialog from '@/components/features/LargeFetchDialog.vue'
 import LocationPromptDialog from '@/components/features/LocationPromptDialog.vue'
 import MapActionBar from '@/components/common/MapActionBar.vue'
 import type { HotspotResponse } from '@/api'
@@ -22,6 +23,7 @@ const {
   dateRange,
   isLoading,
   loadingProgress,
+  pendingLargeFetch,
 } = storeToRefs(hotspotsStore)
 const todayUtc = new Date().toISOString().slice(0, 10)
 const datePromptOpen = shallowRef(false)
@@ -219,6 +221,13 @@ function onRoiChange(payload: { areaKm2: number | null }) {
         :available-dates="availableDates"
         :available-date-set="availableDateSet"
         @select-date="onPromptSelectDate"
+      />
+      <LargeFetchDialog
+        :open="pendingLargeFetch !== null"
+        :total="pendingLargeFetch?.total ?? 0"
+        :loaded="pendingLargeFetch?.loaded ?? 0"
+        @confirm="hotspotsStore.confirmLargeFetch()"
+        @cancel="hotspotsStore.cancelLargeFetch()"
       />
       <DashboardLoadingOverlay :visible="isLoading" :progress="loadingProgress" />
     </main>
