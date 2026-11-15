@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 
@@ -16,6 +16,8 @@ from database.session import get_session
 from enviromental.RequestWeather import RequestWeather
 from enviromental.WeatherDataClient import WeatherClientError, WeatherDataClient
 from repositories.HotspotRepository import HotspotRepository
+from repositories.pagination import paginate_sequence
+from schemas.pagination import PaginatedResponse, PaginationDep
 
 router = APIRouter(prefix="/analysis", tags=["FireAnalysis"])
 
@@ -52,8 +54,7 @@ class FirePredictRequest(ClusterMovementRequest):
 @router.post("/cluster-movement", summary="Agrupar hotspots y analizar movimiento por intervalos")
 async def analyze_clusters_and_movement(
     payload: ClusterMovementRequest,
-    limit: int = Query(default=50, ge=1, le=1000),
-    offset: int = Query(default=0, ge=0),
+    pagination: PaginationDep,
     session: Session = Depends(get_session),
 ):
     repo = HotspotRepository(session)
@@ -73,8 +74,9 @@ async def analyze_clusters_and_movement(
         return {
             "summary": {"hotspots_valid": 0, "clusters": 0, "noise": 0},
             "data": [],
-            "limit": limit,
-            "offset": offset,
+            "total": 0,
+            "limit": pagination.limit,
+            "offset": pagination.offset,
         }
 
     try:
@@ -97,6 +99,7 @@ async def analyze_clusters_and_movement(
         }
         for fire_id, steps in trajectories.items()
     ]
+    paginated = paginate_sequence(serialized_fires, pagination)
 
     return {
         "summary": {
@@ -105,18 +108,18 @@ async def analyze_clusters_and_movement(
             "clusters": clustering.cluster_count,
             "noise": clustering.noise_count,
         },
-        "data": serialized_fires[offset : offset + limit],
-        "limit": limit,
-        "offset": offset,
+        "data": paginated.data,
+        "total": paginated.total,
+        "limit": paginated.limit,
+        "offset": paginated.offset,
     }
 
 
 @router.post("/weather-correlation", summary="Analizar vectores de viento NASA POWER y alineación con el fuego")
 async def analyze_weather_correlation(
     payload: WeatherCorrelationRequest,
-    limit: int = Query(default=50, ge=1, le=1000),
-    offset: int = Query(default=0, ge=0),
-):
+    pagination: PaginationDep,
+) -> PaginatedResponse[dict[str, object]]:
     client = WeatherDataClient()
     req = RequestWeather(
         latitude=payload.latitude,
@@ -135,11 +138,7 @@ async def analyze_weather_correlation(
         for rec in daily_records
     ]
 
-    return {
-        "data": results[offset : offset + limit],
-        "limit": limit,
-        "offset": offset,
-    }
+    return paginate_sequence(results, pagination)
 
 
 @router.post("/predict", summary="Entrenar RandomForest, evaluar y predecir desplazamiento futuro")

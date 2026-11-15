@@ -1,22 +1,21 @@
-from fastapi import APIRouter, Depends, Query
-from sqlmodel import Session, select
+from fastapi import APIRouter, Depends
+from sqlmodel import Session, col, select
 
 from database.session import get_session
 from model import ClusterHotspots
+from repositories.pagination import paginate_statement
+from schemas.pagination import PaginatedResponse, PaginationDep
 
 router = APIRouter(prefix="/cluster-hotspots", tags=["ClusterHotspots"])
 
 
-@router.get("/", summary="Listar relaciones cluster-hotspot")
+@router.get("", summary="Listar relaciones cluster-hotspot")
 async def get_cluster_hotspots(
-    limit: int = Query(default=50, ge=1, le=1000, description="Máximo de elementos a retornar"),
-    offset: int = Query(default=0, ge=0, description="Elementos a saltar"),
+    pagination: PaginationDep,
     session: Session = Depends(get_session),
-):
-    stmt = select(ClusterHotspots).offset(offset).limit(limit)
-    data = session.exec(stmt).all()
-    return {
-        "data": data,
-        "limit": limit,
-        "offset": offset,
-    }
+) -> PaginatedResponse[ClusterHotspots]:
+    stmt = select(ClusterHotspots).order_by(
+        col(ClusterHotspots.clusterId),
+        col(ClusterHotspots.hotspotsId),
+    )
+    return paginate_statement(session, stmt, pagination, ClusterHotspots)

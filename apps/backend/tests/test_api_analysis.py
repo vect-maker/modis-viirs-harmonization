@@ -9,6 +9,7 @@ from api.fire_analysis import (
     analyze_weather_correlation,
     predict_fire_displacement,
 )
+from schemas.pagination import PaginationParams
 
 
 def _run_coro(coro):
@@ -97,12 +98,14 @@ def test_weather_correlation_endpoint():
                     end_date=datetime(2025, 4, 1, 23, 59, 59, tzinfo=UTC),
                     fire_direction_deg=45.0,
                 ),
-                limit=50,
-                offset=0,
+                pagination=PaginationParams(limit=50, offset=0),
             )
         )
 
-    data = body["data"]
+    assert body.total == 1
+    assert body.limit == 50
+    assert body.offset == 0
+    data = body.data
     assert len(data) == 1
     assert data[0]["is_complete"] is True
     assert data[0]["wind_direction_to_deg"] == 45.0

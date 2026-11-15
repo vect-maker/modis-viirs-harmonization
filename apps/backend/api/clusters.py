@@ -1,41 +1,35 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select
+from sqlmodel import Session, col, func, select
 
 from database.session import get_session
 from model import ClusterHotspots, FireCluster
 from model.ClusterStatus import ClusterStatus
+from repositories.pagination import paginate_statement
+from schemas.pagination import PaginatedResponse, PaginationDep
 
 router = APIRouter(prefix="/clusters", tags=["Clusters"])
 
 
-@router.get("/", summary="Listar clusters")
+@router.get("", summary="Listar clusters")
 async def get_clusters(
-    limit: int = Query(default=50, ge=1, le=1000, description="Máx. elementos a retornar"),
-    offset: int = Query(default=0, ge=0, description="Elementos a saltar"),
+    pagination: PaginationDep,
     status: ClusterStatus | None = Query(default=None, description="Filtrar por estado"),
     session: Session = Depends(get_session),
-):
+) -> PaginatedResponse[FireCluster]:
     """
     Lista todos los FireClusters con paginación y filtro opcional por estado.
     """
-    stmt = select(FireCluster)
+    stmt = select(FireCluster).order_by(col(FireCluster.id))
     if status is not None:
         stmt = stmt.where(FireCluster.status == status)
-    stmt = stmt.offset(offset).limit(limit)
 
-    clusters = session.exec(stmt).all()
-    return {
-        "data": clusters,
-        "limit": limit,
-        "offset": offset,
-    }
+    return paginate_statement(session, stmt, pagination, FireCluster)
 
 
 @router.get("/{cluster_id}", summary="Detalle de un cluster")
 async def get_cluster(
     cluster_id: int,
-    limit: int = Query(default=50, ge=1, le=1000, description="Máx. hotspots a retornar"),
-    offset: int = Query(default=0, ge=0, description="Hotspots a saltar"),
+    pagination: PaginationDep,
     session: Session = Depends(get_session),
 ):
     """
@@ -45,11 +39,12 @@ async def get_cluster(
     if cluster is None:
         raise HTTPException(status_code=404, detail="Cluster no encontrado")
 
+    base_stmt = select(ClusterHotspots).where(ClusterHotspots.clusterId == cluster_id)
+    total = session.exec(select(func.count()).select_from(base_stmt.subquery())).one()
     link_stmt = (
-        select(ClusterHotspots)
-        .where(ClusterHotspots.clusterId == cluster_id)
-        .offset(offset)
-        .limit(limit)
+        base_stmt.order_by(col(ClusterHotspots.hotspotsId))
+        .offset(pagination.offset)
+        .limit(pagination.limit)
     )
     links = session.exec(link_stmt).all()
 
@@ -58,6 +53,7 @@ async def get_cluster(
             "cluster": cluster,
             "hotspots": links,
         },
-        "limit": limit,
-        "offset": offset,
+        "total": total,
+        "limit": pagination.limit,
+        "offset": pagination.offset,
     }

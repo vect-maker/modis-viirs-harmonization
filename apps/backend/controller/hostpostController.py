@@ -45,7 +45,7 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=list[HotspotResponse])
+@router.get("", response_model=list[HotspotResponse])
 async def get_hotspots(
     satellite_type: SatelliteFilter | None = Query(
         None,

@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, col, select
 
 from analytics.FireForecastService import compute_cluster_expansion
 from database.session import get_session
 from model import ClusterHotspots, FireCluster, FireClusterForecast, Hotspots
+from repositories.pagination import paginate_statement
+from schemas.pagination import PaginatedResponse, PaginationDep
 
 router = APIRouter(prefix="/fire-cluster-forecasts", tags=["FireClusterForecast"])
 
@@ -13,19 +15,13 @@ class ForecastCalculateRequest(BaseModel):
     fireClusterId: int
 
 
-@router.get("/", summary="Listar pronósticos de expansión de clusters")
+@router.get("", summary="Listar pronósticos de expansión de clusters")
 async def get_fire_cluster_forecasts(
-    limit: int = Query(default=50, ge=1, le=1000, description="Máximo de elementos a retornar"),
-    offset: int = Query(default=0, ge=0, description="Elementos a saltar"),
+    pagination: PaginationDep,
     session: Session = Depends(get_session),
-):
-    stmt = select(FireClusterForecast).offset(offset).limit(limit)
-    data = session.exec(stmt).all()
-    return {
-        "data": data,
-        "limit": limit,
-        "offset": offset,
-    }
+) -> PaginatedResponse[FireClusterForecast]:
+    stmt = select(FireClusterForecast).order_by(col(FireClusterForecast.id))
+    return paginate_statement(session, stmt, pagination, FireClusterForecast)
 
 
 @router.post("/calculate", summary="Calcular y guardar rumbo y velocidad de expansión")
