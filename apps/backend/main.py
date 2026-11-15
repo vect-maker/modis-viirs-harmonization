@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -39,6 +40,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Fire Detection API",
     description="API para monitoreo y consulta de hotspots de incendios",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    root_path=os.getenv("ROOT_PATH", ""),
     lifespan=lifespan,
 )
 
