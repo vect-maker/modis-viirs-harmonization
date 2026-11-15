@@ -7,10 +7,10 @@ build:
     mkdir -p output
     typst compile --font-path fonts main.typ output/report.pdf
 
-# Compile the Spanish technical documentation
+# Compile the English APA 7 technical documentation
 documentation:
     mkdir -p output
-    typst compile --font-path fonts documentation.typ output/PyroTrace_Armonizacion.pdf
+    typst compile --font-path fonts documentation.typ output/PyroTrace_Harmonization.pdf
 
 # Export page PNGs to output/temp/ for visual layout inspection
 preview:

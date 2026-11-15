@@ -1,47 +1,49 @@
-# Reporte de PyroTrace
+# PyroTrace Reports
 
-La documentación técnica en español se compila con `just report::documentation`.
-El documento describe los datos de Centroamérica y presenta citas, referencias y
-formato de página conforme a APA, séptima edición.
-Desde `apps/report` en PowerShell también se puede ejecutar:
+The technical documentation describes MODIS-VIIRS harmonization in Central America,
+with citations, references, and page formatting following APA seventh edition.
+Build it with `just report::documentation`.
+
+From `apps/report` in PowerShell:
 
 ```powershell
-typst compile --font-path fonts documentation.typ output/PyroTrace_Armonizacion.pdf
+New-Item -ItemType Directory -Path output -Force | Out-Null
+typst compile --font-path fonts documentation.typ output/PyroTrace_Harmonization.pdf
+Invoke-Item output/PyroTrace_Harmonization.pdf
 ```
 
-El contenido editable está en `docs/harmonization.md`, desde la raíz del repositorio.
+The editable documentation is [../../docs/harmonization.md](../../docs/harmonization.md).
+Both the documentation and the technical report are written in English.
 
-Prototipo experimental con fuentes primarias, ecuaciones y evidencia reproducible.
-La explicación en español está en [../../docs/harmonization.md](../../docs/harmonization.md).
+## Check and Build from PowerShell
 
-## Comprobar y compilar desde PowerShell
-
-Desde la raíz del repositorio:
+From the repository root:
 
 ```powershell
 python apps/report/validation/verify_prototype.py
-cd apps/report
+Set-Location apps/report
 New-Item -ItemType Directory -Path output -Force | Out-Null
 typst compile --font-path fonts main.typ output/report.pdf
 Invoke-Item output/report.pdf
 ```
 
-En Git Bash: `just report::validate`, `just report::build` y `just report::watch`.
+In Git Bash, use `just report::validate`, `just report::build`, and `just report::watch`.
 
-## Actualizar la evidencia
+## Refresh the Evidence
 
-Desde la raíz, después de revisar los resultados:
+From the repository root, after reviewing the results:
 
 ```powershell
 python apps/report/validation/verify_prototype.py --refresh-report-data
 ```
 
-El snapshot `validation/results.json` contiene los resultados, versión de DuckDB y
-hashes SHA-256 de los SQL. Los archivos detallados están en `output/validation`.
-Las comprobaciones ejecutan cuatro SQL sobre 810 registros sintéticos y comprueban
-preservación de tuplas, límites horarios/espaciales, plataformas y FRP ausente.
-También verifican el total del JSON mensual. No acreditan precisión científica.
+The `validation/results.json` snapshot records the results, DuckDB version, and SQL
+SHA-256 hashes. Detailed files are written to `output/validation`.
+The checks execute four SQL stages on 810 synthetic records and verify tuple
+preservation, hourly and spatial boundaries, platform effects, and missing FRP.
+They also verify the monthly JSON total. These checks do not establish scientific accuracy.
 
-Las referencias están en `references.bib`. Los valores de respaldo 2.20, 6.12, 4.50
-y 1.14 son provisionales. El calendario actual muestra conteos brutos.
-El PDF se genera en `output`, ignorado por Git. Liberation Serif se incluye con su licencia.
+References are stored in `references.bib`. The fallback values 2.20, 6.12, 4.50,
+and 1.14 are provisional. The current calendar displays raw counts.
+Generated PDFs are written to `output`, which is ignored by Git.
+Liberation Serif is bundled with its license.

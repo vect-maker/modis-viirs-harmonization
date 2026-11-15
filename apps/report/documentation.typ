@@ -1,7 +1,12 @@
-#set document(title: "Armonización de observaciones MODIS y VIIRS en Centroamérica", author: "PyroTrace")
+#set document(title: "Harmonization of MODIS and VIIRS Observations in Central America", author: "PyroTrace")
 #set page(paper: "us-letter", margin: 1in, header-ascent: 0.5in,
-  header: context align(right, counter(page).display()))
-#set text(font: "Times New Roman", size: 12pt, lang: "es", top-edge: 0.8em, bottom-edge: -0.2em)
+  header: context {
+    set text(font: "Times New Roman", size: 12pt, style: "normal", weight: "regular",
+      top-edge: 0.8em, bottom-edge: -0.2em)
+    set par(first-line-indent: 0pt, hanging-indent: 0pt, leading: 1em, spacing: 1em)
+    align(right, counter(page).display())
+  })
+#set text(font: "Times New Roman", size: 12pt, lang: "en", top-edge: 0.8em, bottom-edge: -0.2em)
 #set par(justify: false, leading: 1em, spacing: 1em,
   first-line-indent: (amount: 0.5in, all: true))
 #set block(spacing: 1em)
@@ -20,225 +25,225 @@
 
 #align(center)[
   #set par(first-line-indent: 0pt)
-  *Armonización de observaciones MODIS y VIIRS en Centroamérica*
+  *Harmonization of MODIS and VIIRS Observations in Central America*
 ]
 
 
 
-PyroTrace integra los registros de fuego activo de MODIS y VIIRS distribuidos por NASA FIRMS para analizar la actividad del fuego en Centroamérica a lo largo del tiempo. El procesamiento conserva las observaciones originales y añade pesos que permiten construir un índice de actividad con VIIRS como referencia.
+PyroTrace integrates MODIS and VIIRS active-fire records distributed by NASA FIRMS to analyze fire activity in Central America over time. The processing preserves the original observations and adds weights to construct an activity index with VIIRS as the reference.
 
-La integración responde a diferencias entre los sensores. MODIS registra anomalías térmicas con una resolución nominal de 1 km, mientras que el producto VIIRS utilizado corresponde a 375 m y presenta mayor respuesta ante fuegos pequeños. Sus registros también difieren en horarios de adquisición, dimensiones del píxel y frecuencia de observación (NASA FIRMS, s. f.-b, s. f.-c).
+This integration addresses differences between the sensors. MODIS records thermal anomalies at a nominal resolution of 1 km, whereas the VIIRS product used here has a nominal resolution of 375 m and greater sensitivity to small fires. Their records also differ in acquisition times, pixel dimensions, and observation frequency (NASA FIRMS, n.d.-b, n.d.-c).
 
-El método implementa una ponderación experimental por coincidencia espacial y temporal. La unidad resultante es una contribución ponderada al índice; una detección satelital corresponde a un píxel con anomalía térmica y no necesariamente a un incendio independiente.
+The method applies experimental weighting based on spatial and temporal coincidence. Each resulting value is a weighted contribution to the index; a satellite detection represents a pixel with a thermal anomaly and does not necessarily correspond to an independent fire.
 
-= Datos de entrada
+= Input Data
 
-El prototipo procesa observaciones de Belice, Costa Rica, El Salvador, Guatemala, Honduras, Nicaragua y Panamá. La selección regional se realiza durante la integración de los archivos de entrada, mientras que los factores de ajuste se estiman por país.
+The prototype processes observations from Belize, Costa Rica, El Salvador, Guatemala, Honduras, Nicaragua, and Panama. Regional selection takes place when the input files are integrated, while adjustment factors are estimated separately for each country.
 
-El procesamiento utiliza el archivo #raw("hotspots.parquet"), que reúne las observaciones MODIS y VIIRS en una estructura común. Cada registro incluye país, latitud, longitud, fecha y hora UTC, instrumento, plataforma satelital, temperaturas de brillo, confianza, potencia radiativa del fuego (FRP), dimensiones de barrido y trayectoria del píxel, versión del producto, tipo de anomalía y clasificación diurna o nocturna.
+The processing uses #raw("hotspots.parquet"), which combines MODIS and VIIRS observations in a common structure. Each record includes country, latitude, longitude, UTC date and time, instrument, satellite platform, brightness temperatures, confidence, fire radiative power (FRP), pixel scan and track dimensions, product version, anomaly type, and day or night classification.
 
-Las coordenadas identifican el centro del píxel observado. La FRP expresa la potencia radiativa integrada en ese píxel, medida en megavatios. Los campos originales se conservan junto con las variables derivadas (NASA FIRMS, s. f.-b, s. f.-c).
+The coordinates identify the center of the observed pixel. FRP represents the radiative power integrated over that pixel, measured in megawatts. The original fields are retained alongside the derived variables (NASA FIRMS, n.d.-b, n.d.-c).
 
-La normalización de nombres facilita el almacenamiento y la consulta, pero no iguala las características físicas de las bandas. Del mismo modo, los códigos numéricos asignados a las categorías de confianza VIIRS son una convención de almacenamiento, no probabilidades calibradas equivalentes a la confianza MODIS.
+Standardizing field names simplifies storage and querying but does not make the physical properties of the bands equivalent. Similarly, the numerical codes assigned to VIIRS confidence categories are a storage convention, not calibrated probabilities equivalent to MODIS confidence values.
 
-= Procesamiento de las observaciones
+= Observation Processing
 
-== Hora solar local
+== Local Solar Time
 
-La hora de adquisición se transforma en una hora solar media local aproximada mediante la longitud geográfica:
+Acquisition time is converted to an approximate local mean solar time using geographic longitude:
 
 $ h_s = h_"UTC" + m/60 + lambda/15 $
 
-En esta expresión, $h_"UTC"$ representa la hora UTC, $m$ los minutos y $lambda$ la longitud en grados, positiva hacia el este. Dividir los minutos entre 60 los convierte a horas. El divisor 15 corresponde a los 360 grados de rotación terrestre distribuidos en 24 horas.
+Here, $h_"UTC"$ is the UTC hour, $m$ is the number of minutes, and $lambda$ is longitude in degrees, positive eastward. Dividing the minutes by 60 converts them to hours. The divisor 15 corresponds to the Earth's 360-degree rotation over 24 hours.
 
-El resultado se ajusta al intervalo de un día:
+The result is wrapped to a 24-hour interval:
 
 $ "LST" = ((h_s " mod " 24) + 24) " mod " 24 $
 
-Esta aproximación permite organizar las observaciones según su horario local de adquisición. Las franjas utilizadas por el procesamiento son:
+This approximation organizes observations by their local acquisition time. The processing uses the following periods:
 
 
 #block(breakable: false)[
 #set par(first-line-indent: 0pt)
-*Tabla 1*\
-_Franjas de adquisición según la hora solar local_
+*Table 1*\
+_Acquisition Periods Based on Local Solar Time_
 
 #[
 #set par(leading: 0.3em, spacing: 0.3em, first-line-indent: 0pt)
 #table(columns: (1fr,1fr),
- table.header([Franja],[Intervalo de hora solar]),
- [Mañana],[Desde 08:30 hasta antes de 12:00],
- [Tarde],[Desde 12:00 hasta antes de 16:00],
- [Noche],[Desde 20:00 hasta antes de 23:30],
- [Madrugada],[Desde 23:30 hasta antes de 04:00],
- [Fuera de ciclo],[Horarios restantes],
+ table.header([Period],[Solar time interval]),
+ [Morning],[08:30 to before 12:00],
+ [Afternoon],[12:00 to before 16:00],
+ [Night],[20:00 to before 23:30],
+ [Overnight],[23:30 to before 04:00],
+ [Off-cycle],[All remaining times],
  table.hline(stroke: 0.5pt),
 )
 ]
 ]
 
-Los intervalos son parámetros del método. Sus etiquetas describen franjas horarias y no sustituyen la identificación de la plataforma satelital.
+These intervals are parameters of the method. Their labels describe time periods and do not replace satellite platform identification.
 
-== Agrupación espacial y temporal
+== Spatial and Temporal Grouping
 
-Las coordenadas se convierten en claves de agrupación mediante un paso angular $d = 0.02 degree$:
+The coordinates are converted into grouping keys using an angular step of $d = 0.02 degree$:
 
 $ y_q = d "round"(phi/d) $
 
-
 $ x_q = d "round"((lambda cos(phi))/d) $
 
-Aquí, $phi$ es la latitud y $lambda$ la longitud. El SQL convierte la latitud a radianes antes de evaluar el coseno. El paso de latitud equivale aproximadamente a 2.2 km; la transformación de longitud es una aproximación de indexación, no una proyección de distancia o área constante.
+Here, $phi$ is latitude and $lambda$ is longitude. The SQL converts latitude to radians before evaluating the cosine. The latitude step is approximately 2.2 km; the longitude transformation is an indexing approximation, not a constant-distance or equal-area projection.
 
-La marca temporal se trunca a la hora UTC. Las observaciones se agrupan por país, ambas claves espaciales y bloque horario. Esta combinación permite localizar conjuntos con presencia de los dos instrumentos.
+The timestamp is truncated to the UTC hour. Observations are grouped by country, both spatial keys, and hourly bin. This combination identifies groups containing both instruments.
 
-== Identificación de coocurrencias
+== Identifying Co-occurrences
 
-En cada grupo se cuentan los registros MODIS y VIIRS y se suman sus valores de FRP. Un grupo se considera una coocurrencia candidata cuando contiene al menos una observación de cada instrumento.
+The processing counts MODIS and VIIRS records and sums their FRP values within each group. A group is considered a candidate co-occurrence when it contains at least one observation from each instrument.
 
-La asociación indica proximidad según las claves del procesamiento. La coincidencia física entre detecciones depende también de sus huellas y de la diferencia real entre las adquisiciones.
+This association indicates proximity according to the processing keys. Physical correspondence between detections also depends on their footprints and the actual time difference between acquisitions.
 
-== Estimación de factores por país
+== Estimating Country-Level Factors
 
-Los factores se calculan con observaciones desde 2012, dentro del período de coexistencia de ambos instrumentos. Para el conjunto #raw("A") de grupos con coocurrencia se obtiene la razón entre detecciones:
+Factors are calculated using observations from 2012 onward, within the period when both instruments operate. For the set $A$ of groups with co-occurring observations, the detection count ratio is:
 
 $ r_c = (sum_(q in A) V_q)/(sum_(q in A) M_q) $
 
-$V_q$ y $M_q$ representan las cantidades de registros VIIRS y MODIS del grupo. La razón de FRP se calcula de forma análoga:
+$V_q$ and $M_q$ are the numbers of VIIRS and MODIS records in each group. The FRP ratio is calculated in the same way:
 
 $ r_"FRP" = (sum_(q in A) P_(V,q))/(sum_(q in A) P_(M,q)) $
 
-$P_(V,q)$ y $P_(M,q)$ son las sumas de FRP de cada instrumento dentro del grupo.
+$P_(V,q)$ and $P_(M,q)$ are the FRP sums for each instrument within the group.
 
-El factor de mañana utiliza la razón de conteos en coocurrencias de todas las franjas. Los factores de tarde y noche se calculan con los totales de sus respectivos horarios, sin exigir emparejamiento espacial; el cálculo nocturno incluye las observaciones fuera de ciclo. La estimación agrupa las plataformas VIIRS disponibles.
+The morning factor uses the count ratio from co-occurrences across all periods. The afternoon and night factors use the totals for their respective periods without requiring spatial matching; the night calculation includes off-cycle observations. The estimation pools the available VIIRS platforms.
 
-Cuando existen al menos 100 grupos con coocurrencia y la razón correspondiente está definida, el factor se limita a un intervalo y se redondea a dos decimales:
+When there are at least 100 groups with co-occurring observations and the corresponding ratio is defined, the factor is bounded and rounded to two decimal places:
 
 $ f = "round"(max(l,min(r,u)),2) $
 
-Los parámetros #raw("l") y #raw("u") representan los límites inferior y superior. Cuando la muestra o la razón no permiten realizar el cálculo, se utilizan valores predeterminados.
+The parameters $l$ and $u$ are the lower and upper bounds. Default values are used when the sample or ratio does not support the calculation.
 
 
 #block(breakable: false)[
 #set par(first-line-indent: 0pt)
-*Tabla 2*\
-_Parámetros de ajuste por país_
+*Table 2*\
+_Country-Level Adjustment Parameters_
 
 #[
 #set par(leading: 0.3em, spacing: 0.3em, first-line-indent: 0pt)
 #table(columns: (1fr,1fr,1fr),
- table.header([Factor],[Límites],[Valor predeterminado]),
- [Mañana],[1 a 10],[2.20],
- [Tarde],[1 a 20],[6.12],
- [Noche y otras horas],[1 a 15],[4.50],
- [FRP],[0.5 a 5],[1.14],
+ table.header([Factor],[Bounds],[Default value]),
+ [Morning],[1 to 10],[2.20],
+ [Afternoon],[1 to 20],[6.12],
+ [Night and other hours],[1 to 15],[4.50],
+ [FRP],[0.5 to 5],[1.14],
  table.hline(stroke: 0.5pt),
 )
 ]
 ]
 
-El umbral de 100 grupos, los límites y los valores predeterminados son decisiones de configuración del proyecto. La procedencia empírica de los cuatro valores predeterminados no está documentada.
+The threshold of 100 groups, the bounds, and the default values are project configuration choices. The empirical basis for the four default values has not been documented.
 
-== Asignación de pesos y FRP derivada
+== Assigning Weights and Derived FRP
 
-Los pesos se asignan de acuerdo con el instrumento y la presencia de VIIRS en el mismo grupo:
+Weights are assigned according to the instrument and the presence of VIIRS in the same group:
 
 
 #block(breakable: false)[
 #set par(first-line-indent: 0pt)
-*Tabla 3*\
-_Pesos asignados a las observaciones_
+*Table 3*\
+_Weights Assigned to Observations_
 
 #[
 #set par(leading: 0.3em, spacing: 0.3em, first-line-indent: 0pt)
 #table(columns: (1fr,1fr),
- table.header([Observación],[Peso asignado]),
+ table.header([Observation],[Assigned weight]),
  [VIIRS],[1],
- [MODIS con coocurrencia VIIRS],[0],
- [MODIS sin coocurrencia, en la mañana],[Factor de mañana],
- [MODIS sin coocurrencia, en la tarde],[Factor de tarde],
- [Otros registros MODIS],[Factor de noche],
+ [MODIS co-occurring with VIIRS],[0],
+ [MODIS without co-occurring VIIRS, morning],[Morning factor],
+ [MODIS without co-occurring VIIRS, afternoon],[Afternoon factor],
+ [Other MODIS records],[Night factor],
  table.hline(stroke: 0.5pt),
 )
 ]
 ]
 
-Los mismos factores por franja se aplican a las observaciones MODIS anteriores a 2012. El registro original permanece almacenado incluso cuando su contribución al índice es cero.
+The same period-specific factors are applied to MODIS observations before 2012. The original record remains stored even when its contribution to the index is zero.
 
-La FRP derivada conserva el valor VIIRS, asigna cero al MODIS con coocurrencia y multiplica la FRP de los demás MODIS por el factor específico de FRP. Los valores ausentes se mantienen en el campo original, aunque el campo derivado los reemplaza por cero.
+Derived FRP retains the VIIRS value, assigns zero to MODIS records co-occurring with VIIRS, and multiplies FRP for the remaining MODIS records by the FRP-specific factor. Missing values are retained in the original field, although the derived field replaces them with zero.
 
-En VIIRS de 375 m, la recuperación de FRP combina la identificación de píxeles afectados por fuego con radiancia M13 de 750 m. Varios subpíxeles detectados pueden compartir fracciones de una misma recuperación de potencia (Schroeder et al., 2024). Por ello, el ajuste de FRP se trata por separado del ajuste de conteos.
+In the 375 m VIIRS product, FRP retrieval combines the identification of fire-affected pixels with 750 m M13 radiance. Several detected subpixels may share fractions of the same power retrieval (Schroeder et al., 2024). FRP adjustment is therefore handled separately from count adjustment.
 
-= Agregación y uso de los resultados
+= Aggregation and Use of Results
 
-La actividad mensual se obtiene sumando los pesos de las observaciones del período:
+Monthly activity is calculated by summing the observation weights for the period:
 
 $ A_t = sum_(i in t) w_i $
 
-$A_t$ es el índice del mes y $w_i$ el peso de cada registro. Los valores fraccionarios expresan contribuciones ponderadas; el procedimiento no genera nuevas ubicaciones de fuego.
+$A_t$ is the monthly index and $w_i$ is the weight of each record. Fractional values represent weighted contributions; the procedure does not generate new fire locations.
 
-El archivo #raw("hotspots_harmonized.parquet") conserva las variables originales y añade la franja horaria, la categoría de armonización, el peso y la FRP derivada. El exportador mensual produce el índice junto con los conteos originales y las estadísticas de FRP.
+The #raw("hotspots_harmonized.parquet") file retains the original variables and adds the acquisition period, harmonization category, weight, and derived FRP. The monthly exporter produces the index alongside the original counts and FRP statistics.
 
-La aplicación utiliza actualmente los conteos originales del archivo mensual para representar el calendario. El índice ponderado se genera como una medida diferenciada de esos conteos.
+The application currently uses the original counts from the monthly file to display the calendar. The weighted index is generated as a separate measure.
 
-Una suma de valores de FRP obtenidos en distintos horarios es una estadística de potencia muestreada. Para estimar energía se requiere integrar la potencia respecto al tiempo y definir cómo se representan los intervalos entre adquisiciones.
+Summing FRP values acquired at different times produces a statistic of sampled power. Estimating energy requires integrating power over time and defining how the intervals between acquisitions are represented.
 
-= Comprobaciones del procesamiento
+= Processing Checks
 
-La ejecución sobre 810 registros sintéticos comprobó la conservación de las tuplas originales evaluadas y permitió examinar el efecto de las reglas de agrupación.
+Execution on 810 synthetic records verified preservation of the original tuples evaluated and allowed the effects of the grouping rules to be examined.
 
 
 #block(breakable: false)[
 #set par(first-line-indent: 0pt)
-*Tabla 4*\
-_Resultados de las comprobaciones con datos sintéticos_
+*Table 4*\
+_Results of Checks Using Synthetic Data_
 
 #[
 #set par(leading: 0.3em, spacing: 0.3em, first-line-indent: 0pt)
 #table(columns: (1fr,1fr),
- table.header([Caso evaluado],[Índice obtenido]),
- [Misma ubicación, adquisiciones a las 18:31 y 18:33],[1.00],
- [Misma ubicación, adquisiciones a las 18:59 y 19:01],[7.12],
- [Puntos separados por un límite de celda espacial],[7.12],
- [Cien grupos con una plataforma VIIRS],[200.00],
- [Misma actividad simulada con dos plataformas VIIRS],[400.00],
+ table.header([Evaluated case],[Resulting index]),
+ [Same location, acquisitions at 18:31 and 18:33],[1.00],
+ [Same location, acquisitions at 18:59 and 19:01],[7.12],
+ [Points separated by a spatial cell boundary],[7.12],
+ [One hundred groups with one VIIRS platform],[200.00],
+ [Same simulated activity with two VIIRS platforms],[400.00],
  table.hline(stroke: 0.5pt),
 )
 ]
 ]
 
-El cambio al cruzar un límite horario o espacial se debe a que el MODIS deja de asociarse con VIIRS y recibe el factor predeterminado de tarde. El experimento con dos plataformas muestra que el índice también responde al número de observaciones incorporadas.
+The change when crossing an hourly or spatial boundary occurs because the MODIS record is no longer associated with VIIRS and receives the default afternoon factor. The two-platform experiment shows that the index also responds to the number of observations included.
 
-Las comprobaciones se reproducen desde la raíz del repositorio:
+The checks can be reproduced from the repository root:
 
 #raw("python apps/report/validation/verify_prototype.py", block: true)
 
-Los resultados se guardan en #raw("apps/report/output/validation"), junto con la versión de DuckDB y las huellas SHA-256 de los cuatro archivos SQL.
+Results are saved in #raw("apps/report/output/validation"), together with the DuckDB version and SHA-256 hashes of the four SQL files.
 
-= Consideraciones metodológicas
+= Methodological Considerations
 
-La comparabilidad entre años depende de la sensibilidad del instrumento, de la cobertura y de las oportunidades de observación. La incorporación de una plataforma adicional puede incrementar los conteos sin un aumento equivalente del fuego. Las nubes, el humo y la duración de los eventos también afectan la detección (NASA FIRMS, s. f.-a).
+Comparability between years depends on instrument sensitivity, coverage, and observation opportunities. Adding another platform can increase counts without an equivalent increase in fire activity. Clouds, smoke, and event duration also affect detection (NASA FIRMS, n.d.-a).
 
-Las coincidencias mediante bloques fijos presentan efectos de borde. Su evaluación debe considerar distancia geográfica, huella del píxel y diferencia temporal real. Los factores estimados en coocurrencias pueden favorecer los fuegos detectables por ambos instrumentos; su transferencia a la mañana y a períodos históricos requiere evaluación independiente.
+Matching within fixed bins introduces boundary effects. Evaluation should consider geographic distance, pixel footprint, and actual time differences. Factors estimated from co-occurrences may favor fires detectable by both instruments; applying them to morning observations and historical periods requires independent evaluation.
 
-Los límites numéricos y el tamaño mínimo de muestra estabilizan el cálculo, pero no constituyen una prueba de significancia estadística. La validación del índice requiere comparar estimaciones y observaciones de referencia en años o regiones reservados para evaluación, controlando la plataforma y la cobertura. La FRP debe analizarse por separado, considerando que su relación entre sensores depende de la geometría, el ecosistema y la escala de agregación (Li et al., 2018). Esta comparación corresponde a VIIRS de 750 m, por lo que sus coeficientes no se trasladan directamente al producto de 375 m.
+Numerical bounds and the minimum sample size stabilize the calculation but do not constitute a test of statistical significance. Validating the index requires comparing estimates with reference observations in years or regions held out for evaluation, while controlling for platform and coverage. FRP must be analyzed separately because its relationship between sensors depends on geometry, ecosystem, and aggregation scale (Li et al., 2018). That comparison concerns 750 m VIIRS observations, so its coefficients cannot be applied directly to the 375 m product.
 
 
 #pagebreak()
 #align(center)[
   #set par(first-line-indent: 0pt)
-  *Referencias*
+  *References*
 ]
 
 #[
 #set par(first-line-indent: 0pt, hanging-indent: 0.5in, leading: 1em, spacing: 1em)
-Li, F., Zhang, X., Kondragunta, S., & Csiszar, I. (2018). Comparison of fire radiative power estimates from VIIRS and MODIS observations. _Journal of Geophysical Research: Atmospheres, 123_(9), 4545–4563. #link("https://doi.org/10.1029/2017JD027823")[https://doi.org/10.1029/2017JD027823]
 
-NASA FIRMS. (s. f.-a). _Fire alert notes_. #link("https://firms.modaps.eosdis.nasa.gov/alerts/notes.php")[https://firms.modaps.eosdis.nasa.gov/alerts/notes.php]
+Li, F., Zhang, X., Kondragunta, S., & Csiszar, I. (2018). Comparison of fire radiative power estimates from VIIRS and MODIS observations. _Journal of Geophysical Research: Atmospheres, 123_(9), 4545-4563. #link("https://doi.org/10.1029/2017JD027823")[https://doi.org/10.1029/2017JD027823]
 
-NASA FIRMS. (s. f.-b). _MODIS fire and thermal anomalies_. #link("https://firms.modaps.eosdis.nasa.gov/content/descriptions/FIRMS_MODIS_Firehotspots.html")[https://firms.modaps.eosdis.nasa.gov/content/descriptions/FIRMS_MODIS_Firehotspots.html]
+NASA FIRMS. (n.d.-a). _Fire alert notes_. #link("https://firms.modaps.eosdis.nasa.gov/alerts/notes.php")[https://firms.modaps.eosdis.nasa.gov/alerts/notes.php]
 
-NASA FIRMS. (s. f.-c). _VIIRS fire and thermal anomalies_. #link("https://firms.modaps.eosdis.nasa.gov/content/descriptions/FIRMS_VIIRS_Firehotspots.html")[https://firms.modaps.eosdis.nasa.gov/content/descriptions/FIRMS_VIIRS_Firehotspots.html]
+NASA FIRMS. (n.d.-b). _MODIS fire and thermal anomalies_. #link("https://firms.modaps.eosdis.nasa.gov/content/descriptions/FIRMS_MODIS_Firehotspots.html")[https://firms.modaps.eosdis.nasa.gov/content/descriptions/FIRMS_MODIS_Firehotspots.html]
 
-Schroeder, W., Giglio, L., & Hall, J. (2024). _Collection 2 VIIRS 375-m active fire product user’s guide_ (Versión 1.0). NASA Land Science Investigator Processing System. #link("https://ladsweb.modaps.eosdis.nasa.gov/archive/Document%20Archive/Science%20Data%20Product%20Documentation/VIIRS_C2_AF-375m_User_Guide_1.0.pdf")[https://ladsweb.modaps.eosdis.nasa.gov/archive/Document%20Archive/Science%20Data%20Product%20Documentation/VIIRS_C2_AF-375m_User_Guide_1.0.pdf]
+NASA FIRMS. (n.d.-c). _VIIRS fire and thermal anomalies_. #link("https://firms.modaps.eosdis.nasa.gov/content/descriptions/FIRMS_VIIRS_Firehotspots.html")[https://firms.modaps.eosdis.nasa.gov/content/descriptions/FIRMS_VIIRS_Firehotspots.html]
+
+Schroeder, W., Giglio, L., & Hall, J. (2024). _Collection 2 VIIRS 375-m active fire product user's guide_ (Version 1.0). NASA Land Science Investigator Processing System. #link("https://ladsweb.modaps.eosdis.nasa.gov/archive/Document%20Archive/Science%20Data%20Product%20Documentation/VIIRS_C2_AF-375m_User_Guide_1.0.pdf")[https://ladsweb.modaps.eosdis.nasa.gov/archive/Document%20Archive/Science%20Data%20Product%20Documentation/VIIRS_C2_AF-375m_User_Guide_1.0.pdf]
 ]
