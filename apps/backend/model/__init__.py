@@ -20,13 +20,8 @@ __all__ = [
     "EnvironmentalRecord",
     "FactHotspot",
     "FireCluster",
-<<<<<<< HEAD
     "FireClusterForecast",
-    "Hotspots",
-]
-=======
     "HotspotPublic",
     "Hotspots",
     "PlatformPublic",
 ]
->>>>>>> feat/frontend-development

@@ -97,25 +97,12 @@ db-schema:
         podman exec -i firms-postgis psql "$DATABASE_URL" < sql/schema.sql; \
     fi
 
-<<<<<<< HEAD
-# Ingest Nicaragua dev dataset from Parquet into PostGIS via DuckDB
-db-load-nicaragua:
-    duckdb -dark-mode -cmd "LOAD postgres; LOAD spatial; ATTACH '$DATABASE_URL' AS pg (TYPE POSTGRES);" -f sql/load_nicaragua_sample.sql
-
-# Ingest clusters and cluster_hotspots from Parquet into PostGIS via DuckDB
-db-load-clusters:
-    duckdb -dark-mode -cmd "LOAD postgres; LOAD spatial; ATTACH '$DATABASE_URL' AS pg (TYPE POSTGRES);" -f sql/load_clusters.sql
-
-# Full reset and reload of dev databas;
-db-reset-load: db-schema db-load-nicaragua db-load-clusters
-=======
 # Ingest Star Schema Parquet datasets into PostGIS via DuckDB
 db-load:
     duckdb -dark-mode -f sql/load_star_schema.sql
 
 # Full reset and reload of dev database
 db-reset-load: db-schema db-load
->>>>>>> feat/frontend-development
 
 # Auto-format and auto-fix pipeline code
 format:
