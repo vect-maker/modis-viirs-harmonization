@@ -25,3 +25,9 @@ export const HotspotResponseSchema = z.object({
 });
 
 export const PaginatedHotspotResponseSchema = PaginatedResponseSchema(HotspotResponseSchema);
+
+export const AvailableDatesResponseSchema = z.object({
+  dates: z.array(z.iso.date()),
+  min_date: z.iso.date().nullable(),
+  max_date: z.iso.date().nullable(),
+});

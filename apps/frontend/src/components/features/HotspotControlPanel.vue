@@ -38,10 +38,6 @@ const { stats } = storeToRefs(useHotspotsStore())
       </div>
       <HotspotFilters />
       <HotspotCsvExport />
-      <p class="border-t border-border-subtle pt-3 text-[11px] leading-relaxed text-ink-muted">
-        Imagery: Esri, Maxar, Earthstar Geographics ·
-        <a href="https://maplibre.org/" target="_blank" rel="noopener noreferrer" class="rounded hover:text-ink-secondary focus-visible:outline-2 focus-visible:outline-focus">MapLibre</a>
-      </p>
     </div>
   </BaseMapPanel>
 </template>

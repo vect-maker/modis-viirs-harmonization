@@ -43,11 +43,17 @@ export const useHotspotsStore = defineStore('hotspots', () => {
   const selectedSensor = shallowRef<SensorFilter>('ALL')
   const areaHotspots = shallowRef<FireHotspot[] | null>(null)
   const dateRange = shallowRef<HotspotDateRange | null>(null)
+  const availableDateList = shallowRef<string[]>([])
+  const availableDateBounds = shallowRef<HotspotDateRange | null>(null)
 
-  const { getHotspots } = useHotspotsApi()
+  const { getHotspots, getAvailableDates } = useHotspotsApi()
   const { getPlatforms } = usePlatformsApi()
 
+  const availableDateSet = computed(() => new Set(availableDateList.value))
+  const latestAvailableDate = computed(() => availableDateBounds.value?.end ?? null)
+
   const availableDates = computed<HotspotDateRange | null>(() => {
+    if (availableDateBounds.value) return availableDateBounds.value
     const dates = hotspots.value.map((hotspot) => hotspot.acq_datetime.slice(0, 10)).sort()
     const start = dates[0]
     const end = dates.at(-1)
@@ -105,16 +111,60 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     dateRange.value = range ? { ...range } : null
   }
 
+  async function fetchAvailableDates() {
+    try {
+      const res = await getAvailableDates()
+      availableDateList.value = res.dates
+      availableDateBounds.value =
+        res.min_date && res.max_date ? { start: res.min_date, end: res.max_date } : null
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch available dates'
+    }
+  }
+
+  async function selectDateRange(range: HotspotDateRange | null) {
+    setDateRange(range)
+    await fetchHotspots(
+      range
+        ? { start_date: range.start, end_date: range.end, limit: 100 }
+        : { limit: 100 },
+    )
+  }
+
   async function fetchHotspots(params?: HotspotFiltersRequest) {
     isLoading.value = true
     error.value = null
     try {
-      const [hotspotsRes, platformsRes] = await Promise.all([
-        getHotspots(params),
+      const pageLimit = params?.limit ?? 100
+      const [firstPage, platformsRes] = await Promise.all([
+        getHotspots({ ...params, limit: pageLimit, offset: params?.offset ?? 0 }),
         getPlatforms({ limit: 100 }),
       ])
       const platformsById = new Map(platformsRes.data.map((p) => [p.id, p]))
-      hotspots.value = hotspotsRes.data.map((item) =>
+      const allItems = [...firstPage.data]
+
+      // When filtering by date range, fetch up to 5 pages (500 items) for fuller map coverage.
+      if (params?.start_date && firstPage.total > allItems.length) {
+        const maxPages = 5
+        const extraOffsets: number[] = []
+        for (let page = 1; page < maxPages; page++) {
+          const nextOffset = page * pageLimit
+          if (nextOffset >= firstPage.total) break
+          extraOffsets.push(nextOffset)
+        }
+        if (extraOffsets.length > 0) {
+          const extraPages = await Promise.all(
+            extraOffsets.map((offset) =>
+              getHotspots({ ...params, limit: pageLimit, offset }),
+            ),
+          )
+          for (const page of extraPages) {
+            allItems.push(...page.data)
+          }
+        }
+      }
+
+      hotspots.value = allItems.map((item) =>
         mapHotspotToFireHotspot(item, platformsById),
       )
     } catch (err) {
@@ -132,11 +182,15 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     areaHotspots,
     dateRange,
     availableDates,
+    availableDateSet,
+    latestAvailableDate,
     contextHotspots,
     dailyActivity,
     filteredHotspots,
     stats,
+    fetchAvailableDates,
     fetchHotspots,
+    selectDateRange,
     setSensor,
     setAreaHotspots,
     setDateRange,

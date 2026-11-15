@@ -1,8 +1,9 @@
 import os
 from contextlib import asynccontextmanager
+from datetime import date
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Response, status
+from fastapi import Depends, FastAPI, Query, Response, status
 from sqlalchemy import text
 from sqlmodel import Session
 
@@ -16,7 +17,12 @@ from api.fire_cluster_forecast import router as fire_cluster_forecast_router
 from api.weather import router as weather_router
 from database.initDb import create_db_and_tables
 from database.session import get_session
-from model.StarSchema import CountryPublic, HotspotPublic, PlatformPublic
+from model.StarSchema import (
+    AvailableDatesResponse,
+    CountryPublic,
+    HotspotPublic,
+    PlatformPublic,
+)
 from repositories.CountryRepository import CountryRepository
 from repositories.HotspotRepository import HotspotRepository
 from repositories.PlatformRepository import PlatformRepository
@@ -87,8 +93,23 @@ def get_platforms(
 def get_hotspots(
     session: SessionDep,
     pagination: PaginationDep,
+    start_date: date | None = Query(
+        default=None,
+        description="Filter detections on or after this UTC date (YYYY-MM-DD)",
+    ),
+    end_date: date | None = Query(
+        default=None,
+        description="Filter detections on or before this UTC date (YYYY-MM-DD)",
+    ),
 ) -> PaginatedResponse[HotspotPublic]:
-    return HotspotRepository(session).get_hotspots(pagination)
+    return HotspotRepository(session).get_hotspots(
+        pagination, start_date=start_date, end_date=end_date
+    )
+
+
+@app.get("/hotspots/available-dates", tags=["Hotspots"])
+def get_hotspot_available_dates(session: SessionDep) -> AvailableDatesResponse:
+    return HotspotRepository(session).get_available_dates()
 
 
 @app.get("/countries", tags=["Countries"])

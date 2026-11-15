@@ -1,6 +1,7 @@
 import uuid
+from datetime import date
 
-from pydantic import NaiveDatetime
+from pydantic import BaseModel, NaiveDatetime
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -73,3 +74,11 @@ class FactHotspot(FactHotspotBase, table=True):
 
 class HotspotPublic(FactHotspotBase):
     """Public schema for a hotspot detection record."""
+
+
+class AvailableDatesResponse(BaseModel):
+    """Distinct UTC dates with available hotspot detections."""
+
+    dates: list[date]
+    min_date: date | None
+    max_date: date | None

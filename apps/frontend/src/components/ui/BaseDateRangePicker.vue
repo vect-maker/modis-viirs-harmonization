@@ -3,7 +3,7 @@ import { computed, shallowRef } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
 import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight, FilterX, X } from '@lucide/vue'
 import { parseDate } from '@internationalized/date'
-import type { DateRange } from 'reka-ui'
+import type { DateRange, DateValue } from 'reka-ui'
 import {
   PopoverRoot,
   PopoverTrigger,
@@ -28,6 +28,7 @@ import type { HotspotDateRange } from '@/types/filters'
 const props = defineProps<{
   modelValue: HotspotDateRange | null
   availableDates: HotspotDateRange
+  availableDateSet?: Set<string>
 }>()
 const emit = defineEmits<{
   'update:modelValue': [value: HotspotDateRange | null]
@@ -64,6 +65,11 @@ function updateRange(value: DateRange) {
   if (!value.start || !value.end || value.start.compare(value.end) > 0) return
   emit('update:modelValue', { start: value.start.toString(), end: value.end.toString() })
   open.value = false
+}
+
+function isDateUnavailable(date: DateValue): boolean {
+  if (!props.availableDateSet || props.availableDateSet.size === 0) return false
+  return !props.availableDateSet.has(date.toString())
 }
 
 function resetRange() {
@@ -118,9 +124,10 @@ function resetRange() {
         <RangeCalendarRoot
           v-slot="{ grid, weekDays }"
           :model-value="draft"
-          :default-placeholder="draft.start ?? minDate"
+          :default-placeholder="draft.start ?? maxDate"
           :min-value="minDate"
           :max-value="maxDate"
+          :is-date-unavailable="isDateUnavailable"
           locale="en-US"
           weekday-format="short"
           initial-focus
@@ -170,7 +177,7 @@ function resetRange() {
                   <RangeCalendarCellTrigger
                     :day="day"
                     :month="month.value"
-                    class="flex h-9 w-full items-center justify-center rounded-md text-sm outline-offset-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[outside-view]:text-ink-muted/50 data-[selected]:bg-accent/20 data-[selected]:text-accent-bright data-[selection-start]:bg-accent data-[selection-start]:text-surface-base data-[selection-end]:bg-accent data-[selection-end]:text-surface-base data-[highlighted]:bg-accent/15"
+                    class="flex h-9 w-full items-center justify-center rounded-md text-sm outline-offset-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[unavailable]:pointer-events-none data-[unavailable]:opacity-25 data-[outside-view]:text-ink-muted/50 data-[selected]:bg-accent/20 data-[selected]:text-accent-bright data-[selection-start]:bg-accent data-[selection-start]:text-surface-base data-[selection-end]:bg-accent data-[selection-end]:text-surface-base data-[highlighted]:bg-accent/15"
                   />
                 </RangeCalendarCell>
               </RangeCalendarGridRow>

@@ -6,16 +6,32 @@ import FireMap from '@/components/map/FireMap.vue'
 import HotspotDetails from '@/components/map/HotspotDetails.vue'
 import HotspotControlPanel from '@/components/features/HotspotControlPanel.vue'
 import HotspotTimeline from '@/components/features/HotspotTimeline.vue'
+import DatePromptDialog from '@/components/features/DatePromptDialog.vue'
 import MapActionBar from '@/components/common/MapActionBar.vue'
 import type { FireHotspot } from '@/types/hotspot'
 import { useHotspotsStore } from '@/stores/hotspots'
 
 const hotspotsStore = useHotspotsStore()
-const { filteredHotspots } = storeToRefs(hotspotsStore)
+const { filteredHotspots, availableDates, availableDateSet } = storeToRefs(hotspotsStore)
+const todayUtc = new Date().toISOString().slice(0, 10)
+const datePromptOpen = shallowRef(false)
 
-onMounted(() => {
-  void hotspotsStore.fetchHotspots({ limit: 100 })
+onMounted(async () => {
+  await hotspotsStore.fetchAvailableDates()
+  if (hotspotsStore.availableDateSet.has(todayUtc)) {
+    await hotspotsStore.selectDateRange({ start: todayUtc, end: todayUtc })
+    return
+  }
+  if (hotspotsStore.availableDateSet.size > 0) {
+    datePromptOpen.value = true
+    return
+  }
+  await hotspotsStore.fetchHotspots({ limit: 100 })
 })
+
+function onPromptSelectDate(date: string) {
+  void hotspotsStore.selectDateRange({ start: date, end: date })
+}
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const panelOpen = shallowRef(isDesktop.value)
 const timelineOpen = shallowRef(false)
@@ -84,6 +100,14 @@ function onRoiChange(payload: { areaKm2: number | null }) {
         class="absolute left-3 right-3 z-20 md:left-5 md:right-auto md:w-80"
         :style="{ bottom: `${mapBottomInset + 64}px` }"
         @close="selectedHotspot = null"
+      />
+      <DatePromptDialog
+        v-if="availableDates"
+        v-model:open="datePromptOpen"
+        :today-date="todayUtc"
+        :available-dates="availableDates"
+        :available-date-set="availableDateSet"
+        @select-date="onPromptSelectDate"
       />
     </main>
   </div>

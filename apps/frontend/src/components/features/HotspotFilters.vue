@@ -6,7 +6,7 @@ import BaseDateRangePicker from '@/components/ui/BaseDateRangePicker.vue'
 import BaseSensorFilter from '@/components/ui/BaseSensorFilter.vue'
 
 const store = useHotspotsStore()
-const { dateRange, availableDates, selectedSensor } = storeToRefs(store)
+const { dateRange, availableDates, availableDateSet, selectedSensor } = storeToRefs(store)
 </script>
 
 <template>
@@ -18,7 +18,7 @@ const { dateRange, availableDates, selectedSensor } = storeToRefs(store)
           v-if="dateRange"
           type="button"
           class="inline-flex items-center gap-1 rounded text-xs text-neutral-400 hover:text-white focus-visible:outline-2 focus-visible:outline-red-400"
-          @click="store.setDateRange(null)"
+          @click="void store.selectDateRange(null)"
         >
           <FilterX aria-hidden="true" class="h-3.5 w-3.5" /> Reset
         </button>
@@ -27,7 +27,8 @@ const { dateRange, availableDates, selectedSensor } = storeToRefs(store)
         v-if="availableDates"
         :model-value="dateRange"
         :available-dates="availableDates"
-        @update:model-value="store.setDateRange"
+        :available-date-set="availableDateSet"
+        @update:model-value="void store.selectDateRange($event)"
       />
     </div>
     <div class="space-y-2">

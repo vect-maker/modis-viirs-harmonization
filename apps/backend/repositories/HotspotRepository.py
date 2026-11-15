@@ -1,10 +1,10 @@
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from typing import overload
 
 from sqlmodel import Session, col, func, select
 
 from model.Hotspots import Hotspots
-from model.StarSchema import FactHotspot, HotspotPublic
+from model.StarSchema import AvailableDatesResponse, FactHotspot, HotspotPublic
 from repositories.pagination import paginate_statement
 from schemas.pagination import PaginatedResponse, PaginationParams
 
@@ -105,7 +105,11 @@ class HotspotRepository:
 
     @overload
     def get_hotspots(
-        self, pagination: PaginationParams
+        self,
+        pagination: PaginationParams,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> PaginatedResponse[HotspotPublic]: ...
 
     @overload
@@ -122,12 +126,25 @@ class HotspotRepository:
         self,
         pagination: PaginationParams | None = None,
         *,
+        start_date: date | None = None,
+        end_date: date | None = None,
         satellite_type: str | None = None,
         offset: int = 0,
         limit: int = 50,
     ) -> PaginatedResponse[HotspotPublic] | list[dict]:
         if pagination is not None:
-            statement = select(FactHotspot).order_by(
+            statement = select(FactHotspot)
+            if start_date is not None:
+                statement = statement.where(
+                    col(FactHotspot.acq_datetime)
+                    >= datetime.combine(start_date, time.min)
+                )
+            if end_date is not None:
+                statement = statement.where(
+                    col(FactHotspot.acq_datetime)
+                    < datetime.combine(end_date + timedelta(days=1), time.min)
+                )
+            statement = statement.order_by(
                 col(FactHotspot.acq_datetime).desc(),
                 col(FactHotspot.id),
             )
@@ -142,6 +159,21 @@ class HotspotRepository:
         statement = statement.offset(offset).limit(limit)
         results = self.session.exec(statement).all()
         return [self.serialize_hotspot(h) for h in results]
+
+    def get_available_dates(self) -> AvailableDatesResponse:
+        date_expr = func.date(col(FactHotspot.acq_datetime))
+        statement = select(date_expr).distinct().order_by(date_expr.asc())
+        raw_dates = self.session.exec(statement).all()
+        dates = [
+            d if isinstance(d, date) else date.fromisoformat(str(d))
+            for d in raw_dates
+            if d is not None
+        ]
+        return AvailableDatesResponse(
+            dates=dates,
+            min_date=dates[0] if dates else None,
+            max_date=dates[-1] if dates else None,
+        )
 
     def get_hostspot_by_dates(
         self,
