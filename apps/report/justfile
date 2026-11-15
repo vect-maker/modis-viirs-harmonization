@@ -7,6 +7,14 @@ build:
     mkdir -p output
     typst compile --font-path fonts main.typ output/report.pdf
 
+# Compile the Spanish Typst report to PDF inside output/
+build-es:
+    mkdir -p output
+    typst compile --font-path fonts main-es.typ output/report-es.pdf
+
+# Compile both English and Spanish Typst reports
+build-all: build build-es
+
 # Compile the English APA 7 technical documentation
 documentation:
     mkdir -p output

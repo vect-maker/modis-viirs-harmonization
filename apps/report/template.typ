@@ -8,8 +8,21 @@
   date: datetime.today().display("[month repr:long] [year]"),
   abstract: none,
   keywords: none,
+  lang: "en",
+  abstract-title: auto,
+  keywords-label: auto,
   body,
 ) = {
+  let resolved-abstract-title = if abstract-title == auto {
+    if lang == "es" { "Resumen" } else { "Abstract" }
+  } else {
+    abstract-title
+  }
+  let resolved-keywords-label = if keywords-label == auto {
+    if lang == "es" { "Palabras clave:" } else { "Keywords:" }
+  } else {
+    keywords-label
+  }
   set document(
     title: title,
     author: authors.map(a => if type(a) == dictionary { a.name } else { a }),
@@ -26,7 +39,7 @@
   )
 
   set columns(gutter: 18pt)
-  set text(font: ("New Computer Modern", "Liberation Serif"), size: 9.5pt, lang: "en")
+  set text(font: ("New Computer Modern", "Liberation Serif"), size: 9.5pt, lang: lang)
   set par(justify: true, leading: 0.58em, spacing: 0.65em)
   set heading(numbering: "1.1")
   set math.equation(numbering: "(1)")
@@ -83,11 +96,11 @@
 
   // Abstract & Keywords (placed at top of first column, matching example layout)
   if abstract != none [
-    #heading(outlined: false, numbering: none)[Abstract]
+    #heading(outlined: false, numbering: none)[#resolved-abstract-title]
     #abstract
     #if keywords != none [
       #v(0.4em)
-      *Keywords:* #keywords
+      *#resolved-keywords-label* #keywords
     ]
     #v(0.6em)
   ]

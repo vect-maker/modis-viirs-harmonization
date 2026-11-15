@@ -81,7 +81,7 @@ All runtime services are built and orchestrated using Podman with Compose (`comp
 
 The production Compose topology coordinates six containers: `db` (`postgis/postgis:17-3.5`), `nats` (`nats:2.10-alpine` with JetStream enabled), `backend` (`apps/backend/prod.containerfile`), `worker` (`apps/worker/prod.containerfile`), `frontend` (`apps/frontend/prod.containerfile`), and `caddy` (`caddy:2.9-alpine`). Caddy serves as the sole public ingress (`Caddyfile`), exposing only ports 80 and 443. HTTP requests on port 80 are automatically redirected to HTTPS on port 443 with managed TLS certificates, while `/api/*` requests are reverse-proxied to `backend:8080` and all remaining routes are served by `frontend:8080`.
 
-The containerized stack is deployed on a Microsoft Azure virtual machine (`sldg`) in the `northcentralus` region using a `Standard_B2as_v2` instance profile. The host runs Ubuntu 24.04 LTS Server (`ubuntu-24_04-lts`) backed by a 30 GB `Premium_LRS` managed OS disk, with password authentication disabled in favor of SSH key-based access.
+The containerized stack is deployed on a Microsoft Azure virtual machine in the `northcentralus` region using a `Standard_B2as_v2` instance profile. The host runs Ubuntu 24.04 LTS Server (`ubuntu-24_04-lts`) backed by a 30 GB `Premium_LRS` managed OS disk, with password authentication disabled in favor of SSH key-based access.
 
 == Data sources and API attribution
 

@@ -41,16 +41,3 @@ The 2024 Collection 2 guide is used for VIIRS retrieval interpretation. The 2014
 The corrected challenge URL is recorded in the companion methodology documentation. Its title was verified in official indexed metadata; direct page retrieval was unavailable during this revision. It is project context rather than scientific evidence.
 
 No primary source reviewed establishes the values 2.20, 6.12, 4.50, or 1.14 as transferable calibration constants for this prototype. Universal minimum-FRP thresholds and claims of an exact isotropic grid were removed.
-
-= Evidence Status at Delivery
-
-#table(
-  columns: (60%, 40%),
-  table.header([Evidence item], [Status]),
-  [Four SQL stages on synthetic data], [Verified],
-  [Native tuples preserved in those checks], [Verified],
-  [Original FIRMS archive reprocessing], [Not performed],
-  [Cloud/swath exposure correction], [Not implemented],
-  [Held-out scientific validation], [Pending],
-  [Weighted metric in current calendar], [Not integrated],
-)
