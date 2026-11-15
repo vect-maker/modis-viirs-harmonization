@@ -9,6 +9,9 @@ venv/
 .env/
 .env/
 
+# Python lockfiles
+uv.lock
+
 # Python artifacts
 __pycache__/
 *.py[cod]

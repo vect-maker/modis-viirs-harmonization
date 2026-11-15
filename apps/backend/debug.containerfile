@@ -8,4 +8,4 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "uv sync --locked --no-install-project && exec uv run --no-sync fastapi dev main.py --host 0.0.0.0 --port 8080"]
+CMD ["sh", "-c", "uv sync --no-install-project && exec uv run --no-sync fastapi dev main.py --host 0.0.0.0 --port 8080"]

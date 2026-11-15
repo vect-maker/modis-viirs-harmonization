@@ -1,11 +1,7 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlmodel import Field, Relationship, SQLModel
-
-if TYPE_CHECKING:
-    from model import ClusterHotspots
+from sqlmodel import Field, SQLModel
 
 
 class Hotspots(SQLModel, table=True):
@@ -25,5 +21,3 @@ class Hotspots(SQLModel, table=True):
     frp: float | None = Field(default=None)
     daynight: str | None = Field(default=None)
     type: int | None = Field(default=None)
-
-    clusters: list["ClusterHotspots"] = Relationship(back_populates="hotspots")

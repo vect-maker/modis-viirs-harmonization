@@ -5,8 +5,8 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
-COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-install-project
+COPY pyproject.toml ./
+RUN uv sync --no-install-project
 
 COPY . .
 
