@@ -16,11 +16,28 @@ const emit = defineEmits<{
   (e: 'inspect', event: FireEventProperties): void
 }>()
 
+const ACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000
+
+const effectiveStatus = computed(() => {
+  const endStr = props.event.datetime_end ?? props.event.datetime_start
+  if (endStr) {
+    const endMs = Date.parse(endStr.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(endStr) ? endStr : `${endStr}Z`)
+    if (!Number.isNaN(endMs) && Date.now() - endMs > ACTIVE_WINDOW_MS) {
+      return props.event.hotspot_count <= 1 ? 'ISOLATED' : 'ENDED'
+    }
+  }
+  const raw = (props.event.status ?? '').toUpperCase()
+  if (raw === 'ACTIVO') return 'ACTIVE'
+  if (raw === 'AISLADO') return 'ISOLATED'
+  if (raw === 'FINALIZADO') return 'ENDED'
+  return raw || 'ENDED'
+})
+
 const statusBadgeClass = computed(() => {
-  switch (props.event.status) {
-    case 'ACTIVO':
+  switch (effectiveStatus.value) {
+    case 'ACTIVE':
       return 'border-red-400/40 bg-red-500/15 text-red-300'
-    case 'AISLADO':
+    case 'ISOLATED':
       return 'border-amber-400/40 bg-amber-500/15 text-amber-300'
     default:
       return 'border-slate-400/40 bg-slate-500/15 text-slate-300'
@@ -62,7 +79,7 @@ const maxHotspotFrp = computed(() => {
         class="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
         :class="statusBadgeClass"
       >
-        {{ event.status }}
+        {{ effectiveStatus }}
       </span>
     </div>
 

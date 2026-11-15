@@ -37,7 +37,11 @@ INSERT INTO pg.firecluster (
 SELECT
     cluster_id AS id,
     COALESCE(area_km2, 0.0) AS polygon,
-    'ACTIVO' AS status,
+    CASE
+        WHEN datetime_end >= CURRENT_TIMESTAMP - INTERVAL '24 hours' THEN 'ACTIVO'
+        WHEN hotspot_count = 1 THEN 'AISLADO'
+        ELSE 'FINALIZADO'
+    END AS status,
     datetime_start AS "datetimeStart",
     datetime_end AS "datetimeEnd",
     max_frp AS "maxFrp",

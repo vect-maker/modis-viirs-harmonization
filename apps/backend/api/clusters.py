@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -22,8 +22,27 @@ class ClusterGeoJsonQuery(BaseModel):
     start_date: datetime | None = None
     end_date: datetime | None = None
     status: ClusterStatus | None = None
-    min_hotspots: int = 1
+    min_hotspots: int = 2
     limit: int = 500
+
+
+def _resolve_event_status(
+    raw_status: str | None,
+    datetime_end: datetime | None,
+    hotspot_count: int | None,
+) -> str:
+    """Resolve effective event status against current UTC time."""
+    normalized = (raw_status or "").upper()
+    if datetime_end is not None:
+        end_utc = (
+            datetime_end.replace(tzinfo=timezone.utc)
+            if datetime_end.tzinfo is None
+            else datetime_end.astimezone(timezone.utc)
+        )
+        if datetime.now(timezone.utc) - end_utc > timedelta(hours=24):
+            if normalized in ("", "ACTIVO"):
+                return "AISLADO" if (hotspot_count or 0) <= 1 else "FINALIZADO"
+    return raw_status or "FINALIZADO"
 
 
 def _parse_bbox(bbox_str: str | None) -> tuple[float, float, float, float] | None:
@@ -136,7 +155,11 @@ def _query_clusters_geojson(
                     "geometry": geometry,
                     "properties": {
                         "id": row["id"],
-                        "status": row["status"],
+                        "status": _resolve_event_status(
+                            row["status"],
+                            row["datetime_end"] or row["datetime_start"],
+                            row["hotspot_count"],
+                        ),
                         "datetime_start": row["datetime_start"].isoformat() if row["datetime_start"] else None,
                         "datetime_end": row["datetime_end"].isoformat() if row["datetime_end"] else None,
                         "duration_h": row["duration_h"] or 0.0,
@@ -192,7 +215,11 @@ def _query_clusters_geojson(
                 },
                 "properties": {
                     "id": c.id,
-                    "status": c.status.value,
+                    "status": _resolve_event_status(
+                        c.status.value,
+                        c.datetimeEnd or c.datetimeStart,
+                        c.hotspot_count,
+                    ),
                     "datetime_start": c.datetimeStart.isoformat() if c.datetimeStart else None,
                     "datetime_end": c.datetimeEnd.isoformat() if c.datetimeEnd else None,
                     "duration_h": duration_h,
@@ -217,7 +244,7 @@ async def get_clusters_geojson(
     start_date: datetime | None = Query(default=None),
     end_date: datetime | None = Query(default=None),
     status: ClusterStatus | None = Query(default=None),
-    min_hotspots: int = Query(default=1, ge=0),
+    min_hotspots: int = Query(default=2, ge=0),
     limit: int = Query(default=500, ge=1, le=2000),
     session: Session = Depends(get_session),
 ) -> dict[str, Any]:

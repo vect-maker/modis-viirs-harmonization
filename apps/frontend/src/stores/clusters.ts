@@ -40,7 +40,7 @@ export const useClustersStore = defineStore('clusters', () => {
           start_date: params.start_date,
           end_date: params.end_date,
           status: params.status,
-          min_hotspots: params.min_hotspots ?? 1,
+          min_hotspots: params.min_hotspots ?? 2,
           limit: params.limit ?? 500,
         })
       } else {
@@ -50,7 +50,7 @@ export const useClustersStore = defineStore('clusters', () => {
           start_date: params?.start_date,
           end_date: params?.end_date,
           status: params?.status,
-          min_hotspots: params?.min_hotspots,
+          min_hotspots: params?.min_hotspots ?? 2,
         })
       }
       hasFetchedEvents.value = true

@@ -1,5 +1,72 @@
 = Implemented Method
 
+== Data pipeline and technology stack
+
+PyroTrace separates data acquisition, analytical transformation, spatial storage, and task orchestration into distinct layers so that multi-year satellite archives can be processed reliably on a single workstation without exhausting memory.
+
+Raw active-fire archives are retrieved from the NASA FIRMS API as CSV files. Python scripts (`sync_meta.py`, `transform_meta.py`, `fetcher.py`, and `sync_local_files.py`) manage API transaction budgets, track which country-year-instrument files exist on disk in a local SQLite catalog (`data/pipeline.db`), and write downloaded records atomically as columnar Parquet files (`data/raw/<instrument>/<year>/<country>.parquet`). Python is used strictly for API communication, state tracking, and CSV-to-Parquet conversion rather than whole-archive analytical processing.
+
+Processing multi-year continental or global archives on a single machine with in-memory tools such as pandas risks memory exhaustion. Instead, all dataset fusion (`fuse_datasets.sql`), four-stage harmonization (`sql/harmonize/`), star-schema normalization (`normalize_star_schema.sql`), and fire-event clustering (`sql/clusters/`) are written as pure DuckDB SQL queries. DuckDB executes vectorized, out-of-core operations directly over local Parquet files with bounded memory and disk spilling, and reads the SQLite catalog via `sqlite_scan`. Using DuckDB's `postgres` and `spatial` extensions, the same engine also bulk-loads the resulting Gold Parquet tables and clustered geometries directly into the production PostgreSQL database (`load_star_schema.sql`, `load_clusters.sql`).
+
+Processed star-schema tables (`dim_country`, `dim_platform`, `fact_hotspots`) and fire-event footprints are stored in PostgreSQL with the PostGIS extension (`setup.sql`, `schema.sql`), providing indexed spatial geometries (`ST_Point` and polygon footprints) for the FastAPI backend and interactive map. Common project commands are codified in modular `justfile` recipe files (a root `justfile` delegating to `apps/pipeline/justfile`, `apps/report/justfile`, and sibling service modules), standardizing environment setup, API fetching, DuckDB SQL execution, PostGIS loading, and report compilation into single-command targets.
+
+#figure(
+  {
+    set par(justify: false)
+    table(
+      columns: (27%, 24%, 49%),
+      align: (left, left, left),
+      table.header([Layer], [Tool], [Role and selection rationale]),
+      [Ingestion & tracking], [Python, SQLite, Parquet], [Fetches NASA FIRMS API CSVs, tracks downloaded files on disk, and stores columnar raw archives.],
+      [Transform & load], [DuckDB SQL], [Replaces in-memory pandas for single-machine out-of-core SQL transforms and direct PostgreSQL loading.],
+      [Production store], [PostgreSQL + PostGIS], [Serves normalized star-schema records and spatial geometries to the application backend.],
+      [Backend API], [FastAPI + SQLModel], [Provides rapid REST and SSE endpoint development with shared Pydantic and SQLAlchemy models.],
+      [State & event bus], [NATS JetStream], [Persists worker KV cursors and SSE presence, and routes real-time events across API replicas.],
+      [Task runner], [`justfile`], [Centralizes common pipeline, database, and report commands as versioned recipes.],
+    )
+  },
+  caption: [Core ETL and orchestration stack used by the PyroTrace pipeline.],
+)
+
+== Transformation and loading phases
+
+Once raw country-year-instrument Parquet files are registered on disk, the DuckDB pipeline processes them through four sequential stages, each exposed as a `justfile` recipe:
+
+1. *Fuse dataset (`fuse_datasets.sql`, `just pipeline::fuse-data`):* Reads the SQLite file catalog (`sqlite_scan`) for completed raw Parquet files (scoped to Central America by default, or all countries globally) and unifies MODIS and VIIRS records into a single ZSTD-compressed Silver table (`data/processed/hotspots.parquet`). This stage parses timestamps, aligns MIR and TIR brightness column names, expands VIIRS satellite codes, and maps categorical VIIRS confidence (`l`, `n`, `h`) to numeric storage codes (`20`, `50`, `90`).
+2. *Harmonize data (`sql/harmonize/01` to `04`, `just pipeline::harmonize-data`):* Executes four sequential SQL scripts over the Silver table to compute local solar hours and spatial-hourly keys (`01_base_points.sql`), detect candidate MODIS-VIIRS co-occurrences (`02_quadrant_hourly.sql`), derive country-level ratios and fallback factors (`03_country_calibration.sql`), and assign point-level categories, experimental weights, and derived FRP (`04_harmonize_points.sql`), outputting `data/processed/hotspots_harmonized.parquet`.
+3. *Normalize data (`normalize_star_schema.sql`, `just pipeline::normalize-data`):* Converts the harmonized table into a Gold star schema under `data/processed/star/` (`dim_country.parquet`, `dim_platform.parquet`, and deduplicated `fact_hotspots.parquet`). Deterministic RFC 4122 UUIDv5 keys (`firms_uuid5`) are computed from natural attributes so repeated pipeline runs remain idempotent.
+4. *Load data (`load_star_schema.sql`, `just pipeline::db-load`):* Uses DuckDB's `postgres` and `spatial` extensions to attach the production PostgreSQL/PostGIS database (`$DATABASE_URL`), truncate existing tables, and bulk-stream the Gold star-schema Parquet files while constructing `ST_Point` geometries. An accompanying clustering stage (`just pipeline::cluster-events`) groups hotspots into fire-event footprints and loads them into PostGIS for map rendering.
+
+#figure(
+  {
+    set par(justify: false)
+    table(
+      columns: (28%, 72%),
+      align: (left, left),
+      table.header([Phase & recipe], [Primary output & purpose]),
+      [1. Fuse\ (`fuse-data`)], [Produces unified Silver `hotspots.parquet` from raw MODIS and VIIRS Parquet files.],
+      [2. Harmonize\ (`harmonize-data`)], [Produces `hotspots_harmonized.parquet` with weights, categories, and derived FRP.],
+      [3. Normalize\ (`normalize-data`)], [Splits into Gold star-schema Parquet files (`dim_country`, `dim_platform`, `fact_hotspots`) with UUIDv5 keys.],
+      [4. Load\ (`db-load`)], [Bulk-inserts Gold tables into PostgreSQL/PostGIS with `ST_Point` geometries.],
+    )
+  },
+  caption: [Sequential DuckDB SQL transformation and loading phases.],
+)
+
+== Live API ingestion worker
+
+Alongside the batch archive pipeline, a containerized Python worker (`apps/worker`) connects directly to the live NASA FIRMS Area CSV API to bridge historical archive gaps and maintain near-real-time (NRT) updates in PostgreSQL/PostGIS. Its lifecycle proceeds in two phases, supported by polygon-based country resolution.
+
+In the first phase, a quota-aware catch-up process (`catchup.py`) resumes from a persisted NATS JetStream KV cursor (`catchup.cursor`), or from the latest stored `acq_datetime` in `fact_hotspots` when no cursor is present. It queries a regional bounding box (`FIRMS_AREA_BBOX`, defaulting to Central America) in 5-day batches across MODIS, Suomi-NPP, NOAA-20, and NOAA-21, selecting Standard Processing (`_SP`) or Near Real-Time (`_NRT`) feeds according to FIRMS data availability. Before each request, the worker checks the `MAP_KEY` transaction budget (`FIRMS_QUOTA_RESERVE = 50`). When the quota is approached or an HTTP 429 response occurs, it pauses for `CATCHUP_COOLDOWN_SECONDS` (default 610 s) and resumes from the saved cursor until caught up to the current UTC date.
+
+Once catch-up completes, the worker transitions to near-real-time polling (`nrt_sync.py`), querying the four NRT feeds every `NRT_POLL_INTERVAL_SECONDS` (default 300 s) with a 2-day sliding window (`day_range = 2`) to capture newly available satellite overpasses. Because Area API responses return rectangular bounding-box detections without country labels, `country_resolver.py` tests each coordinate against `central_america.geojson` polygons using a Shapely `STRtree` spatial index and discards points outside the seven target countries. Valid detections receive the same deterministic `firms_uuid5` key in `hotspot_writer.py` and are inserted idempotently (`ON CONFLICT DO NOTHING`) into the PostGIS star schema.
+
+== Backend service and NATS coordination
+
+The application backend (`apps/backend`) is implemented with FastAPI and SQLModel. This stack was selected for rapid prototype development, automatic OpenAPI schema generation, and unified Pydantic validation and SQLAlchemy ORM mapping over the PostGIS star schema. Given additional engineering time, performance-critical API paths could be migrated from Python to a compiled systems framework such as Rust with Axum while keeping the same PostgreSQL/PostGIS schema and messaging contracts.
+
+NATS serves as both a JetStream Key-Value (KV) store and a pub-sub event bus across the runtime services. As a KV store, the ingestion worker persists its operational state in the `worker_state` bucket (`catchup.cursor`, `catchup.completed`, `catchup.last_progress`, and `nrt.last_sync`), while FastAPI replicas record active Server-Sent Events (SSE) client streams in the `sse_presence` bucket (with a 45 s default TTL). As an event bus, `NatsService` publishes global notifications on `firms.sse.broadcast` and routes targeted user or tenant envelopes to specific backend replicas via `firms.sse.instance.<instance_id>`, falling back to local in-memory delivery when `NATS_URL` is unconfigured. Meanwhile, newly ingested hotspots written by the worker into PostgreSQL/PostGIS become immediately queryable by FastAPI repositories.
+
 == Inputs and schema alignment
 
 The source is a Silver Parquet table with country, native coordinates, UTC acquisition time, satellite, instrument, brightness temperatures, confidence, FRP, pixel scan/track dimensions, day/night flag, version, and anomaly type.
@@ -104,6 +171,17 @@ The actual SQL replaces missing native FRP with zero in this derived field, whil
 NASA's Collection 2 guide describes a hybrid retrieval using VIIRS I-band detections and M13 radiance; co-located 375 m detections share fractional FRP from the underlying retrieval @viirsguide2024. A smaller mean FRP per VIIRS record therefore does not by itself imply lower physical fire intensity.
 
 A monthly sum of $P_i^*$ is an observation-summed power statistic. Energy requires time integration, for example $E=integral P(t) dif t$, together with assumptions about the intervals not observed. Neither energy nor burned area is estimated here.
+
+== Fire event clustering for map representation
+
+A single satellite hotspot represents one detected thermal pixel rather than an entire fire. Multiple MODIS and VIIRS detections from different overpasses often belong to the same burning episode. To avoid visual clutter and present a clearer operational picture on the map, the pipeline groups individual hotspots into *fire events* using two pure DuckDB SQL stages (`sql/clusters/01_assign_events.sql` and `02_build_clusters.sql`) before bulk-loading them into PostgreSQL/PostGIS:
+
+- *Spatial cell rule:* Each hotspot is assigned to a `0.02`-degree grid cell (about 2.2 km). All detections sharing the same cell are candidates for the same event.
+- *24-hour continuity rule:* Within each cell, detections are sorted by acquisition time. Consecutive detections remain in the same fire event as long as the gap between them is 24 hours or less. A gap longer than 24 hours starts a new event, which prevents continuous multi-day fires from being split artificially at midnight.
+- *Footprint geometry rule:* For each fire event, DuckDB Spatial computes the center point (centroid) from its constituent hotspots and builds a perimeter polygon by taking the outer convex hull of the points and expanding it by a `0.0036`-degree buffer (about 400 m). This ensures that even a one- or two-hotspot event has a valid polygon and geodesic area in square kilometers.
+- *Event summary and on-demand inspection:* Each event records the total hotspot count, separate MODIS and VIIRS counts, start and end timestamps, peak and total FRP, and the summed harmonization weight. On the web map, fire events are shown as ringed markers at regional zoom and dashed perimeter footprints when zoomed in; individual constituent hotspots are fetched only when the user clicks to inspect a specific event or switches to the raw hotspot layer.
+
+As a known limitation of grid-based grouping, two nearby detections that fall on opposite sides of a `0.02`-degree cell boundary are assigned to separate events.
 
 == Current application integration
 
