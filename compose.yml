@@ -69,9 +69,16 @@ services:
     container_name: firms-worker
     restart: unless-stopped
     environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@db:5432/firms}
       NATS_URL: ${NATS_URL:-nats://nats:4222}
-      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-300}
+      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
+      FIRMS_AREA_BBOX: ${FIRMS_AREA_BBOX:--87.7,10.7,-82.7,15.1}
+      FIRMS_COUNTRY_NAME: ${FIRMS_COUNTRY_NAME:-Nicaragua}
+      CATCHUP_COOLDOWN_SECONDS: ${CATCHUP_COOLDOWN_SECONDS:-610}
+      NRT_POLL_INTERVAL_SECONDS: ${NRT_POLL_INTERVAL_SECONDS:-300}
     depends_on:
+      db:
+        condition: service_healthy
       nats:
         condition: service_healthy
 

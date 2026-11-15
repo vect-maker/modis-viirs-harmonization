@@ -28,8 +28,13 @@ services:
       dockerfile: debug.containerfile
     image: localhost/firms-worker:debug
     environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}
       NATS_URL: ${NATS_URL:-nats://nats:4222}
-      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-300}
+      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
+      FIRMS_AREA_BBOX: ${FIRMS_AREA_BBOX:--87.7,10.7,-82.7,15.1}
+      FIRMS_COUNTRY_NAME: ${FIRMS_COUNTRY_NAME:-Nicaragua}
+      CATCHUP_COOLDOWN_SECONDS: ${CATCHUP_COOLDOWN_SECONDS:-610}
+      NRT_POLL_INTERVAL_SECONDS: ${NRT_POLL_INTERVAL_SECONDS:-300}
     volumes:
       - ./apps/worker:/app:Z
       - worker_venv:/opt/venv

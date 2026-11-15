@@ -1,14 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import signal
-from datetime import UTC, datetime
-from enum import StrEnum
-from typing import Any
-from uuid import uuid4
 
 import nats
 from dotenv import load_dotenv
@@ -16,7 +11,11 @@ from nats.aio.client import Client as NatsClient
 from nats.js.api import KeyValueConfig
 from nats.js.errors import BucketNotFoundError
 from nats.js.kv import KeyValue
-from pydantic import BaseModel, Field
+
+from catchup import CatchUpProcess
+from firms_client import FirmsApiClient
+from hotspot_writer import HotspotWriter, build_db_engine
+from nrt_sync import NrtSyncProcess
 
 load_dotenv()
 
@@ -26,50 +25,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger("firms.worker")
 
-SSE_BROADCAST_SUBJECT = "firms.sse.broadcast"
 WORKER_STATE_BUCKET = "worker_state"
 
 
-class SSETargetScope(StrEnum):
-    ALL = "all"
-    USER = "user"
-    TENANT = "tenant"
-
-
-class SSEEventEnvelope(BaseModel):
-    event_id: str
-    emitter_service: str = "firms-worker"
-    target_scope: SSETargetScope = SSETargetScope.ALL
-    target_id: str | None = None
-    event_type: str = "notification"
-    payload: dict[str, Any] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-
-class WorkerService:
+class WorkerRunner:
     """
-    Background worker that connects to NATS + JetStream KV, wakes up on a schedule,
-    and publishes SSEEventEnvelope notifications to connected API replicas.
+    Coordinates the two-phase worker lifecycle:
+    1. CatchUpProcess (quota-aware historical backfill up to today)
+    2. NrtSyncProcess (frequent Near Real-Time polling)
     """
 
-    def __init__(
-        self,
-        *,
-        nats_url: str | None = None,
-        poll_interval_seconds: float | None = None,
-    ) -> None:
-        self.nats_url = (nats_url or os.getenv("NATS_URL", "nats://localhost:4222")).strip()
-        self.poll_interval_seconds = (
-            poll_interval_seconds
-            if poll_interval_seconds is not None
-            else float(os.getenv("WORKER_POLL_INTERVAL_SECONDS", "300"))
+    def __init__(self) -> None:
+        self.nats_url = os.getenv("NATS_URL", "nats://localhost:4222").strip()
+        self.bbox = os.getenv("FIRMS_AREA_BBOX", "-87.7,10.7,-82.7,15.1").strip()
+        self.country_name = os.getenv("FIRMS_COUNTRY_NAME", "Nicaragua").strip()
+        self.cooldown_seconds = float(os.getenv("CATCHUP_COOLDOWN_SECONDS", "610"))
+        self.poll_interval_seconds = float(
+            os.getenv("NRT_POLL_INTERVAL_SECONDS", "300")
         )
         self._nc: NatsClient | None = None
         self._kv: KeyValue | None = None
         self._stop_event = asyncio.Event()
 
-    async def connect(self) -> None:
-        if self._nc is not None and self._nc.is_connected:
+    async def connect_nats(self) -> None:
+        if not self.nats_url:
             return
         self._nc = await nats.connect(servers=[self.nats_url], name="firms-worker")
         js = self._nc.jetstream()
@@ -79,7 +58,7 @@ class WorkerService:
             self._kv = await js.create_key_value(
                 config=KeyValueConfig(bucket=WORKER_STATE_BUCKET)
             )
-        logger.info("Worker connected to NATS at %s", self.nats_url)
+        logger.info("Worker connected to NATS KV at %s", self.nats_url)
 
     async def close(self) -> None:
         if self._nc is not None:
@@ -93,95 +72,51 @@ class WorkerService:
             self._nc = None
         self._kv = None
 
-    async def publish_notification(
-        self,
-        *,
-        title: str,
-        message: str,
-        severity: str = "info",
-        duration_ms: int = 5000,
-        metadata: dict[str, Any] | None = None,
-    ) -> SSEEventEnvelope:
-        envelope = SSEEventEnvelope(
-            event_id=f"worker-{uuid4().hex[:12]}",
-            emitter_service="firms-worker",
-            target_scope=SSETargetScope.ALL,
-            event_type="notification",
-            payload={
-                "title": title,
-                "message": message,
-                "severity": severity,
-                "duration_ms": duration_ms,
-                **({"metadata": metadata} if metadata else {}),
-            },
-        )
-        if self._nc is not None and self._nc.is_connected:
-            await self._nc.publish(
-                SSE_BROADCAST_SUBJECT,
-                envelope.model_dump_json().encode("utf-8"),
-            )
-            await self._nc.flush(timeout=1)
-        return envelope
-
-    async def record_sync_state(
-        self, status: str, details: dict[str, Any] | None = None
-    ) -> None:
-        if self._kv is None:
-            return
-        state = {
-            "status": status,
-            "updated_at": datetime.now(UTC).isoformat(),
-            **(details or {}),
-        }
-        await self._kv.put("firms.last_run", json.dumps(state).encode("utf-8"))
-
-    async def run_once(self) -> SSEEventEnvelope:
-        """
-        Single wake-up cycle. Future FIRMS realtime API polling and DB persistence
-        plug in here before publishing the summary notification.
-        """
-        logger.info("Worker wake-up cycle starting")
-        await self.record_sync_state("completed")
-        envelope = await self.publish_notification(
-            title="Worker heartbeat",
-            message="Background worker cycle completed.",
-            severity="info",
-        )
-        logger.info("Worker cycle finished (event_id=%s)", envelope.event_id)
-        return envelope
-
     def request_stop(self) -> None:
         self._stop_event.set()
 
-    async def run_forever(self) -> None:
-        await self.connect()
-        try:
-            while not self._stop_event.is_set():
-                try:
-                    await self.run_once()
-                except Exception as exc:
-                    logger.exception("Worker cycle failed: %s", exc)
+    async def run(self) -> None:
+        engine = build_db_engine()
+        writer = HotspotWriter(engine)
+        firms_client = FirmsApiClient()
 
-                try:
-                    await asyncio.wait_for(
-                        self._stop_event.wait(),
-                        timeout=self.poll_interval_seconds,
-                    )
-                except TimeoutError:
-                    continue
+        await self.connect_nats()
+        try:
+            catchup = CatchUpProcess(
+                firms_client=firms_client,
+                writer=writer,
+                kv=self._kv,
+                bbox=self.bbox,
+                country_name=self.country_name,
+                cooldown_seconds=self.cooldown_seconds,
+            )
+            await catchup.run_until_caught_up(self._stop_event)
+
+            if self._stop_event.is_set():
+                return
+
+            nrt_sync = NrtSyncProcess(
+                firms_client=firms_client,
+                writer=writer,
+                kv=self._kv,
+                bbox=self.bbox,
+                country_name=self.country_name,
+                poll_interval_seconds=self.poll_interval_seconds,
+            )
+            await nrt_sync.run_forever(self._stop_event)
         finally:
             await self.close()
 
 
 async def main() -> None:
-    worker = WorkerService()
+    runner = WorkerRunner()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
-            loop.add_signal_handler(sig, worker.request_stop)
+            loop.add_signal_handler(sig, runner.request_stop)
         except NotImplementedError:
             pass
-    await worker.run_forever()
+    await runner.run()
 
 
 if __name__ == "__main__":
