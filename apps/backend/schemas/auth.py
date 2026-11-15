@@ -17,6 +17,16 @@ class UserAuthenticateRequest(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+class UserUpdateRequest(BaseModel):
+    username: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=64,
+        pattern=r"^[a-zA-Z0-9_.-]+$",
+    )
+    email: EmailStr | None = None
+
+
 class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

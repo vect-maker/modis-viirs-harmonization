@@ -143,6 +143,15 @@ def test_register_authenticate_me_and_logout_flow():
             assert me_resp.status_code == 200
             assert me_resp.json()["id"] == reg_data["id"]
 
+            # PATCH /auth/me updates username & email
+            patch_resp = client.patch(
+                "/auth/me",
+                json={"username": "analyst_updated", "email": "Updated@Example.com"},
+            )
+            assert patch_resp.status_code == 200
+            assert patch_resp.json()["username"] == "analyst_updated"
+            assert patch_resp.json()["email"] == "updated@example.com"
+
             # Logout clears cookie and /auth/me fails again
             logout_resp = client.post("/auth/logout")
             assert logout_resp.status_code == 204

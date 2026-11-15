@@ -17,7 +17,7 @@ import PyroTraceLogo from '@/components/common/PyroTraceLogo.vue'
         <h2>Una mirada más clara.<br /><span>Empieza en el mapa.</span></h2>
         <div>
           <p>Conecta con los datos.<br />Comprende lo que observas.</p>
-          <RouterLink to="/dashboard" class="landing-button"
+          <RouterLink :to="{ name: 'dashboard' }" class="landing-button"
             >Abrir explorador <ArrowUpRight :size="19" aria-hidden="true"
           /></RouterLink>
         </div>

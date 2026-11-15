@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { shallowRef, useTemplateRef } from 'vue'
-import { ArrowUpRight, Menu, X } from '@lucide/vue'
+import { ArrowUpRight, LogIn, Menu, User, X } from '@lucide/vue'
 import PyroTraceLogo from '@/components/common/PyroTraceLogo.vue'
+import { useAuthStore } from '@/stores/auth'
 
+const authStore = useAuthStore()
 const menuOpen = shallowRef(false)
 const menuToggle = useTemplateRef<HTMLButtonElement>('menu-toggle')
 const links = [
@@ -19,7 +21,7 @@ function closeMenu(returnFocus = false) {
 <template>
   <header class="landing-header" @keydown.esc="closeMenu(true)">
     <div class="landing-wrap landing-header-inner">
-      <RouterLink to="/" class="landing-brand" aria-label="PyroTrace, inicio" @click="closeMenu()">
+      <RouterLink :to="{ name: 'landing' }" class="landing-brand" aria-label="PyroTrace, inicio" @click="closeMenu()">
         <PyroTraceLogo class="landing-logo" />
       </RouterLink>
       <nav class="landing-desktop-nav" aria-label="Navegación principal">
@@ -28,7 +30,23 @@ function closeMenu(returnFocus = false) {
         }}</a>
       </nav>
       <div class="landing-header-actions">
-        <RouterLink to="/dashboard" class="landing-button landing-button-small"
+        <RouterLink
+          v-if="authStore.isAuthenticated"
+          :to="{ name: 'profile' }"
+          class="landing-nav-link inline-flex items-center gap-1.5"
+        >
+          <User :size="15" aria-hidden="true" />
+          <span>{{ authStore.user?.username }}</span>
+        </RouterLink>
+        <RouterLink
+          v-else
+          :to="{ name: 'login' }"
+          class="landing-nav-link inline-flex items-center gap-1.5"
+        >
+          <LogIn :size="15" aria-hidden="true" />
+          <span>Iniciar sesión</span>
+        </RouterLink>
+        <RouterLink :to="{ name: 'dashboard' }" class="landing-button landing-button-small"
           >Abrir explorador <ArrowUpRight :size="17" aria-hidden="true"
         /></RouterLink>
         <button
@@ -57,6 +75,16 @@ function closeMenu(returnFocus = false) {
       <a v-for="link in links" :key="link.href" :href="link.href" @click="closeMenu()"
         >{{ link.label }} <ArrowUpRight :size="20" aria-hidden="true"
       /></a>
+      <RouterLink
+        v-if="authStore.isAuthenticated"
+        :to="{ name: 'profile' }"
+        @click="closeMenu()"
+      >
+        Perfil ({{ authStore.user?.username }}) <ArrowUpRight :size="20" aria-hidden="true" />
+      </RouterLink>
+      <RouterLink v-else :to="{ name: 'login' }" @click="closeMenu()">
+        Iniciar sesión <ArrowUpRight :size="20" aria-hidden="true" />
+      </RouterLink>
       <p>Observación satelital, a tu alcance.</p>
     </nav>
   </header>

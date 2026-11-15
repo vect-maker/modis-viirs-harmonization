@@ -11,10 +11,14 @@ import DashboardNavbar from '@/components/features/DashboardNavbar.vue'
 import LargeFetchDialog from '@/components/features/LargeFetchDialog.vue'
 import LocationPromptDialog from '@/components/features/LocationPromptDialog.vue'
 import MapStatsPanel from '@/components/features/MapStatsPanel.vue'
+import HotspotFeedbackDrawer from '@/components/features/HotspotFeedbackDrawer.vue'
 import MapActionBar from '@/components/common/MapActionBar.vue'
+import type { HotspotResponse } from '@/api'
 import { useHotspotsStore } from '@/stores/hotspots'
+import { useFeedbackStore } from '@/stores/feedback'
 
 const hotspotsStore = useHotspotsStore()
+const feedbackStore = useFeedbackStore()
 const {
   availableDates,
   availableDateSet,
@@ -23,6 +27,30 @@ const {
   loadingProgress,
   pendingLargeFetch,
 } = storeToRefs(hotspotsStore)
+
+const feedbackHotspot = shallowRef<HotspotResponse | null>(null)
+
+watch(
+  () => hotspotsStore.hotspots,
+  (items) => {
+    if (items.length > 0) {
+      void feedbackStore.fetchBatchSummaries(items.map((h) => h.id))
+    }
+  },
+  { immediate: true },
+)
+
+function onOpenFeedback(hotspot: HotspotResponse) {
+  feedbackHotspot.value = hotspot
+  void feedbackStore.openHotspotFeedback(hotspot.id)
+}
+
+function onFeedbackDrawerOpenChange(open: boolean) {
+  if (!open) {
+    feedbackHotspot.value = null
+    feedbackStore.closeHotspotFeedback()
+  }
+}
 const todayUtc = new Date().toISOString().slice(0, 10)
 const datePromptOpen = shallowRef(false)
 const datePromptPending = shallowRef(false)
@@ -156,6 +184,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
           :user-location="userLocation"
           @roi-change="onRoiChange"
           @request-location="onRequestLocation"
+          @open-feedback="onOpenFeedback"
         >
           <template
             #dock="{ drawArea, confirmDraw, cancelDraw, clearArea, locateUser, showGlobe, isDrawing }"
@@ -193,6 +222,11 @@ function onRoiChange(payload: { areaKm2: number | null }) {
           class="pointer-events-auto"
         />
         <MapStatsPanel v-model:open="statsOpen" stage-id="map-stage" class="pointer-events-auto" />
+        <HotspotFeedbackDrawer
+          :open="feedbackHotspot !== null"
+          :hotspot="feedbackHotspot"
+          @update:open="onFeedbackDrawerOpenChange"
+        />
       </aside>
       <LocationPromptDialog
         v-model:open="locationPromptOpen"

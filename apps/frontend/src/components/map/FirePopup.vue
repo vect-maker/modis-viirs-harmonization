@@ -1,13 +1,29 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Flame, MapPin, Moon, SunMedium } from '@lucide/vue'
-import type { CountryResponse, HotspotResponse, PlatformResponse } from '@/api'
+import { Flame, MapPin, MessageSquarePlus, Moon, SunMedium } from '@lucide/vue'
+import type {
+  CountryResponse,
+  HotspotFeedbackSummary,
+  HotspotResponse,
+  PlatformResponse,
+} from '@/api'
+import { CLASSIFICATION_META_MAP } from '@/utils/feedbackMeta'
 
 const props = defineProps<{
   hotspot: HotspotResponse
   platform?: PlatformResponse
   country?: CountryResponse
+  feedbackSummary?: HotspotFeedbackSummary
 }>()
+
+const emit = defineEmits<{
+  (e: 'open-feedback', hotspot: HotspotResponse): void
+}>()
+
+const consensusMeta = computed(() => {
+  const cls = props.feedbackSummary?.consensus
+  return cls ? CLASSIFICATION_META_MAP[cls] : null
+})
 
 const CONFIDENCE_BADGE: Record<string, { label: string; badgeClass: string }> = {
   high: {
@@ -132,5 +148,40 @@ const formattedConfidence = computed(() => {
         </dd>
       </div>
     </dl>
+
+    <div class="mt-2.5 flex items-center justify-between gap-2 border-t border-border-subtle pt-2">
+      <div class="flex min-w-0 items-center gap-1.5">
+        <span
+          v-if="consensusMeta"
+          :class="[
+            'truncate rounded-full border px-2 py-0.5 text-[10px] font-medium',
+            consensusMeta.badgeClass,
+          ]"
+        >
+          {{ consensusMeta.label }}
+        </span>
+        <span
+          v-else
+          class="rounded-full border border-border-subtle bg-surface-elevated px-2 py-0.5 text-[10px] font-medium text-ink-muted"
+        >
+          Unverified
+        </span>
+        <span
+          v-if="feedbackSummary && feedbackSummary.total_reports > 0"
+          class="font-mono text-[10px] text-ink-muted tabular-nums"
+        >
+          ({{ feedbackSummary.total_reports }})
+        </span>
+      </div>
+
+      <button
+        type="button"
+        class="inline-flex shrink-0 items-center gap-1 rounded-md border border-border-strong bg-surface-elevated px-2 py-1 text-[11px] font-medium text-ink-primary transition-colors hover:border-amber-400/50 hover:text-amber-300"
+        @click="emit('open-feedback', hotspot)"
+      >
+        <MessageSquarePlus class="size-3" aria-hidden="true" />
+        Feedback
+      </button>
+    </div>
   </div>
 </template>

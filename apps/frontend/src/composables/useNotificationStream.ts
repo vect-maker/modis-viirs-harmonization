@@ -1,9 +1,12 @@
 import { useEventSource } from "@vueuse/core";
 import { watch } from "vue";
+import { useAuthStore } from "@/stores/auth";
+import { useFeedbackStore } from "@/stores/feedback";
 import { useNotificationStore } from "@/stores/notifications";
 
 const SSE_EVENTS = [
   "notification",
+  "hotspot.feedback",
   "hotspot_alert",
   "hotspot_updated",
   "hotspot_resolved",
@@ -24,6 +27,8 @@ function buildStreamUrl(): string {
 
 export function useNotificationStream() {
   const notificationStore = useNotificationStore();
+  const authStore = useAuthStore();
+  const feedbackStore = useFeedbackStore();
 
   if (typeof window === "undefined" || typeof EventSource === "undefined") {
     return {
@@ -54,8 +59,20 @@ export function useNotificationStream() {
 
   watch(data, (rawData) => {
     if (!rawData) return;
+    if (event.value === "hotspot.feedback") {
+      feedbackStore.ingestSSEFeedbackEvent(rawData);
+      return;
+    }
     notificationStore.ingestSSEEvent(event.value ?? "notification", rawData);
   });
+
+  watch(
+    () => authStore.user?.id ?? null,
+    () => {
+      close();
+      open();
+    },
+  );
 
   return {
     status,
