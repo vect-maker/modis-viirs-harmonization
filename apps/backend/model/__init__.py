@@ -1,3 +1,4 @@
+from model.Alert import Alert, AlertEvent, AlertHistory, AlertRule
 from model.ClusterHotspot import ClusterHotspots
 from model.EnvironmentalRecord import EnvironmentalRecord
 from model.FireCluster import FireCluster
@@ -13,6 +14,10 @@ from model.StarSchema import (
 )
 
 __all__ = [
+    "Alert",
+    "AlertEvent",
+    "AlertHistory",
+    "AlertRule",
     "ClusterHotspots",
     "CountryPublic",
     "DimCountry",

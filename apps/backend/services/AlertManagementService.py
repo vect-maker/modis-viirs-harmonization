@@ -9,13 +9,20 @@ from sqlmodel import Session, col, select
 
 from model.Alert import Alert, AlertHistory, AlertSeverity, AlertStatus
 from schemas.alerts import AlertHistoryRead, AlertRead, AlertStatusUpdate
+from services.AlertEventPublisher import AlertEventPublisher
+from services.AlertEventSerializer import AlertEventSerializer
 
 
 class AlertManagementService:
     """Servicio para ciclo de vida de alertas, prevención de duplicados e historial."""
 
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        publisher: AlertEventPublisher | None = None,
+    ):
         self.session = session
+        self.publisher = publisher or AlertEventPublisher(session)
 
     @staticmethod
     def to_read(alert: Alert) -> AlertRead:
@@ -123,6 +130,12 @@ class AlertManagementService:
             self.session.add(history)
             self.session.commit()
 
+            self.publisher.publish_alert_event(
+                alert=alert,
+                event_type="hotspot_alert",
+                dedup_key=f"alert:{alert.id}:created",
+            )
+
         return alert
 
     def list_alerts(
@@ -159,6 +172,9 @@ class AlertManagementService:
             raise HTTPException(status_code=404, detail="Alerta no encontrada")
 
         previous = alert.status
+        if previous == payload.status:
+            return self.to_read(alert)
+
         now = datetime.now(UTC)
         alert.status = payload.status
         alert.updatedAt = now
@@ -175,6 +191,14 @@ class AlertManagementService:
         self.session.add(history)
         self.session.commit()
         self.session.refresh(alert)
+        self.session.refresh(history)
+
+        event_type = AlertEventSerializer.resolve_event_type_for_status(payload.status)
+        self.publisher.publish_alert_event(
+            alert=alert,
+            event_type=event_type,
+            dedup_key=f"alert:{alert.id}:history:{history.id}",
+        )
         return self.to_read(alert)
 
     def list_history(
