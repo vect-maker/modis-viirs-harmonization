@@ -41,24 +41,55 @@ In PostGIS (`sql/schema.sql`), `fact_hotspots` stores `geom GEOMETRY(Point, 4326
 
 For full-archive spatial grouping prior to relational loading, `sql/cluster_hotspots.sql` executes a pure DuckDB SQL spatio-temporal grid clustering pass over `data/raw/**/*.parquet` using an approximate $1 "km"$ spatial cell ($0.009 degree$) and a $24 "h"$ temporal slot (`FLOOR(EPOCH(acq_datetime) / 86400.0)`), writing `fire_clusters.parquet` and `cluster_hotspots.parquet`. The `sql/load_clusters.sql` script and `justfile` (`db-load-clusters`, `db-load-nicaragua`) stream these Parquet outputs into PostGIS. Direction and speed expansion estimates (`dirExpansion`, `veloExpansion`) are decoupled from the ETL pipeline into a backend-only `FireClusterForecast` model (`apps/backend/model/FireClusterForecast.py`) and `FireForecastService.py` (invoked via `POST /fire-cluster-forecasts/calculate` using `fireClusterId` to query stored cluster hotspots).
 
-== Spatio-Temporal Harmonization and Anomaly Classification
+== Multi-Stage Spatio-Temporal Harmonization Pipeline
 
-`sql/test_spatial_harmonization.sql` implements a point-grain-preserving spatial-temporal harmonization prototype using DuckDB's `spatial` extension:
+To eliminate the sensor-transition discontinuity without discarding native point-grain coordinates, timestamps, or raw radiative energy measurements, `apps/pipeline/sql/harmonize/` executes a 4-stage out-of-core DuckDB SQL harmonization pipeline (`01_base_points.sql` through `04_harmonize_points.sql`), invoked via `just pipeline harmonize-data`:
 
-+ *Spatio-Temporal Binning:* Detections are grouped into \~2 km spatial quadrants (`round(latitude, 2)`, `round(longitude, 2)`) and 1-hour temporal windows (`date_trunc('hour', acq_datetime)`).
-+ *Overpass Classification:* Hours are categorized into *Morning Pass (Terra)* (12:00–15:00 UTC), *Afternoon Pass (Aqua + VIIRS)* (16:00–20:00 UTC), and *Night / Off-Cycle Pass*.
-+ *Five-Class Anomaly Taxonomy:*
-  - *Class A:* Simultaneous Co-Detection (MODIS $> 0$ and VIIRS $> 0$ in same hour & quadrant).
-  - *Class B:* VIIRS Afternoon Faint/Solo Fire (MODIS missed during afternoon pass).
-  - *Class C:* Terra Morning Solo Fire (diurnal cycle with no VIIRS morning pass).
-  - *Class D:* VIIRS Night/Off-Cycle Fire.
-  - *Class E:* MODIS Other Solo Fire.
-+ *Point-Level Harmonized Weight:* Every original detection retains its exact coordinates, timestamp, and FRP, receiving a weight $w_i$:
-$ w_i = cases(
-  1.0 & "if instrument" = "VIIRS",
-  N_"VIIRS" / N_"MODIS" & "if MODIS and Class A",
-  2.25 & "otherwise (default footprint multiplicity)"
-) $ <eq:weight>
++ *Stage 1: Base Point Enrichment & Local Solar Time (`01_base_points.sql`):*
+  Because sun-synchronous orbital overpasses occur at constant local solar times ($"LST"$) rather than constant UTC, timestamps are transformed using the point longitude $lambda$:
+  $ "LST" = ((( "hour"(t) + "minute"(t)/60.0 + lambda/15.0 ) mod 24.0) + 24.0) mod 24.0 $ <eq:solar-hour>
+  Points are discretized into isotropic $~2.2 "km"$ quadrants using latitude-cosine meridian convergence correction ($"lat"_q = "round"(phi / 0.02) dot 0.02$, $"lon"_q = "round"((lambda dot cos("radians"(phi))) / 0.02) dot 0.02$) and 1-hour temporal bins ($"hour\_window" = "date\_trunc"("hour", t)$). Hours are partitioned into five orbital overpass regimes:
+  - `MORNING_TERRA`: $8.5 <= "LST" < 12.0$ (Terra morning pass $~10:30$ LST);
+  - `AFTERNOON_AQUA_VIIRS`: $12.0 <= "LST" < 16.0$ (Aqua $~13:30$ and VIIRS $~13:20–13:30$ LST);
+  - `NIGHT_TERRA`: $20.0 <= "LST" < 23.5$ (Terra descending pass $~22:30$ LST);
+  - `NIGHT_DAWN_AQUA_VIIRS`: $23.5 <= "LST" <= 24.0$ or $0.0 <= "LST" < 4.0$ (Aqua / VIIRS night passes);
+  - `OFF_CYCLE`: other off-cycle or drifting overpasses.
+
++ *Stage 2: Quadrant-Hourly Co-Occurrence Aggregation (`02_quadrant_hourly.sql`):*
+  Detections are aggregated by `(country, lat_q, lon_q, hour_window)` to tabulate `modis_in_cluster`, `viirs_in_cluster`, `modis_frp_sum`, and `viirs_frp_sum`.
+
++ *Stage 3: Empirical Per-Country Calibration (`03_country_calibration.sql`):*
+  Across the concurrent overlap era ($"year" >= 2012$), national calibration factors are derived from simultaneous co-detections (Class A: `modis_in_cluster > 0` and `viirs_in_cluster > 0`) and regime totals:
+  $ "raw\_pixel\_ratio" = (sum "viirs\_in\_cluster") / (sum "modis\_in\_cluster"), quad "raw\_frp\_ratio" = (sum "viirs\_frp\_sum") / (sum "modis\_frp\_sum") $ <eq:calibration-ratios>
+  To ensure statistical significance, countries with $>= 100$ Class A clusters receive clamped empirical factors:
+  - $f_"morning" = "round"("clamp"("raw\_pixel\_ratio", 1.0, 10.0), 2)$ (fallback: $2.20$);
+  - $f_"afternoon" = "round"("clamp"("raw\_afternoon\_ratio", 1.0, 20.0), 2)$ (fallback: $6.12$);
+  - $f_"night" = "round"("clamp"("raw\_night\_ratio", 1.0, 15.0), 2)$ (fallback: $4.50$);
+  - $f_"frp" = "round"("clamp"("raw\_frp\_ratio", 0.5, 5.0), 2)$ (fallback: $1.14$).
+
++ *Stage 4: Point-Level Taxonomy, Weighting, and Calibrated FRP (`04_harmonize_points.sql`):*
+  Every original detection is classified into one of six physical regimes and receives a VIIRS-equivalent weight $w_i$ and calibrated $"FRP"_"harm"$:
+  $ w_i = cases(
+    1.00 & "if" "VIIRS" quad ("VIIRS\_PRESERVED"),
+    0.00 & "if MODIS and" "viirs\_in\_cluster" > 0 quad ("MODIS\_REDUNDANT\_CODETECTION"),
+    f_"morning" & "if MODIS and" "overpass\_window" = "MORNING\_TERRA" quad ("MODIS\_UNIQUE\_MORNING"),
+    f_"afternoon" & "if MODIS and" "overpass\_window" = "AFTERNOON\_AQUA\_VIIRS" quad ("MODIS\_SOLO\_AFTERNOON"),
+    cases(
+      f_"morning" & "if morning",
+      f_"afternoon" & "if afternoon",
+      f_"night" & "otherwise"
+    ) & "if MODIS and" "year" < 2012 quad ("MODIS\_HISTORICAL\_PRE\_2012"),
+    f_"night" & "otherwise" quad ("MODIS\_SOLO\_OTHER")
+  ) $ <eq:weight>
+
+  Calibrated FRP is assigned as:
+  $ "FRP"_"harm" = cases(
+    "FRP"_"native" & "if" "VIIRS",
+    0.00 & "if MODIS and" "viirs\_in\_cluster" > 0,
+    "round"("FRP"_"native" dot f_"frp", 2) & "otherwise"
+  ) $ <eq:frp-harm>
+
+  This design prevents duplicate fire counts during the 2012–2025 overlap era, captures Terra's exclusive morning diurnal signal, and scales pre-2012 MODIS counts and radiative power to VIIRS 375 m equivalence. Outputs are saved to `data/processed/hotspots_harmonized.parquet` and normalized into `fact_hotspots` in PostGIS.
 
 == Interactive Burning Activity Calendar Frontend
 

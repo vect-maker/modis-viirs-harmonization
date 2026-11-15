@@ -14,7 +14,8 @@ Monorepo hosting **PyroTrace** — the NASA FIRMS active fire data pipeline, bac
 │       ├── requirements.txt
 │       ├── uv.lock
 │       └── justfile               # Pipeline tasks
-├── docs/                          # Architecture & challenge specifications
+├── docs/                          # Architecture, challenge specs & harmonization guides
+│   └── harmonization.md           # Comprehensive MODIS-VIIRS harmonization guide
 ├── compose.yml                    # Shared PostGIS container service
 ├── justfile                       # Root module delegator & container management
 └── README.md
@@ -56,6 +57,7 @@ Commands can be executed from the monorepo root via the `pipeline` module or ins
 just pipeline sync-meta
 just pipeline fetch-data --country NIC --year 2024
 just pipeline fuse-data
+just pipeline harmonize-data
 just pipeline normalize-data
 just pipeline lint
 just pipeline typecheck
@@ -64,6 +66,7 @@ just pipeline typecheck
 cd apps/pipeline
 just sync-meta
 just fuse-data
+just harmonize-data
 ```
 
 ### 5. Frontend Workflow
