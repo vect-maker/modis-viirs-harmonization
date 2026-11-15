@@ -4,6 +4,7 @@ import { RotateCw } from '@lucide/vue'
 import { z } from 'zod'
 import type { GeoJSONPolygon } from 'zod-geojson'
 import { useApiFetch } from '@/api/useApiFetch'
+import { ChartResponseSchema } from '@/api/modules/shared/schemas'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import SpatialAnomaliesChart from '@/components/common/SpatialAnomaliesChart.vue'
@@ -101,8 +102,8 @@ function resolveDateBounds(year: number, month: string): { start: string; end: s
   const mNum = Number(month)
   const lastDay = new Date(Date.UTC(year, mNum, 0)).getUTCDate()
   return {
-    start: `${year}-${month}-01T00:00:00`,
-    end: `${year}-${month}-${String(lastDay).padStart(2, '0')}T23:59:59`,
+    start: `${year}-${month}-01`,
+    end: `${year}-${month}-${String(lastDay).padStart(2, '0')}`,
   }
 }
 
@@ -134,7 +135,7 @@ async function load() {
   }
 
   const { data, error: fetchError } = await useApiFetch(
-    `/dashboard/spatial-anomalies?${params.toString()}`,
+    `/charts/diagnostics/spatial-anomalies?${params.toString()}`,
   )
     .get()
     .json()
@@ -144,7 +145,7 @@ async function load() {
     if (fetchError.value || !data.value) {
       throw fetchError.value ?? new Error('The server returned no data.')
     }
-    result.value = ResponseSchema.parse(data.value)
+    result.value = ChartResponseSchema(ResponseSchema).parse(data.value).data
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error.'
   } finally {

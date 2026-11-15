@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import math
 from collections.abc import Sequence
 from typing import Any, Literal
@@ -405,3 +406,39 @@ def run_monthly_seasonal_forecast(
         "test": test_series,
         "future": future_series,
     }
+
+
+def _month_neighbors(y: int, m: int) -> tuple[tuple[int, int], tuple[int, int]]:
+    prev_key = (y, m - 1) if m > 1 else (y - 1, 12)
+    next_key = (y, m + 1) if m < 12 else (y + 1, 1)
+    return prev_key, next_key
+
+
+def classify_archive_months(
+    info: dict[tuple[int, int], dict[str, Any]],
+) -> dict[tuple[int, int], dict[str, Any]]:
+    """
+    Estado de cada mes con datos en el archivo:
+    - partial: abre o cierra un tramo de datos y le faltan días (p. ej. el mes en
+      curso, o el primer mes tras un hueco). No es comparable con meses completos.
+    - provisional: más de la mitad de las filas vienen del feed casi en tiempo
+      real del worker, que todavía no pasa por la armonización.
+    Los meses que no aparecen son huecos de datos (no ceros).
+    """
+    states: dict[tuple[int, int], dict[str, Any]] = {}
+    for (y, m), row in info.items():
+        days_in_month = calendar.monthrange(y, m)[1]
+        prev_key, next_key = _month_neighbors(y, m)
+        starts_run = prev_key not in info
+        ends_run = next_key not in info
+        partial = (starts_run and row["first_day"] > 3) or (
+            ends_run and row["last_day"] < days_in_month - 2
+        )
+        states[(y, m)] = {
+            "state": "partial" if partial else "full",
+            "provisional": row["total"] > 0 and row["nrt_rows"] / row["total"] > 0.5,
+            "first_day": row["first_day"],
+            "last_day": row["last_day"],
+            "days_in_month": days_in_month,
+        }
+    return states

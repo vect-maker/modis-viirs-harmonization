@@ -6,16 +6,16 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine
 
-from api.dashboard import (
-    get_annual_stats,
+from api.charts.diagnostics import (
     get_confidence_dbscan,
     get_correlations,
-    get_monthly_comparison,
-    get_monthly_forecast,
     get_spatial_anomalies,
     get_spatial_density,
 )
+from api.charts.models import get_monthly_forecast
+from api.charts.temporal import get_annual_stats, get_monthly_comparison
 from model import Hotspots
+from schemas.charts import ChartFilterParams
 
 
 def _run_coro(coro):
@@ -65,31 +65,32 @@ def _seed_session() -> Session:
 
 def test_dashboard_confidence_dbscan_and_correlations():
     session = _seed_session()
-    dbscan_res = _run_coro(
+    dbscan_resp = _run_coro(
         get_confidence_dbscan(
+            filters=ChartFilterParams(),
             eps=5.0,
             min_samples=2,
             high_value=90,
-            start_date=None,
-            end_date=None,
             session=session,
         )
     )
+    assert dbscan_resp.chart == "diagnostics.confidence-dbscan"
+    dbscan_res = dbscan_resp.data
     assert dbscan_res["summary"]["total_rows"] > 0
     assert dbscan_res["summary"]["anomaly_rows"] >= 1
     assert any(p["confidence"] == 5 and p["is_anomaly"] for p in dbscan_res["points"])
 
-    corr_res = _run_coro(
+    corr_resp = _run_coro(
         get_correlations(
+            filters=ChartFilterParams(),
             high_value=90,
-            start_date=None,
-            end_date=None,
             session=session,
         )
     )
-    assert len(corr_res["data"]) == 6
+    assert corr_resp.chart == "diagnostics.correlations"
+    assert len(corr_resp.data) == 6
     frp_tir = next(
-        p for p in corr_res["data"] if p["x"] == "frp" and p["y"] == "bright_tir"
+        p for p in corr_resp.data if p["x"] == "frp" and p["y"] == "bright_tir"
     )
     assert frp_tir["n"] > 0
     assert frp_tir["pearson_r"] is not None
@@ -98,26 +99,28 @@ def test_dashboard_confidence_dbscan_and_correlations():
 
 def test_dashboard_annual_stats_and_spatial_density():
     session = _seed_session()
-    annual = _run_coro(
+    annual_resp = _run_coro(
         get_annual_stats(
+            filters=ChartFilterParams(),
             high_value=85,
             start_year=2023,
             end_year=2024,
             session=session,
         )
     )
-    assert len(annual["data"]) == 2
-    assert annual["data"][0]["year"] == 2023
-    assert annual["data"][0]["frp"]["p50"] if "p50" in annual["data"][0]["frp"] else True
-    assert annual["data"][0]["frp"]["median"] is not None
-    assert annual["data"][0]["frp"]["iqr"] is not None
-    assert annual["data"][0]["frp"]["p90"] is not None
+    assert annual_resp.chart == "temporal.annual-stats"
+    annual = annual_resp.data
+    assert len(annual["rows"]) == 2
+    assert annual["rows"][0]["year"] == 2023
+    assert annual["rows"][0]["frp"]["p50"] if "p50" in annual["rows"][0]["frp"] else True
+    assert annual["rows"][0]["frp"]["median"] is not None
+    assert annual["rows"][0]["frp"]["iqr"] is not None
+    assert annual["rows"][0]["frp"]["p90"] is not None
 
-    density = _run_coro(
+    density_resp = _run_coro(
         get_spatial_density(
+            filters=ChartFilterParams(),
             cell_size_deg=0.1,
-            start_date=None,
-            end_date=None,
             min_lat=None,
             max_lat=None,
             min_lon=None,
@@ -126,34 +129,37 @@ def test_dashboard_annual_stats_and_spatial_density():
             session=session,
         )
     )
+    assert density_resp.chart == "diagnostics.spatial-density"
+    density = density_resp.data
     assert density["summary"]["total_cells"] >= 1
     assert density["summary"]["total_hotspots"] > 0
-    assert density["data"][0]["count"] >= 1
+    assert density["cells"][0]["count"] >= 1
 
 
 def test_dashboard_monthly_comparison_anomalies_and_forecast():
     session = _seed_session()
-    comp = _run_coro(
+    comp_resp = _run_coro(
         get_monthly_comparison(
+            filters=ChartFilterParams(),
             year=2024,
             start_year=2023,
             end_year=2024,
             session=session,
         )
     )
+    comp = comp_resp.data
     assert comp["year"] == 2024
     assert len(comp["months"]) == 12
     assert comp["months"][0]["historic"]["mean"] is not None
 
-    anom = _run_coro(
+    anom_resp = _run_coro(
         get_spatial_anomalies(
+            filters=ChartFilterParams(),
             n_estimators=100,
             contamination=None,
             random_state=42,
             max_rows=5000,
             max_points_returned=500,
-            start_date=None,
-            end_date=None,
             min_lat=None,
             max_lat=None,
             min_lon=None,
@@ -161,12 +167,14 @@ def test_dashboard_monthly_comparison_anomalies_and_forecast():
             session=session,
         )
     )
+    anom = anom_resp.data
     assert anom["summary"]["total_points"] > 0
     assert anom["summary"]["anomaly_count"] >= 1
     assert "score_stats" in anom["summary"]
 
-    forecast = _run_coro(
+    forecast_resp = _run_coro(
         get_monthly_forecast(
+            filters=ChartFilterParams(),
             train_ratio=0.8,
             future_months=3,
             start_year=2023,
@@ -174,6 +182,7 @@ def test_dashboard_monthly_comparison_anomalies_and_forecast():
             session=session,
         )
     )
+    forecast = forecast_resp.data
     assert "metrics" in forecast
     assert forecast["metrics"]["mae"] >= 0.0
     assert forecast["metrics"]["rmse"] >= 0.0
@@ -220,7 +229,9 @@ def _seed_comparison_session() -> Session:
 
 def test_monthly_comparison_baseline_excludes_target_and_fills_gaps():
     session = _seed_comparison_session()
-    comp = _run_coro(get_monthly_comparison(session=session, year=2024))
+    comp = _run_coro(
+        get_monthly_comparison(filters=ChartFilterParams(), session=session, year=2024)
+    ).data
 
     assert comp["year"] == 2024
     assert comp["baseline_years"] == [2022, 2023]
@@ -230,20 +241,15 @@ def test_monthly_comparison_baseline_excludes_target_and_fills_gaps():
     }
     jan, feb, mar, apr = comp["months"][:4]
 
-    # Enero: 2024 tiene 13 detecciones; línea base = mediana(4, 6) = 5
     assert jan["year_count"] == 13.0
     assert jan["historic"]["median"] == 5.0
     assert jan["anomaly_pct_median"] == 160.0
 
-    # Marzo 2023 no tiene ninguna detección en toda la región: es un hueco de
-    # datos y no entra en la línea base (antes se contaba como 0).
     assert mar["historic"]["count"] == 1
-    # Marzo 2024 cierra el archivo el día 10: es parcial y no se clasifica
     assert mar["archive_state"] == "partial"
     assert mar["anomaly_pct_median"] is None
     assert jan["archive_state"] == "full"
 
-    # Abril 2024 aún no está en el archivo: sin dato, sin anomalía
     assert apr["has_data"] is False
     assert apr["year_count"] is None
     assert apr["anomaly_pct"] is None
@@ -253,9 +259,12 @@ def test_monthly_comparison_baseline_excludes_target_and_fills_gaps():
 def test_monthly_comparison_harmonized_metric_and_polygon():
     session = _seed_comparison_session()
     harmonized = _run_coro(
-        get_monthly_comparison(session=session, year=2023, metric="harmonized")
-    )
-    # 2023 enero: 6 MODIS x 2.0 = 12; base: 2022 (8) y 2024 (13 VIIRS x 1.0)
+        get_monthly_comparison(
+            filters=ChartFilterParams(metric="harmonized"),
+            session=session,
+            year=2023,
+        )
+    ).data
     jan = harmonized["months"][0]
     assert harmonized["metric"] == "harmonized"
     assert jan["year_count"] == 12.0
@@ -266,15 +275,21 @@ def test_monthly_comparison_harmonized_metric_and_polygon():
         '{"type":"Polygon","coordinates":[[[-87,11],[-85,11],[-85,13],[-87,13],[-87,11]]]}'
     )
     clipped = _run_coro(
-        get_monthly_comparison(session=session, year=2024, polygon=polygon)
-    )
+        get_monthly_comparison(
+            filters=ChartFilterParams(polygon=polygon),
+            session=session,
+            year=2024,
+        )
+    ).data
     assert clipped["months"][0]["year_count"] == 10.0
 
 
 def test_monthly_comparison_rejects_year_outside_archive():
     session = _seed_comparison_session()
     try:
-        _run_coro(get_monthly_comparison(session=session, year=2030))
+        _run_coro(
+            get_monthly_comparison(filters=ChartFilterParams(), session=session, year=2030)
+        )
     except HTTPException as exc:
         assert exc.status_code == 400
     else:
@@ -283,17 +298,19 @@ def test_monthly_comparison_rejects_year_outside_archive():
 
 def test_annual_stats_sensor_totals_partial_years_and_polygon():
     session = _seed_comparison_session()
-    annual = _run_coro(get_annual_stats(session=session, include_distributions=False))
+    annual = _run_coro(
+        get_annual_stats(
+            filters=ChartFilterParams(), session=session, include_distributions=False
+        )
+    ).data
 
     assert annual["range"] == {"start_year": 2022, "end_year": 2024}
-    by_year = {row["year"]: row for row in annual["data"]}
+    by_year = {row["year"]: row for row in annual["rows"]}
     assert by_year[2022]["modis_count"] == 48
     assert by_year[2022]["harmonized_index"] == 96.0
-    assert by_year[2023]["total_hotspots"] == 66  # marzo 2023 sin detecciones
+    assert by_year[2023]["total_hotspots"] == 66
     assert by_year[2024]["viirs_count"] == 33
-    assert by_year[2024]["months_in_archive"] == 2  # marzo 2024 es parcial
-    # Marzo 2023 es un hueco y febrero (datos solo hasta el día 6) cierra un tramo,
-    # así que queda parcial.
+    assert by_year[2024]["months_in_archive"] == 2
     assert by_year[2023]["months_in_archive"] == 10
     assert by_year[2024]["complete"] is False
     assert by_year[2022]["complete"] is True
@@ -303,9 +320,13 @@ def test_annual_stats_sensor_totals_partial_years_and_polygon():
         '{"type":"Polygon","coordinates":[[[-87,11],[-85,11],[-85,13],[-87,13],[-87,11]]]}'
     )
     clipped = _run_coro(
-        get_annual_stats(session=session, start_year=2024, polygon=polygon)
-    )
-    row = clipped["data"][0]
+        get_annual_stats(
+            filters=ChartFilterParams(polygon=polygon),
+            session=session,
+            start_year=2024,
+        )
+    ).data
+    row = clipped["rows"][0]
     assert clipped["range"] == {"start_year": 2024, "end_year": 2024}
     assert row["total_hotspots"] == 30
     assert row["frp"]["median"] == 10.0
@@ -334,28 +355,37 @@ def test_monthly_comparison_marks_gaps_and_near_real_time_months():
     for yr in (2021, 2022, 2023):
         for mo in range(1, 13):
             add(yr, mo, range(1, 29), "BOTH_VIIRS_MODIS", 0.5)
-    # Ene-feb 2024 sin datos; desde el 20 de marzo llega el worker hasta el 15 de mayo
     add(2024, 3, range(20, 32), "CATCHUP_VIIRS_SNPP_SP", 1.0)
     add(2024, 4, range(1, 31), "CATCHUP_VIIRS_SNPP_SP", 1.0)
     add(2024, 5, range(1, 16), "NRT_VIIRS_SNPP_NRT", 1.0)
     session.commit()
 
-    comp = _run_coro(get_monthly_comparison(session=session, year=2024))
+    comp = _run_coro(
+        get_monthly_comparison(filters=ChartFilterParams(), session=session, year=2024)
+    ).data
     jan, _, mar, apr, may = comp["months"][:5]
     assert jan["archive_state"] == "missing" and jan["year_count"] is None
     assert mar["archive_state"] == "partial" and mar["provisional"] is True
     assert apr["archive_state"] == "full" and apr["provisional"] is True
-    assert apr["anomaly_pct_median"] is not None  # en modo crudo sí se compara
+    assert apr["anomaly_pct_median"] is not None
     assert may["archive_state"] == "partial"
-    assert apr["historic"]["count"] == 3  # solo 2021-2023, armonizados
+    assert apr["historic"]["count"] == 3
 
     harmonized = _run_coro(
-        get_monthly_comparison(session=session, year=2024, metric="harmonized")
-    )
+        get_monthly_comparison(
+            filters=ChartFilterParams(metric="harmonized"),
+            session=session,
+            year=2024,
+        )
+    ).data
     assert harmonized["months"][3]["anomaly_pct_median"] is None
 
-    annual = _run_coro(get_annual_stats(session=session, include_distributions=False))
-    row_2024 = {r["year"]: r for r in annual["data"]}[2024]
+    annual = _run_coro(
+        get_annual_stats(
+            filters=ChartFilterParams(), session=session, include_distributions=False
+        )
+    ).data
+    row_2024 = {r["year"]: r for r in annual["rows"]}[2024]
     assert row_2024["months_in_archive"] == 1
     assert row_2024["provisional_months"] == 3
     assert row_2024["complete"] is False
@@ -367,44 +397,35 @@ def test_dashboard_polygon_harmonized_and_pre_limit_totals():
         '{"type":"Polygon","coordinates":[[[-87,11],[-85,11],[-85,13],[-87,13],[-87,11]]]}'
     )
 
-    # Spatial density: limit=1 returns 1 cell in data, but total_hotspots reflects all cells in polygon
     density_raw = _run_coro(
         get_spatial_density(
+            filters=ChartFilterParams(polygon=polygon, metric="raw"),
             cell_size_deg=0.1,
             limit=1,
-            polygon=polygon,
-            metric="raw",
             session=session,
         )
-    )
-    assert len(density_raw["data"]) == 1
-    # 2022 (48) + 2023 (66) + 2024 inside polygon (30) = 144
+    ).data
+    assert len(density_raw["cells"]) == 1
     assert density_raw["summary"]["total_hotspots"] == 144
 
     density_harm = _run_coro(
         get_spatial_density(
+            filters=ChartFilterParams(polygon=polygon, metric="harmonized"),
             cell_size_deg=0.1,
             limit=1,
-            polygon=polygon,
-            metric="harmonized",
             session=session,
         )
-    )
-    # 2022 (48*2=96) + 2023 (66*2=132) + 2024 (30*1=30) = 258
+    ).data
     assert density_harm["summary"]["total_hotspots"] == 258
 
-    # Forecast with gap (2023-03 missing) and metric="harmonized" + polygon
     forecast = _run_coro(
         get_monthly_forecast(
+            filters=ChartFilterParams(polygon=polygon, metric="harmonized"),
             train_ratio=0.8,
             future_months=3,
-            metric="harmonized",
-            polygon=polygon,
             session=session,
         )
-    )
-    # Continuous calendar from 2022-01 to 2024-03 is 27 months (2023-03 gap imputed)
+    ).data
     assert forecast["metrics"]["total_months"] == 27
     assert len(forecast["future"]) == 3
     assert forecast["future"][0]["month"] == "2024-04"
-

@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, onMounted, shallowRef } from 'vue'
 import { ArrowUpRight } from '@lucide/vue'
 import { z } from 'zod'
 import { useApiFetch } from '@/api/useApiFetch'
+import { ChartResponseSchema } from '@/api/modules/shared/schemas'
 import type { AnnualMetric, AnnualRow } from '@/components/common/AnnualActivityChart.vue'
 
 // ECharts solo se descarga cuando esta sección se monta, no con el resto de la landing.
@@ -10,20 +11,22 @@ const AnnualActivityChart = defineAsyncComponent(
   () => import('@/components/common/AnnualActivityChart.vue'),
 )
 
-const ResponseSchema = z.object({
-  data: z.array(
-    z.object({
-      year: z.number().int(),
-      months_in_archive: z.number().int(),
-      complete: z.boolean(),
-      provisional_months: z.number().int().default(0),
-      total_hotspots: z.number().int().nonnegative(),
-      modis_count: z.number().int().nonnegative(),
-      viirs_count: z.number().int().nonnegative(),
-      harmonized_index: z.number(),
-    }),
-  ),
-})
+const ResponseSchema = ChartResponseSchema(
+  z.object({
+    rows: z.array(
+      z.object({
+        year: z.number().int(),
+        months_in_archive: z.number().int(),
+        complete: z.boolean(),
+        provisional_months: z.number().int().default(0),
+        total_hotspots: z.number().int().nonnegative(),
+        modis_count: z.number().int().nonnegative(),
+        viirs_count: z.number().int().nonnegative(),
+        harmonized_index: z.number(),
+      }),
+    ),
+  }),
+)
 
 const metric = shallowRef<AnnualMetric>('raw')
 const rows = shallowRef<AnnualRow[]>([])
@@ -31,7 +34,7 @@ const state = shallowRef<'loading' | 'ready' | 'error'>('loading')
 
 async function load() {
   state.value = 'loading'
-  const { data, error } = await useApiFetch('/dashboard/annual-stats?include_distributions=false')
+  const { data, error } = await useApiFetch('/charts/temporal/annual-stats?include_distributions=false')
     .get()
     .json<unknown>()
   const parsed = ResponseSchema.safeParse(data.value)
@@ -41,7 +44,7 @@ async function load() {
   }
   // Solo años completos del archivo armonizado: sin el año parcial inicial ni datos casi en
   // tiempo real, que todavía no están armonizados.
-  rows.value = parsed.data.data.filter((row) => row.complete && row.provisional_months === 0)
+  rows.value = parsed.data.data.rows.filter((row) => row.complete && row.provisional_months === 0)
   state.value = rows.value.length > 0 ? 'ready' : 'error'
 }
 

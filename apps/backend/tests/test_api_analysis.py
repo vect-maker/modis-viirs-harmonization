@@ -1,15 +1,12 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
-from api.fire_analysis import (
-    ClusterMovementRequest,
-    FirePredictRequest,
-    WeatherCorrelationRequest,
-    analyze_clusters_and_movement,
-    analyze_weather_correlation,
-    predict_fire_displacement,
+from api.charts.models import (
+    get_cluster_movement,
+    get_fire_displacement_prediction,
+    get_weather_correlation,
 )
-from schemas.pagination import PaginationParams
+from schemas.charts import ChartFilterParams
 from schemas.pagination import PaginationParams
 
 
@@ -52,26 +49,29 @@ def test_cluster_movement_endpoint():
     ]
 
     with patch(
-        "api.fire_analysis.HotspotRepository.iter_hotspots_filtered",
+        "api.charts.models.HotspotRepository.iter_hotspots_filtered",
         return_value=iter(sample_rows),
     ):
-        body = _run_coro(
-            analyze_clusters_and_movement(
-                payload=ClusterMovementRequest(
-                    eps_km=2.0, min_samples=2, interval_hours=6.0
-                ),
+        resp = _run_coro(
+            get_cluster_movement(
+                filters=ChartFilterParams(),
                 pagination=PaginationParams(limit=10, offset=0),
+                eps_km=2.0,
+                min_samples=2,
+                interval_hours=6.0,
                 session=_DummySession(),  # type: ignore[arg-type]
             )
         )
 
+    assert resp.chart == "models.cluster-movement"
+    body = resp.data
     assert body["summary"]["hotspots_valid"] == 3
     assert body["summary"]["clusters"] == 1
     assert body["limit"] == 10
     assert body["offset"] == 0
-    assert len(body["data"]) == 1
-    assert len(body["data"][0]["steps"]) == 2
-    assert body["data"][0]["steps"][1]["cardinal_direction"] == "Noreste"
+    assert len(body["fires"]) == 1
+    assert len(body["fires"][0]["steps"]) == 2
+    assert body["fires"][0]["steps"][1]["cardinal_direction"] == "Noreste"
 
 
 def test_weather_correlation_endpoint():
@@ -86,30 +86,32 @@ def test_weather_correlation_endpoint():
         }
     ]
     with patch(
-        "api.fire_analysis.WeatherDataClient.fetch_daily_records",
+        "api.charts.models.WeatherDataClient.fetch_daily_records",
         new=AsyncMock(return_value=fake_daily),
     ):
-        body = _run_coro(
-            analyze_weather_correlation(
-                payload=WeatherCorrelationRequest(
-                    latitude=12.1,
-                    longitude=-86.2,
-                    start_date=datetime(2025, 4, 1, 0, 0, 0, tzinfo=UTC),
-                    end_date=datetime(2025, 4, 1, 23, 59, 59, tzinfo=UTC),
-                    fire_direction_deg=45.0,
+        resp = _run_coro(
+            get_weather_correlation(
+                filters=ChartFilterParams(
+                    start_date=date(2025, 4, 1),
+                    end_date=date(2025, 4, 1),
                 ),
                 pagination=PaginationParams(limit=50, offset=0),
+                latitude=12.1,
+                longitude=-86.2,
+                fire_direction_deg=45.0,
             )
         )
 
-    assert body.total == 1
-    assert body.limit == 50
-    assert body.offset == 0
-    data = body.data
-    assert len(data) == 1
-    assert data[0]["is_complete"] is True
-    assert data[0]["wind_direction_to_deg"] == 45.0
-    assert data[0]["wind_fire_alignment_cos"] == 1.0
+    assert resp.chart == "models.weather-correlation"
+    body = resp.data
+    assert body["total"] == 1
+    assert body["limit"] == 50
+    assert body["offset"] == 0
+    records = body["records"]
+    assert len(records) == 1
+    assert records[0]["is_complete"] is True
+    assert records[0]["wind_direction_to_deg"] == 45.0
+    assert records[0]["wind_fire_alignment_cos"] == 1.0
 
 
 def test_predict_endpoint_returns_metrics_and_prediction():
@@ -154,27 +156,28 @@ def test_predict_endpoint_returns_metrics_and_prediction():
 
     with (
         patch(
-            "api.fire_analysis.HotspotRepository.iter_hotspots_filtered",
+            "api.charts.models.HotspotRepository.iter_hotspots_filtered",
             return_value=iter(sample_rows),
         ),
         patch(
-            "api.fire_analysis.WeatherDataClient.fetch_daily_records",
+            "api.charts.models.WeatherDataClient.fetch_daily_records",
             new=AsyncMock(return_value=fake_daily),
         ),
     ):
-        body = _run_coro(
-            predict_fire_displacement(
-                payload=FirePredictRequest(
-                    eps_km=2.0,
-                    min_samples=2,
-                    interval_hours=6.0,
-                    min_training_samples=10,
-                    n_estimators=20,
-                ),
+        resp = _run_coro(
+            get_fire_displacement_prediction(
+                filters=ChartFilterParams(),
+                eps_km=2.0,
+                min_samples=2,
+                interval_hours=6.0,
+                min_training_samples=10,
+                n_estimators=20,
                 session=_DummySession(),  # type: ignore[arg-type]
             )
         )
 
+    assert resp.chart == "models.predict"
+    body = resp.data
     assert "metrics" in body
     assert "latest_prediction" in body
     assert body["metrics"]["train_samples"] > 0

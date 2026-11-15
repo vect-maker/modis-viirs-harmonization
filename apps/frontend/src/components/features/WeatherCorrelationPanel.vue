@@ -4,6 +4,7 @@ import { RotateCw } from '@lucide/vue'
 import { z } from 'zod'
 import type { GeoJSONPolygon } from 'zod-geojson'
 import { useApiFetch } from '@/api/useApiFetch'
+import { ChartResponseSchema } from '@/api/modules/shared/schemas'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import WeatherCorrelationChart, {
@@ -36,7 +37,7 @@ const CorrelationRecordSchema = z.object({
 })
 
 const CorrelationResponseSchema = z.object({
-  data: z.array(CorrelationRecordSchema),
+  records: z.array(CorrelationRecordSchema),
   total: z.number().int().nonnegative(),
 })
 type CorrelationResponse = z.infer<typeof CorrelationResponseSchema>
@@ -148,16 +149,21 @@ async function load() {
   error.value = null
 
   const { latitude, longitude, startDate, endDate, directionDeg } = activeTarget.value
+  const corrParams = new URLSearchParams({
+    limit: '50',
+    offset: '0',
+    latitude: String(latitude),
+    longitude: String(longitude),
+    start_date: startDate.slice(0, 10),
+    end_date: endDate.slice(0, 10),
+  })
+  if (directionDeg !== null && directionDeg !== undefined) {
+    corrParams.set('fire_direction_deg', String(directionDeg))
+  }
 
   const [corrFetch, rawFetch] = await Promise.all([
-    useApiFetch('/analysis/weather-correlation?limit=50&offset=0')
-      .post({
-        latitude,
-        longitude,
-        start_date: startDate,
-        end_date: endDate,
-        fire_direction_deg: directionDeg,
-      })
+    useApiFetch(`/charts/models/weather-correlation?${corrParams.toString()}`)
+      .get()
       .json(),
     useApiFetch('/weather?limit=50&offset=0')
       .post({
@@ -176,7 +182,9 @@ async function load() {
     if (corrFetch.error.value || !corrFetch.data.value) {
       throw corrFetch.error.value ?? new Error('Could not query NASA POWER weather correlation.')
     }
-    correlationResult.value = CorrelationResponseSchema.parse(corrFetch.data.value)
+    correlationResult.value = ChartResponseSchema(CorrelationResponseSchema).parse(
+      corrFetch.data.value,
+    ).data
     if (rawFetch.data.value) {
       const parsedRaw = RawWeatherResponseSchema.safeParse(rawFetch.data.value)
       weatherRows.value = parsedRaw.success ? parsedRaw.data.data : []
@@ -201,7 +209,7 @@ watch(
   { immediate: true },
 )
 
-const rows = computed(() => correlationResult.value?.data ?? [])
+const rows = computed(() => correlationResult.value?.records ?? [])
 const isEmpty = computed(() => correlationResult.value !== null && rows.value.length === 0)
 
 const summaryText = computed(() => {
@@ -244,7 +252,7 @@ const summaryText = computed(() => {
         </div>
         <p class="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
           Queries NASA POWER (<code class="font-mono text-xs">/weather</code> &amp;
-          <code class="font-mono text-xs">/analysis/weather-correlation</code>) for 10 m wind
+          <code class="font-mono text-xs">/charts/models/weather-correlation</code>) for 10 m wind
           vectors, 2 m temperature, relative humidity, and precipitation, measuring cosine
           alignment (<code class="font-mono text-xs">cos Δθ</code>) with fire spread direction.
         </p>

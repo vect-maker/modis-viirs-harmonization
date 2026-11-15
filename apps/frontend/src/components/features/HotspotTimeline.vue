@@ -5,6 +5,8 @@ import { storeToRefs } from 'pinia'
 import { FilterX } from '@lucide/vue'
 import { useHotspotsStore } from '@/stores/hotspots'
 import BaseTimelinePanel from '@/components/ui/BaseTimelinePanel.vue'
+import BaseHelpGuidePopover from '@/components/ui/BaseHelpGuidePopover.vue'
+import DashboardGuideDiagram from '@/components/common/DashboardGuideDiagram.vue'
 import DailyActivityChart from '@/components/common/DailyActivityChart.vue'
 import BaseActivityTabs from '@/components/ui/BaseActivityTabs.vue'
 import HistoricalCalendar from './HistoricalCalendar.vue'
@@ -56,14 +58,31 @@ function selectDay(date: string) {
             class="flex flex-wrap items-center justify-between gap-2 pl-12 text-xs text-neutral-400"
           >
             <p v-if="periodLabel">{{ periodLabel }} · UTC</p>
-            <button
-              v-if="dateRange"
-              type="button"
-              class="inline-flex items-center gap-1 rounded text-xs hover:text-white focus-visible:outline-2 focus-visible:outline-red-400"
-              @click="store.setDateRange(null)"
-            >
-              <FilterX aria-hidden="true" class="h-3.5 w-3.5" />Show All Dates
-            </button>
+            <div class="ml-auto flex items-center gap-2">
+              <button
+                v-if="dateRange"
+                type="button"
+                class="inline-flex items-center gap-1 rounded text-xs hover:text-white focus-visible:outline-2 focus-visible:outline-red-400"
+                @click="store.setDateRange(null)"
+              >
+                <FilterX aria-hidden="true" class="h-3.5 w-3.5" />Show All Dates
+              </button>
+              <BaseHelpGuidePopover
+                title="Activity Timeline & Archive"
+                summary="Inspect daily detection spikes or jump to any month since 2000."
+                :steps="[
+                  'Click any bar in the daily chart to filter the map to that UTC day.',
+                  'Switch to the Historical tab to browse 2000–2026 monthly counts.',
+                ]"
+                side="top"
+                align="end"
+                aria-label="How the activity timeline works"
+              >
+                <template #graphic>
+                  <DashboardGuideDiagram variant="timeline" />
+                </template>
+              </BaseHelpGuidePopover>
+            </div>
           </div>
           <DailyActivityChart
             :days="dailyActivity"

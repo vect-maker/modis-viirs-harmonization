@@ -4,6 +4,7 @@ import { RotateCw } from '@lucide/vue'
 import { z } from 'zod'
 import type { GeoJSONPolygon } from 'zod-geojson'
 import { useApiFetch } from '@/api/useApiFetch'
+import { ChartResponseSchema } from '@/api/modules/shared/schemas'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import MonthlyForecastChart from '@/components/common/MonthlyForecastChart.vue'
@@ -94,7 +95,7 @@ async function load() {
   }
 
   const { data, error: fetchError } = await useApiFetch(
-    `/dashboard/monthly-forecast?${params.toString()}`,
+    `/charts/models/monthly-forecast?${params.toString()}`,
   )
     .get()
     .json()
@@ -104,7 +105,7 @@ async function load() {
     if (fetchError.value || !data.value) {
       throw fetchError.value ?? new Error('The server returned no data.')
     }
-    result.value = ResponseSchema.parse(data.value)
+    result.value = ChartResponseSchema(ResponseSchema).parse(data.value).data
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error.'
   } finally {

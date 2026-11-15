@@ -1,4 +1,4 @@
-import { shallowRef } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
 import type { GeoJSONPolygon } from 'zod-geojson'
 import {
@@ -9,7 +9,7 @@ import {
   type FireEventProperties,
 } from '@/api'
 
-export type MapViewMode = 'events' | 'hotspots' | 'both'
+export type MapViewMode = 'events' | 'hotspots' | 'both' | 'none'
 
 const EMPTY_COLLECTION: FireEventFeatureCollection = {
   type: 'FeatureCollection',
@@ -88,13 +88,32 @@ export const useClustersStore = defineStore('clusters', () => {
     clusterHotspots.value = []
   }
 
+  const showEvents = computed(() => viewMode.value === 'events' || viewMode.value === 'both')
+  const showHotspots = computed(() => viewMode.value === 'hotspots' || viewMode.value === 'both')
+
   function setViewMode(mode: MapViewMode) {
     viewMode.value = mode
+  }
+
+  function setLayerVisible(layer: 'events' | 'hotspots', visible: boolean) {
+    const nextEvents = layer === 'events' ? visible : showEvents.value
+    const nextHotspots = layer === 'hotspots' ? visible : showHotspots.value
+    if (nextEvents && nextHotspots) {
+      viewMode.value = 'both'
+    } else if (nextEvents) {
+      viewMode.value = 'events'
+    } else if (nextHotspots) {
+      viewMode.value = 'hotspots'
+    } else {
+      viewMode.value = 'none'
+    }
   }
 
   return {
     fireEvents,
     viewMode,
+    showEvents,
+    showHotspots,
     selectedCluster,
     clusterHotspots,
     hasFetchedEvents,
@@ -106,5 +125,6 @@ export const useClustersStore = defineStore('clusters', () => {
     selectCluster,
     clearSelectedCluster,
     setViewMode,
+    setLayerVisible,
   }
 })

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, LogIn, User } from '@lucide/vue'
 import PyroTraceLogo from '@/components/common/PyroTraceLogo.vue'
+import DashboardGuidePopover from '@/components/features/DashboardGuidePopover.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -38,6 +39,7 @@ const links = [
       </nav>
 
       <div class="flex items-center gap-3">
+        <DashboardGuidePopover />
         <RouterLink
           v-if="authStore.isAuthenticated"
           :to="{ name: 'profile' }"

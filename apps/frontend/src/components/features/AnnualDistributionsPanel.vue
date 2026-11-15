@@ -4,6 +4,7 @@ import { RotateCw } from '@lucide/vue'
 import { z } from 'zod'
 import type { GeoJSONPolygon } from 'zod-geojson'
 import { useApiFetch } from '@/api/useApiFetch'
+import { ChartResponseSchema } from '@/api/modules/shared/schemas'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import AnnualDistributionsChart, {
@@ -36,7 +37,7 @@ const StatsSchema = z
 const ResponseSchema = z.object({
   range: z.object({ start_year: z.number().int(), end_year: z.number().int() }).nullable(),
   coverage: z.object({ first_detection: z.string(), last_detection: z.string() }).nullable(),
-  data: z.array(
+  rows: z.array(
     z.object({
       year: z.number().int(),
       months_in_archive: z.number().int().min(0).max(12),
@@ -110,7 +111,7 @@ async function load() {
   if (props.polygon) params.set('polygon', JSON.stringify(props.polygon))
 
   const { data, error: fetchError } = await useApiFetch(
-    `/dashboard/annual-stats?${params.toString()}`,
+    `/charts/temporal/annual-stats?${params.toString()}`,
   )
     .get()
     .json()
@@ -120,7 +121,7 @@ async function load() {
     if (fetchError.value || !data.value) {
       throw fetchError.value ?? new Error('The server returned no data.')
     }
-    result.value = ResponseSchema.parse(data.value)
+    result.value = ChartResponseSchema(ResponseSchema).parse(data.value).data
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error.'
   } finally {
@@ -130,7 +131,7 @@ async function load() {
 
 watch([selectedWindow, () => props.polygon, () => props.metric], load, { immediate: true })
 
-const rows = computed(() => result.value?.data ?? [])
+const rows = computed(() => result.value?.rows ?? [])
 const isEmpty = computed(
   () => result.value !== null && rows.value.every((r) => r.total_hotspots === 0),
 )

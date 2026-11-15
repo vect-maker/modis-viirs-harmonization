@@ -11,6 +11,8 @@ import BaseStatsBreadcrumb, {
   type StatsSectionId,
 } from '@/components/ui/BaseStatsBreadcrumb.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
+import BaseHelpGuidePopover from '@/components/ui/BaseHelpGuidePopover.vue'
+import DashboardGuideDiagram from '@/components/common/DashboardGuideDiagram.vue'
 import AnnualActivityPanel from './AnnualActivityPanel.vue'
 import AnnualDistributionsPanel from './AnnualDistributionsPanel.vue'
 import ClusterMovementPanel, { type ActiveClusterContext } from './ClusterMovementPanel.vue'
@@ -192,6 +194,21 @@ const triggerClass =
         >
           <ChartColumn aria-hidden="true" class="h-4 w-4 text-accent" />
           <span :id="titleId" class="flex-1 text-sm font-semibold">Statistics</span>
+          <BaseHelpGuidePopover
+            title="Analytics & Forecasts"
+            summary="Explore multi-year trends, spatial anomalies, weather correlations, and forecasts."
+            :steps="[
+              'Use the section tabs below to switch between Overview, Spatial, Weather, and Forecast.',
+              'Change Reference year or Metric (Detections vs. FRP) to compare periods.',
+            ]"
+            side="bottom"
+            align="end"
+            aria-label="How the statistics panel works"
+          >
+            <template #graphic>
+              <DashboardGuideDiagram variant="stats" />
+            </template>
+          </BaseHelpGuidePopover>
           <span class="hidden text-xs text-ink-muted sm:inline">Esc to close</span>
           <ChevronDown aria-hidden="true" class="h-4 w-4 rotate-180 text-ink-muted" />
         </button>

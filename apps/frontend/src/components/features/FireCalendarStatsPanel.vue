@@ -5,6 +5,7 @@ import { RotateCw } from '@lucide/vue'
 import { z } from 'zod'
 import type { GeoJSONPolygon } from 'zod-geojson'
 import { useApiFetch } from '@/api/useApiFetch'
+import { ChartResponseSchema } from '@/api/modules/shared/schemas'
 import { useHotspotsStore } from '@/stores/hotspots'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
@@ -104,7 +105,7 @@ async function load() {
     params.set('polygon', JSON.stringify(props.polygon))
   }
 
-  const { data, error: fetchError } = await useApiFetch(`/fire-calendar?${params.toString()}`)
+  const { data, error: fetchError } = await useApiFetch(`/charts/temporal/fire-calendar?${params.toString()}`)
     .get()
     .json()
 
@@ -113,7 +114,7 @@ async function load() {
     if (fetchError.value || !data.value) {
       throw fetchError.value ?? new Error('The server returned no data.')
     }
-    result.value = ResponseSchema.parse(data.value)
+    result.value = ChartResponseSchema(ResponseSchema).parse(data.value).data
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error.'
   } finally {

@@ -16,10 +16,11 @@ import { Flame } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { useHotspotsStore } from '@/stores/hotspots'
 import { useFiltersStore } from '@/stores/filters'
-import { useClustersStore, type MapViewMode } from '@/stores/clusters'
+import { useClustersStore } from '@/stores/clusters'
 import { useFeedbackStore } from '@/stores/feedback'
 import FirePopup from './FirePopup.vue'
 import FireEventPopup from './FireEventPopup.vue'
+import MapLayersPanel from './MapLayersPanel.vue'
 import MapLegendTooltip from './MapLegendTooltip.vue'
 import UserLocationMarker from './UserLocationMarker.vue'
 import SpaceBackground from '@/components/common/SpaceBackground.vue'
@@ -77,6 +78,8 @@ const clustersStore = useClustersStore()
 const {
   fireEvents,
   viewMode,
+  showEvents,
+  showHotspots,
   selectedCluster,
   clusterHotspots,
   hasFetchedEvents,
@@ -85,6 +88,12 @@ const {
 const activeRoiArea = shallowRef<number | null>(null)
 const isDrawing = shallowRef(false)
 const filteredCount = computed(() => hotspotsStore.filteredHotspots.length)
+const showEmptyState = computed(() => {
+  if (!showEvents.value && !showHotspots.value) return false
+  const eventsEmpty = !showEvents.value || fireEvents.value.features.length === 0
+  const hotspotsEmpty = !showHotspots.value || filteredCount.value === 0
+  return eventsEmpty && hotspotsEmpty
+})
 const activePopup = shallowRef<maplibregl.Popup | null>(null)
 
 const isDesktop = useMediaQuery('(min-width: 768px)')
@@ -792,28 +801,9 @@ onUnmounted(() => {
     <SpaceBackground :visible="spaceVisible" />
     <div ref="mapContainer" class="fire-map__canvas" />
 
-    <div class="absolute top-3 left-13 z-10 flex items-center gap-2">
+    <div class="absolute top-3 left-15 z-10 flex items-start gap-2.5">
+      <MapLayersPanel />
       <MapLegendTooltip />
-      <div
-        role="group"
-        aria-label="Map layer mode"
-        class="inline-flex rounded-lg border border-border-strong bg-surface-panel/90 p-0.5 text-xs shadow-md backdrop-blur-md"
-      >
-        <button
-          v-for="mode in (['events', 'hotspots', 'both'] as MapViewMode[])"
-          :key="mode"
-          type="button"
-          class="cursor-pointer rounded-md px-2.5 py-1 font-medium capitalize transition"
-          :class="
-            viewMode === mode
-              ? 'bg-orange-500/25 text-orange-200'
-              : 'text-ink-secondary hover:text-ink-primary'
-          "
-          @click="clustersStore.setViewMode(mode)"
-        >
-          {{ mode === 'events' ? 'Fire Events' : mode === 'hotspots' ? 'Hotspots' : 'Both' }}
-        </button>
-      </div>
     </div>
 
     <slot
@@ -828,12 +818,12 @@ onUnmounted(() => {
     />
 
     <div
-      v-if="!filteredCount"
+      v-if="showEmptyState"
       role="status"
-      :style="{ bottom: `${bottomInset + 80}px` }"
-      class="pointer-events-none absolute inset-x-4 z-10 mx-auto max-w-sm rounded-lg border border-border-subtle bg-surface-panel/95 p-4 text-center text-sm text-ink-secondary"
+      :style="{ bottom: `${bottomInset + 20}px` }"
+      class="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 rounded-full border border-border-strong bg-surface-panel/92 px-4 py-2 text-center text-xs text-ink-secondary shadow-lg backdrop-blur-md"
     >
-      No hotspots match these filters. Try another date range, area, or sensor.
+      No fire detections match these filters. Try another date range, area, or sensor.
     </div>
   </div>
 </template>

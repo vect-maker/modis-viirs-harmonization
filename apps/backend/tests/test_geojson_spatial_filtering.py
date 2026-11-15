@@ -8,7 +8,9 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine
 
-from main import get_hotspot_daily_activity, get_hotspots
+from api.charts.temporal import get_daily_activity
+from main import get_hotspots
+from schemas.charts import ChartFilterParams
 from model.StarSchema import DimCountry, DimPlatform, FactHotspot
 from repositories.HotspotRepository import HotspotRepository
 from repositories.spatial_filter import (
@@ -165,15 +167,17 @@ def test_hotspots_and_daily_activity_geojson_polygon_filtering():
     )
     assert ep_page.total == 1
 
-    daily = get_hotspot_daily_activity(
-        session=session,
-        start_date=date(2025, 12, 10),
-        end_date=date(2025, 12, 10),
+    daily_resp = get_daily_activity(
+        filters=ChartFilterParams(
+            start_date=date(2025, 12, 10),
+            end_date=date(2025, 12, 10),
+            polygon=polygon_str,
+        ),
         instrument="MODIS",
-        polygon=polygon_str,
+        session=session,
     )
-    assert len(daily.days) == 1
-    assert daily.days[0].count == 1
+    assert len(daily_resp.data.days) == 1
+    assert daily_resp.data.days[0].count == 1
 
     with pytest.raises(HTTPException) as exc_info:
         get_hotspots(

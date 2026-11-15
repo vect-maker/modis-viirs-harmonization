@@ -4,6 +4,7 @@ import { RotateCw } from '@lucide/vue'
 import { z } from 'zod'
 import type { GeoJSONPolygon } from 'zod-geojson'
 import { useApiFetch } from '@/api/useApiFetch'
+import { ChartResponseSchema } from '@/api/modules/shared/schemas'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import CorrelationsChart, { CORR_LABELS } from '@/components/common/CorrelationsChart.vue'
@@ -27,9 +28,7 @@ const PairSchema = z.object({
   std_y: z.number().nullable().optional(),
 })
 
-const ResponseSchema = z.object({
-  data: z.array(PairSchema),
-})
+const ResponseSchema = ChartResponseSchema(z.array(PairSchema))
 type CorrelationsResponse = z.infer<typeof ResponseSchema>
 
 const STAT_OPTIONS = [
@@ -56,15 +55,15 @@ async function load() {
   const params = new URLSearchParams({
     high_value: '90',
     metric: props.metric ?? 'raw',
-    start_date: `${selectedYear.value}-01-01T00:00:00`,
-    end_date: `${selectedYear.value}-12-31T23:59:59`,
+    start_date: `${selectedYear.value}-01-01`,
+    end_date: `${selectedYear.value}-12-31`,
   })
   if (props.polygon) {
     params.set('polygon', JSON.stringify(props.polygon))
   }
 
   const { data, error: fetchError } = await useApiFetch(
-    `/dashboard/correlations?${params.toString()}`,
+    `/charts/diagnostics/correlations?${params.toString()}`,
   )
     .get()
     .json()

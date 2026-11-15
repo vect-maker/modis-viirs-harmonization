@@ -8,7 +8,8 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine
 
-from api.fire_calendar import get_fire_calendar
+from api.charts.temporal import get_fire_calendar
+from schemas.charts import ChartFilterParams
 from api.hotspots import get_hotspots
 from model import FireCluster
 from repositories.spatial_filter import SpatialAreaFilter, build_spatial_sql

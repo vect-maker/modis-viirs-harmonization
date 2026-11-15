@@ -4,6 +4,7 @@ import { RotateCw } from '@lucide/vue'
 import { z } from 'zod'
 import type { GeoJSONPolygon } from 'zod-geojson'
 import { useApiFetch } from '@/api/useApiFetch'
+import { ChartResponseSchema } from '@/api/modules/shared/schemas'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import SpatialDensityChart from '@/components/common/SpatialDensityChart.vue'
@@ -28,7 +29,7 @@ const ResponseSchema = z.object({
       max: z.number().nullable(),
     }),
   }),
-  data: z.array(
+  cells: z.array(
     z.object({
       cell_lat: z.number(),
       cell_lon: z.number(),
@@ -89,8 +90,8 @@ async function load() {
     cell_size_deg: cellSize.value,
     limit: '20000',
     metric: props.metric ?? 'raw',
-    start_date: `${selectedYear.value}-01-01T00:00:00`,
-    end_date: `${selectedYear.value}-12-31T23:59:59`,
+    start_date: `${selectedYear.value}-01-01`,
+    end_date: `${selectedYear.value}-12-31`,
   })
   const bbox = polygonBbox(props.polygon)
   if (bbox) {
@@ -104,7 +105,7 @@ async function load() {
   }
 
   const { data, error: fetchError } = await useApiFetch(
-    `/dashboard/spatial-density?${params.toString()}`,
+    `/charts/diagnostics/spatial-density?${params.toString()}`,
   )
     .get()
     .json()
@@ -114,7 +115,7 @@ async function load() {
     if (fetchError.value || !data.value) {
       throw fetchError.value ?? new Error('The server returned no data.')
     }
-    result.value = ResponseSchema.parse(data.value)
+    result.value = ChartResponseSchema(ResponseSchema).parse(data.value).data
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error.'
   } finally {
@@ -124,7 +125,7 @@ async function load() {
 
 watch([cellSize, selectedYear, () => props.polygon, () => props.metric], load, { immediate: true })
 
-const cells = computed(() => result.value?.data ?? [])
+const cells = computed(() => result.value?.cells ?? [])
 const topCells = computed(() => cells.value.slice(0, 20))
 const isEmpty = computed(() => result.value !== null && cells.value.length === 0)
 const frpFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })

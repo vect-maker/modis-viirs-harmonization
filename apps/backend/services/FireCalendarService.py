@@ -7,7 +7,7 @@ from typing import Literal
 from fastapi import HTTPException
 from sqlmodel import Session
 
-from api.dashboard import classify_archive_months
+from analytics.DashboardAnalytics import classify_archive_months
 from model.ClusterStatus import ClusterStatus
 from repositories.FireCalendarRepository import FireCalendarRepository
 from schemas.fire_calendar import (

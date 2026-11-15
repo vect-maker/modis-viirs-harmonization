@@ -11,13 +11,11 @@ from sqlmodel import Session
 
 from api.alerts import router as alerts_router
 from api.auth import router as auth_router
+from api.charts import router as charts_router
 from api.cluster_hotspots import router as cluster_hotspots_router
 from api.clusters import router as clusters_router
-from api.dashboard import router as dashboard_router
 from api.environmental_records import router as environmental_records_router
 from api.feedback import router as feedback_router
-from api.fire_analysis import router as fire_analysis_router
-from api.fire_calendar import router as fire_calendar_router
 from api.fire_cluster_forecast import router as fire_cluster_forecast_router
 from api.weather import router as weather_router
 from database.initDb import create_db_and_tables
@@ -25,8 +23,6 @@ from database.session import get_session
 from model.StarSchema import (
     AvailableDatesResponse,
     CountryPublic,
-    DailyActivityResponse,
-    HistoricalCalendarResponse,
     HotspotPublic,
     PlatformPublic,
 )
@@ -81,9 +77,7 @@ app.include_router(clusters_router)
 app.include_router(cluster_hotspots_router)
 app.include_router(environmental_records_router)
 app.include_router(fire_cluster_forecast_router)
-app.include_router(fire_analysis_router)
-app.include_router(dashboard_router)
-app.include_router(fire_calendar_router)
+app.include_router(charts_router)
 app.include_router(feedback_router)
 
 
@@ -178,33 +172,6 @@ def get_hotspots(
 @app.get("/hotspots/available-dates", tags=["Hotspots"])
 def get_hotspot_available_dates(session: SessionDep) -> AvailableDatesResponse:
     return HotspotRepository(session).get_available_dates()
-
-
-@app.get("/hotspots/daily-activity", tags=["Hotspots"])
-def get_hotspot_daily_activity(
-    session: SessionDep,
-    start_date: date | None = Query(default=None),
-    end_date: date | None = Query(default=None),
-    instrument: str | None = Query(default=None),
-    polygon: str | None = Query(
-        default=None,
-        description=(
-            "GeoJSON Polygon or MultiPolygon (RFC 7946, EPSG:4326) serialized as JSON"
-        ),
-    ),
-) -> DailyActivityResponse:
-    polygon_wkt = _parse_polygon_or_422(polygon)
-    return HotspotRepository(session).get_daily_activity(
-        start_date=start_date,
-        end_date=end_date,
-        instrument=instrument,
-        polygon_wkt=polygon_wkt,
-    )
-
-
-@app.get("/hotspots/historical-calendar", tags=["Hotspots"])
-def get_hotspot_historical_calendar(session: SessionDep) -> HistoricalCalendarResponse:
-    return HotspotRepository(session).get_historical_calendar()
 
 
 @app.get("/countries", tags=["Countries"])

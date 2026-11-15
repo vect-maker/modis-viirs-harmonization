@@ -13,6 +13,20 @@ export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =
     offset: z.number().int().nonnegative(),
   });
 
+export const ChartMetaSchema = z.object({
+  metric: z.enum(["raw", "harmonized"]),
+  filters: z.record(z.string(), z.unknown()),
+  coverage: z.record(z.string(), z.unknown()).nullable().optional(),
+  generated_at: z.string(),
+});
+
+export const ChartResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
+  z.object({
+    chart: z.string(),
+    meta: ChartMetaSchema,
+    data: dataSchema,
+  });
+
 export const FastApiValidationErrorItemSchema = z.object({
   loc: z.array(z.union([z.string(), z.number()])),
   msg: z.string(),

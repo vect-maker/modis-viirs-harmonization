@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { CircleHelp, Flame, LocateFixed } from '@lucide/vue'
+import { CircleHelp, Flame, Hexagon, LocateFixed } from '@lucide/vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
+import DashboardGuideDiagram from '@/components/common/DashboardGuideDiagram.vue'
 
 const CONFIDENCE_ITEMS = [
   {
@@ -52,8 +53,36 @@ const CONFIDENCE_ITEMS = [
         side="bottom"
         align="start"
         :side-offset="8"
-        class="z-50 w-64 rounded-xl border border-border-strong bg-surface-panel/95 p-3.5 text-xs text-ink-primary shadow-2xl backdrop-blur-md"
+        class="z-50 w-68 rounded-xl border border-border-strong bg-surface-panel/95 p-3.5 text-xs text-ink-primary shadow-2xl backdrop-blur-md"
       >
+        <p class="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
+          How layers group detections
+        </p>
+        <div class="mt-2 overflow-hidden rounded-lg border border-border-subtle bg-surface-base/80 p-1.5">
+          <DashboardGuideDiagram variant="layers" />
+        </div>
+
+        <div class="my-2.5 border-t border-border-subtle" />
+
+        <p class="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
+          Fire events
+        </p>
+        <div class="mt-2 flex items-center gap-2.5">
+          <span
+            class="flex size-6 shrink-0 items-center justify-center rounded-md border border-orange-400/35 bg-orange-500/15 text-orange-300"
+          >
+            <Hexagon class="size-3.5" aria-hidden="true" />
+          </span>
+          <div class="min-w-0">
+            <div class="font-medium text-ink-primary">Event perimeter &amp; centroid</div>
+            <div class="text-[11px] text-ink-muted">
+              Grouped detections (2+ hotspots, ≤ 24 h gap)
+            </div>
+          </div>
+        </div>
+
+        <div class="my-2.5 border-t border-border-subtle" />
+
         <p class="text-[11px] font-semibold tracking-wider text-ink-muted uppercase">
           Hotspot confidence
         </p>

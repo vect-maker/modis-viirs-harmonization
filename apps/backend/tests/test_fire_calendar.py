@@ -8,7 +8,8 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine
 
-from api.fire_calendar import get_fire_calendar
+from api.charts.temporal import get_fire_calendar
+from schemas.charts import ChartFilterParams
 from model import FireCluster
 from model.ClusterStatus import ClusterStatus
 
@@ -160,12 +161,13 @@ def _seed_calendar_session() -> Session:
 
 
 def _call_calendar(session: Session, **kwargs):
+    filter_keys = {"start_date", "end_date", "country", "polygon", "metric"}
+    filter_kwargs = {k: kwargs.pop(k) for k in list(kwargs) if k in filter_keys}
+    filters = ChartFilterParams(**filter_kwargs)
     defaults = {
+        "filters": filters,
         "year": 2025,
         "month": None,
-        "start_date": None,
-        "end_date": None,
-        "country": None,
         "department": None,
         "municipality": None,
         "min_confidence": None,
@@ -180,7 +182,7 @@ def _call_calendar(session: Session, **kwargs):
         "session": session,
     }
     defaults.update(kwargs)
-    return _run_coro(get_fire_calendar(**defaults))
+    return _run_coro(get_fire_calendar(**defaults)).data
 
 
 def test_full_year_and_aggregations():

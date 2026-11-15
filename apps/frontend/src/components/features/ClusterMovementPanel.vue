@@ -15,6 +15,7 @@ import { Compass, Play, RotateCw } from '@lucide/vue'
 import { z } from 'zod'
 import type { GeoJSONPolygon } from 'zod-geojson'
 import { useApiFetch } from '@/api/useApiFetch'
+import { ChartResponseSchema } from '@/api/modules/shared/schemas'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import ClusterMovementChart from '@/components/common/ClusterMovementChart.vue'
@@ -52,7 +53,7 @@ const MovementResponseSchema = z.object({
     clusters: z.number().int().nonnegative(),
     noise: z.number().int().nonnegative(),
   }),
-  data: z.array(
+  fires: z.array(
     z.object({
       fire_id: z.number().int(),
       steps: z.array(StepSchema),
@@ -148,31 +149,35 @@ function polygonBbox(polygon: GeoJSONPolygon | null) {
   return Number.isFinite(minLat) ? { minLat, maxLat, minLon, maxLon } : null
 }
 
-function buildPayload() {
+function buildQueryParams(extra?: Record<string, string | number>) {
   const yr = selectedYear.value
   const mo = yr === 2026 ? '05' : selectedMonth.value
-  const startDate = `${yr}-${mo}-01T00:00:00`
-  const endDate = `${yr}-${mo}-15T23:59:59`
+  const params = new URLSearchParams({
+    start_date: `${yr}-${mo}-01`,
+    end_date: `${yr}-${mo}-15`,
+    eps_km: String(Number(epsKm.value)),
+    min_samples: '3',
+    time_window_hours: '24',
+    max_time_window_hours: '96',
+    interval_hours: '6',
+    max_rows: '10000',
+  })
   const bbox = polygonBbox(props.polygon)
-  return {
-    start_date: startDate,
-    end_date: endDate,
-    eps_km: Number(epsKm.value),
-    min_samples: 3,
-    time_window_hours: 24,
-    max_time_window_hours: 96,
-    interval_hours: 6,
-    max_rows: 10000,
-    ...(bbox
-      ? {
-          min_lat: bbox.minLat,
-          max_lat: bbox.maxLat,
-          min_lon: bbox.minLon,
-          max_lon: bbox.maxLon,
-        }
-      : {}),
-    ...(props.polygon ? { polygon: JSON.stringify(props.polygon) } : {}),
+  if (bbox) {
+    params.set('min_lat', String(bbox.minLat))
+    params.set('max_lat', String(bbox.maxLat))
+    params.set('min_lon', String(bbox.minLon))
+    params.set('max_lon', String(bbox.maxLon))
   }
+  if (props.polygon) {
+    params.set('polygon', JSON.stringify(props.polygon))
+  }
+  if (extra) {
+    for (const [k, v] of Object.entries(extra)) {
+      params.set(k, String(v))
+    }
+  }
+  return params
 }
 
 async function loadMovement() {
@@ -182,10 +187,11 @@ async function loadMovement() {
   predictResult.value = null
   predictError.value = null
 
+  const params = buildQueryParams({ limit: 50, offset: 0 })
   const { data, error: fetchError } = await useApiFetch(
-    '/analysis/cluster-movement?limit=50&offset=0',
+    `/charts/models/cluster-movement?${params.toString()}`,
   )
-    .post(buildPayload())
+    .get()
     .json()
 
   if (requestId !== latestMovementRequest) return
@@ -193,11 +199,11 @@ async function loadMovement() {
     if (fetchError.value || !data.value) {
       throw fetchError.value ?? new Error('The server returned no data.')
     }
-    const parsed = MovementResponseSchema.parse(data.value)
+    const parsed = ChartResponseSchema(MovementResponseSchema).parse(data.value).data
     // Priorizar clusters con varios intervalos temporales para visualizar movimiento real.
-    parsed.data.sort((a, b) => b.steps.length - a.steps.length)
+    parsed.fires.sort((a, b) => b.steps.length - a.steps.length)
     movementResult.value = parsed
-    selectedFireId.value = parsed.data[0]?.fire_id ?? 0
+    selectedFireId.value = parsed.fires[0]?.fire_id ?? 0
   } catch (err) {
     movementError.value = err instanceof Error ? err.message : 'Unknown error.'
   } finally {
@@ -209,22 +215,23 @@ async function runPrediction() {
   isLoadingPredict.value = true
   predictError.value = null
 
-  const payload = {
-    ...buildPayload(),
+  const params = buildQueryParams({
     min_training_samples: 5,
     test_ratio: 0.2,
     n_estimators: 100,
-  }
+  })
 
-  const { data, error: fetchError } = await useApiFetch('/analysis/predict')
-    .post(payload)
+  const { data, error: fetchError } = await useApiFetch(
+    `/charts/models/predict?${params.toString()}`,
+  )
+    .get()
     .json()
 
   try {
     if (fetchError.value || !data.value) {
       throw fetchError.value ?? new Error('The server returned no prediction.')
     }
-    predictResult.value = PredictResponseSchema.parse(data.value)
+    predictResult.value = ChartResponseSchema(PredictResponseSchema).parse(data.value).data
   } catch (err) {
     predictError.value = err instanceof Error ? err.message : 'Unknown error.'
   } finally {
@@ -234,7 +241,7 @@ async function runPrediction() {
 
 watch([selectedYear, selectedMonth, epsKm, () => props.polygon], loadMovement, { immediate: true })
 
-const fires = computed(() => movementResult.value?.data ?? [])
+const fires = computed(() => movementResult.value?.fires ?? [])
 const fireOptions = computed(() =>
   fires.value.slice(0, 25).map((f) => ({
     value: f.fire_id,
@@ -295,9 +302,9 @@ const summaryText = computed(() => {
           </span>
         </div>
         <p class="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
-          Clusters hotspots in space and time (<code class="font-mono text-xs">/analysis/cluster-movement</code>)
+          Clusters hotspots in space and time (<code class="font-mono text-xs">/charts/models/cluster-movement</code>)
           to track centroid displacement per 6-hour interval, and trains a RandomForest regressor
-          with NASA POWER meteorology (<code class="font-mono text-xs">/analysis/predict</code>).
+          with NASA POWER meteorology (<code class="font-mono text-xs">/charts/models/predict</code>).
         </p>
       </div>
 
@@ -398,7 +405,7 @@ const summaryText = computed(() => {
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 class="text-sm font-semibold text-ink-primary">
-                RandomForest displacement predictor (<code class="font-mono text-xs text-ink-secondary">POST /analysis/predict</code>)
+                RandomForest displacement predictor (<code class="font-mono text-xs text-ink-secondary">GET /charts/models/predict</code>)
               </h3>
               <p class="mt-1 text-xs text-ink-muted">
                 Joins cluster trajectories with NASA POWER daily wind and humidity to predict the

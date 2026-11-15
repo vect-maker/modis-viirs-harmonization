@@ -10,3 +10,16 @@ export interface PaginatedResponse<T> {
   limit: number;
   offset: number;
 }
+
+export interface ChartMeta {
+  metric: "raw" | "harmonized";
+  filters: Record<string, unknown>;
+  coverage?: Record<string, unknown> | null;
+  generated_at: string;
+}
+
+export interface ChartResponse<T> {
+  chart: string;
+  meta: ChartMeta;
+  data: T;
+}

@@ -1,4 +1,5 @@
 import { useApiFetch } from "@/api/useApiFetch";
+import { ChartResponseSchema } from "../shared/schemas";
 import { DailyActivityRequestSchema, HotspotFiltersRequestSchema } from "./requests";
 import {
   AvailableDatesResponseSchema,
@@ -62,7 +63,7 @@ export const useHotspotsApi = () => {
     return AvailableDatesResponseSchema.parse(data.value);
   }
 
-  // GET /hotspots/daily-activity
+  // GET /charts/temporal/daily-activity
   async function getDailyActivity(params?: DailyActivityRequest): Promise<DailyActivityResponse> {
     const validated = params ? DailyActivityRequestSchema.parse(params) : undefined;
     const queryParams = new URLSearchParams();
@@ -71,7 +72,7 @@ export const useHotspotsApi = () => {
     if (validated?.instrument) queryParams.append("instrument", validated.instrument);
     if (validated?.polygon) queryParams.append("polygon", JSON.stringify(validated.polygon));
     const qs = queryParams.toString();
-    const endpoint = `/hotspots/daily-activity${qs ? `?${qs}` : ""}`;
+    const endpoint = `/charts/temporal/daily-activity${qs ? `?${qs}` : ""}`;
 
     const { data, error } = await useApiFetch(endpoint).get().json();
 
@@ -79,18 +80,18 @@ export const useHotspotsApi = () => {
       throw error.value || new Error("Failed to fetch daily hotspot activity");
     }
 
-    return DailyActivityResponseSchema.parse(data.value);
+    return ChartResponseSchema(DailyActivityResponseSchema).parse(data.value).data;
   }
 
-  // GET /hotspots/historical-calendar
+  // GET /charts/temporal/historical-calendar
   async function getHistoricalCalendar(): Promise<HistoricalCalendarResponse> {
-    const { data, error } = await useApiFetch("/hotspots/historical-calendar").get().json();
+    const { data, error } = await useApiFetch("/charts/temporal/historical-calendar").get().json();
 
     if (error.value || !data.value) {
       throw error.value || new Error("Failed to fetch historical calendar");
     }
 
-    return HistoricalCalendarResponseSchema.parse(data.value);
+    return ChartResponseSchema(HistoricalCalendarResponseSchema).parse(data.value).data;
   }
 
   return {
