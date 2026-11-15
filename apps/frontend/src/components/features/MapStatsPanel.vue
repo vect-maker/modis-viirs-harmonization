@@ -3,6 +3,7 @@ import { computed, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vu
 import { onKeyStroke } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ChartColumn, ChevronDown } from '@lucide/vue'
+import { useChartFiltersStore, type ChartAreaScope, type ChartMetric } from '@/stores/chartFilters'
 import { useHotspotsStore } from '@/stores/hotspots'
 import BaseLazySection from '@/components/ui/BaseLazySection.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
@@ -13,17 +14,17 @@ import BaseStatsBreadcrumb, {
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import BaseHelpGuidePopover from '@/components/ui/BaseHelpGuidePopover.vue'
 import DashboardGuideDiagram from '@/components/common/DashboardGuideDiagram.vue'
-import AnnualActivityPanel from './AnnualActivityPanel.vue'
-import AnnualDistributionsPanel from './AnnualDistributionsPanel.vue'
-import ClusterMovementPanel, { type ActiveClusterContext } from './ClusterMovementPanel.vue'
-import ConfidenceDbscanPanel from './ConfidenceDbscanPanel.vue'
-import CorrelationsPanel from './CorrelationsPanel.vue'
-import FireCalendarStatsPanel from './FireCalendarStatsPanel.vue'
-import MonthlyComparisonPanel from './MonthlyComparisonPanel.vue'
-import MonthlyForecastPanel from './MonthlyForecastPanel.vue'
-import SpatialAnomaliesPanel from './SpatialAnomaliesPanel.vue'
-import SpatialDensityPanel from './SpatialDensityPanel.vue'
-import WeatherCorrelationPanel from './WeatherCorrelationPanel.vue'
+import AnnualActivityChart from '@/components/charts/temporal/AnnualActivityChart.vue'
+import AnnualDistributionsChart from '@/components/charts/temporal/AnnualDistributionsChart.vue'
+import FireCalendarStatsChart from '@/components/charts/temporal/FireCalendarStatsChart.vue'
+import MonthlyComparisonChart from '@/components/charts/temporal/MonthlyComparisonChart.vue'
+import ConfidenceDbscanChart from '@/components/charts/diagnostics/ConfidenceDbscanChart.vue'
+import CorrelationsChart from '@/components/charts/diagnostics/CorrelationsChart.vue'
+import SpatialAnomaliesChart from '@/components/charts/diagnostics/SpatialAnomaliesChart.vue'
+import SpatialDensityChart from '@/components/charts/diagnostics/SpatialDensityChart.vue'
+import ClusterMovementChart from '@/components/charts/models/ClusterMovementChart.vue'
+import MonthlyForecastChart from '@/components/charts/models/MonthlyForecastChart.vue'
+import WeatherCorrelationChart from '@/components/charts/models/WeatherCorrelationChart.vue'
 
 defineProps<{
   /** Id del contenedor del mapa donde se dibuja el panel expandido. */
@@ -53,8 +54,8 @@ onKeyStroke('Escape', (event) => {
   open.value = false
 })
 
-type Metric = 'raw' | 'harmonized'
-type AreaScope = 'area' | 'all'
+type Metric = ChartMetric
+type AreaScope = ChartAreaScope
 
 const METRIC_OPTIONS = [
   { value: 'raw', label: 'Detections' },
@@ -75,16 +76,9 @@ function showSection(section: Exclude<StatsSectionId, 'all'>): boolean {
   return activeSection.value === 'all' || activeSection.value === section
 }
 
-// Métrica, año y área se comparten entre los gráficos para que muestren el mismo contexto.
 const { selectedPolygon, dateRange } = storeToRefs(useHotspotsStore())
-const metric = shallowRef<Metric>('raw')
-const areaScope = shallowRef<AreaScope>(selectedPolygon.value ? 'area' : 'all')
-const activePolygon = computed(() =>
-  areaScope.value === 'area' ? selectedPolygon.value : null,
-)
-watch(selectedPolygon, (polygon) => {
-  areaScope.value = polygon ? 'area' : 'all'
-})
+const chartFiltersStore = useChartFiltersStore()
+const { metric, areaScope, selectedYear } = storeToRefs(chartFiltersStore)
 
 const YEAR_OPTIONS = Array.from({ length: 26 }, (_, i) => {
   const y = 2026 - i
@@ -94,17 +88,15 @@ const YEAR_OPTIONS = Array.from({ length: 26 }, (_, i) => {
 function resolveInitialYear(startIso: string | undefined): number {
   if (!startIso) return 2025
   const parsed = Number(startIso.slice(0, 4))
-  // Si el mapa está en el año provisional 2026, iniciamos las estadísticas en 2025 (último año completo armonizado)
-  // salvo que el usuario lo cambie explícitamente en el selector global.
   return Number.isInteger(parsed) && parsed >= 2001 && parsed <= 2025 ? parsed : 2025
 }
 
-const selectedYear = shallowRef<number>(resolveInitialYear(dateRange.value?.start))
+chartFiltersStore.setSelectedYear(resolveInitialYear(dateRange.value?.start))
 watch(
   comparisonYear,
   (val) => {
     if (val !== null && val !== selectedYear.value) {
-      selectedYear.value = val
+      chartFiltersStore.setSelectedYear(val)
     }
   },
   { immediate: true },
@@ -120,12 +112,10 @@ watch(
     if (!startIso) return
     const parsed = Number(startIso.slice(0, 4))
     if (Number.isInteger(parsed) && parsed >= 2001 && parsed <= 2026) {
-      selectedYear.value = parsed
+      chartFiltersStore.setSelectedYear(parsed)
     }
   },
 )
-
-const activeClusterContext = shallowRef<ActiveClusterContext | null>(null)
 
 const supportsAreaFilter = computed(() => true)
 
@@ -245,63 +235,39 @@ const triggerClass =
           </div>
 
           <template v-if="showSection('overview')">
-            <MonthlyComparisonPanel
-              v-model:year="selectedYear"
-              :metric="metric"
-              :polygon="activePolygon"
-            />
-            <AnnualActivityPanel :metric="metric" :polygon="activePolygon" />
+            <MonthlyComparisonChart />
+            <AnnualActivityChart />
           </template>
 
           <BaseLazySection
             v-if="showSection('distributions')"
             :eager="activeSection === 'distributions'"
           >
-            <AnnualDistributionsPanel
-              :year="selectedYear"
-              :metric="metric"
-              :polygon="activePolygon"
-            />
+            <AnnualDistributionsChart />
           </BaseLazySection>
 
           <BaseLazySection
             v-if="showSection('fire-calendar')"
             :eager="activeSection === 'fire-calendar'"
           >
-            <FireCalendarStatsPanel
-              v-model:year="selectedYear"
-              :metric="metric"
-              :polygon="activePolygon"
-            />
+            <FireCalendarStatsChart />
           </BaseLazySection>
 
           <template v-if="showSection('spatial')">
             <BaseLazySection :eager="activeSection === 'spatial'">
-              <SpatialDensityPanel
-                v-model:year="selectedYear"
-                :metric="metric"
-                :polygon="activePolygon"
-              />
+              <SpatialDensityChart />
             </BaseLazySection>
             <BaseLazySection :eager="activeSection === 'spatial'">
-              <SpatialAnomaliesPanel v-model:year="selectedYear" :polygon="activePolygon" />
+              <SpatialAnomaliesChart />
             </BaseLazySection>
           </template>
 
           <template v-if="showSection('diagnostics')">
             <BaseLazySection :eager="activeSection === 'diagnostics'">
-              <CorrelationsPanel
-                v-model:year="selectedYear"
-                :metric="metric"
-                :polygon="activePolygon"
-              />
+              <CorrelationsChart />
             </BaseLazySection>
             <BaseLazySection :eager="activeSection === 'diagnostics'">
-              <ConfidenceDbscanPanel
-                v-model:year="selectedYear"
-                :metric="metric"
-                :polygon="activePolygon"
-              />
+              <ConfidenceDbscanChart />
             </BaseLazySection>
           </template>
 
@@ -309,29 +275,21 @@ const triggerClass =
             v-if="showSection('forecast')"
             :eager="activeSection === 'forecast'"
           >
-            <MonthlyForecastPanel :metric="metric" :polygon="activePolygon" />
+            <MonthlyForecastChart />
           </BaseLazySection>
 
           <BaseLazySection
             v-if="showSection('movement')"
             :eager="activeSection === 'movement'"
           >
-            <ClusterMovementPanel
-              v-model:year="selectedYear"
-              v-model:cluster-context="activeClusterContext"
-              :polygon="activePolygon"
-            />
+            <ClusterMovementChart />
           </BaseLazySection>
 
           <BaseLazySection
             v-if="showSection('weather')"
             :eager="activeSection === 'weather'"
           >
-            <WeatherCorrelationPanel
-              v-model:year="selectedYear"
-              :polygon="activePolygon"
-              :cluster-context="activeClusterContext"
-            />
+            <WeatherCorrelationChart />
           </BaseLazySection>
         </div>
       </section>

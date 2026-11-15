@@ -1,35 +1,22 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef } from 'vue'
+import { storeToRefs } from 'pinia'
 import { RotateCw } from '@lucide/vue'
-import { z } from 'zod'
-import type { GeoJSONPolygon } from 'zod-geojson'
-import { useApiFetch } from '@/api/useApiFetch'
-import { ChartResponseSchema } from '@/api/modules/shared/schemas'
+import { useDiagnosticChartsApi } from '@/api'
+import { useChartLifecycle } from '@/composables/useChartLifecycle'
+import { useChartFiltersStore } from '@/stores/chartFilters'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
-import CorrelationsChart, { CORR_LABELS } from '@/components/common/CorrelationsChart.vue'
+import CorrelationsRenderer, { CORR_LABELS } from '@/components/common/CorrelationsChart.vue'
 
-const props = defineProps<{
-  polygon?: GeoJSONPolygon | null
-  metric?: 'raw' | 'harmonized'
-}>()
+const filtersStore = useChartFiltersStore()
+const { metric, activePolygon, selectedYear: storeYear } = storeToRefs(filtersStore)
+const { getCorrelations } = useDiagnosticChartsApi()
 
-const selectedYear = defineModel<number>('year', { default: 2025 })
-
-const PairSchema = z.object({
-  x: z.string(),
-  y: z.string(),
-  n: z.number().int().nonnegative(),
-  pearson_r: z.number().nullable(),
-  r2: z.number().nullable(),
-  mean_x: z.number().nullable(),
-  std_x: z.number().nullable().optional(),
-  mean_y: z.number().nullable(),
-  std_y: z.number().nullable().optional(),
+const selectedYear = computed<number>({
+  get: () => storeYear.value,
+  set: (value) => filtersStore.setSelectedYear(value),
 })
-
-const ResponseSchema = ChartResponseSchema(z.array(PairSchema))
-type CorrelationsResponse = z.infer<typeof ResponseSchema>
 
 const STAT_OPTIONS = [
   { value: 'pearson_r', label: 'Pearson r' },
@@ -42,48 +29,25 @@ const YEAR_OPTIONS = Array.from({ length: 26 }, (_, idx) => {
 })
 
 const statMode = shallowRef<'pearson_r' | 'r2'>('pearson_r')
-const result = shallowRef<CorrelationsResponse | null>(null)
-const isLoading = shallowRef(false)
-const error = shallowRef<string | null>(null)
-let latestRequest = 0
 
-async function load() {
-  const requestId = ++latestRequest
-  isLoading.value = true
-  error.value = null
+const {
+  data: result,
+  isLoading,
+  error,
+  refresh,
+} = useChartLifecycle({
+  fetcher: () =>
+    getCorrelations({
+      high_value: 90,
+      metric: metric.value,
+      start_date: `${selectedYear.value}-01-01`,
+      end_date: `${selectedYear.value}-12-31`,
+      polygon: activePolygon.value,
+    }),
+  watchSources: [selectedYear, activePolygon, metric],
+})
 
-  const params = new URLSearchParams({
-    high_value: '90',
-    metric: props.metric ?? 'raw',
-    start_date: `${selectedYear.value}-01-01`,
-    end_date: `${selectedYear.value}-12-31`,
-  })
-  if (props.polygon) {
-    params.set('polygon', JSON.stringify(props.polygon))
-  }
-
-  const { data, error: fetchError } = await useApiFetch(
-    `/charts/diagnostics/correlations?${params.toString()}`,
-  )
-    .get()
-    .json()
-
-  if (requestId !== latestRequest) return
-  try {
-    if (fetchError.value || !data.value) {
-      throw fetchError.value ?? new Error('The server returned no data.')
-    }
-    result.value = ResponseSchema.parse(data.value)
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unknown error.'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-watch([selectedYear, () => props.polygon, () => props.metric], load, { immediate: true })
-
-const pairs = computed(() => result.value?.data ?? [])
+const pairs = computed(() => result.value ?? [])
 const isEmpty = computed(() => result.value !== null && pairs.value.every((p) => p.n < 2))
 
 const summaryText = computed(() => {
@@ -115,7 +79,7 @@ const chartDescription = computed(
           <span
             class="rounded border border-border-subtle bg-surface-input px-2 py-0.5 text-[11px] text-ink-muted"
           >
-            {{ polygon ? 'Drawn area (Polygon)' : 'All regions' }} ·
+            {{ activePolygon ? 'Drawn area (Polygon)' : 'All regions' }} ·
             {{ metric === 'harmonized' ? 'Harmonized' : 'Raw' }} · high_value=90
           </span>
         </div>
@@ -147,7 +111,7 @@ const chartDescription = computed(
         <button
           type="button"
           class="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-red-300/40 px-3 text-xs font-medium hover:bg-red-400/10 focus-visible:outline-2 focus-visible:outline-focus"
-          @click="load"
+          @click="refresh"
         >
           <RotateCw aria-hidden="true" class="h-3.5 w-3.5" />
           Try again
@@ -179,7 +143,7 @@ const chartDescription = computed(
               : 'transition-opacity duration-200'
           "
         >
-          <CorrelationsChart
+          <CorrelationsRenderer
             :pairs="pairs"
             :stat-mode="statMode"
             :description="chartDescription"

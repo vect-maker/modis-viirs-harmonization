@@ -1,98 +1,45 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef } from 'vue'
+import { storeToRefs } from 'pinia'
 import { RotateCw } from '@lucide/vue'
-import { z } from 'zod'
-import type { GeoJSONPolygon } from 'zod-geojson'
-import { useApiFetch } from '@/api/useApiFetch'
-import { ChartResponseSchema } from '@/api/modules/shared/schemas'
+import { useTemporalChartsApi } from '@/api'
+import { useChartLifecycle } from '@/composables/useChartLifecycle'
+import { useChartFiltersStore } from '@/stores/chartFilters'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
-import MonthlyComparisonChart, {
+import MonthlyComparisonRenderer, {
   MIN_BASELINE_YEARS,
-  STATUS_COLORS,
   MONTH_LABELS,
+  STATUS_COLORS,
   monthStatus,
 } from '@/components/common/MonthlyComparisonChart.vue'
 import MonthlyComparisonTable from '@/components/common/MonthlyComparisonTable.vue'
 
-const props = defineProps<{
-  metric: 'raw' | 'harmonized'
-  /** Polígono dibujado en el mapa, o null para todas las regiones. */
-  polygon: GeoJSONPolygon | null
-}>()
+const filtersStore = useChartFiltersStore()
+const { metric, activePolygon, selectedYear: storeYear } = storeToRefs(filtersStore)
+const { getMonthlyComparison } = useTemporalChartsApi()
 
-const nullableNumber = z.number().nullable()
-const ResponseSchema = z.object({
-  year: z.number().int().nullable(),
-  metric: z.enum(['raw', 'harmonized']),
-  available_years: z.array(z.number().int()),
-  baseline_years: z.array(z.number().int()),
-  coverage: z
-    .object({ first_detection: z.iso.date(), last_detection: z.iso.date() })
-    .nullable(),
-  months: z.array(
-    z.object({
-      month: z.number().int().min(1).max(12),
-      has_data: z.boolean(),
-      archive_state: z.enum(['full', 'partial', 'missing']),
-      provisional: z.boolean(),
-      days_with_data: z.tuple([z.number().int(), z.number().int()]).nullable(),
-      year_count: nullableNumber,
-      year_raw_count: z.number().int().nullable(),
-      anomaly_pct_median: nullableNumber,
-      historic: z.object({
-        count: z.number().int().nonnegative(),
-        p25: nullableNumber,
-        median: nullableNumber,
-        p75: nullableNumber,
-        max: nullableNumber,
-      }),
+const requestedYear = shallowRef<number | null>(storeYear.value)
+
+const {
+  data: result,
+  isLoading,
+  error,
+  refresh,
+} = useChartLifecycle({
+  fetcher: () =>
+    getMonthlyComparison({
+      metric: metric.value,
+      year: requestedYear.value,
+      polygon: activePolygon.value,
     }),
-  ),
+  watchSources: [metric, requestedYear, activePolygon],
 })
-type ComparisonResponse = z.infer<typeof ResponseSchema>
-
-/** null = el año más reciente con datos (lo resuelve el backend). */
-const requestedYear = defineModel<number | null>('year', { default: null })
-
-const result = shallowRef<ComparisonResponse | null>(null)
-const isLoading = shallowRef(false)
-const error = shallowRef<string | null>(null)
-let latestRequest = 0
-
-async function load() {
-  const requestId = ++latestRequest
-  isLoading.value = true
-  error.value = null
-
-  const params = new URLSearchParams({ metric: props.metric })
-  if (requestedYear.value !== null) params.set('year', String(requestedYear.value))
-  if (props.polygon) params.set('polygon', JSON.stringify(props.polygon))
-
-  const { data, error: fetchError } = await useApiFetch(
-    `/charts/temporal/monthly-comparison?${params.toString()}`,
-  )
-    .get()
-    .json()
-
-  if (requestId !== latestRequest) return
-  try {
-    if (fetchError.value || !data.value) {
-      throw fetchError.value ?? new Error('The server returned no data.')
-    }
-    result.value = ChartResponseSchema(ResponseSchema).parse(data.value).data
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unknown error.'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-watch([() => props.metric, requestedYear, () => props.polygon], load, { immediate: true })
 
 const selectedYear = computed<number>({
   get: () => requestedYear.value ?? result.value?.year ?? 0,
   set: (value) => {
     requestedYear.value = value
+    filtersStore.setSelectedYear(value)
   },
 })
 
@@ -102,9 +49,9 @@ const yearOptions = computed(() =>
     .map((value) => ({ value, label: String(value) })),
 )
 
-const fractionDigits = computed(() => (props.metric === 'harmonized' ? 1 : 0))
+const fractionDigits = computed(() => (metric.value === 'harmonized' ? 1 : 0))
 const valueLabel = computed(() =>
-  props.metric === 'harmonized' ? 'harmonized index' : 'detections',
+  metric.value === 'harmonized' ? 'harmonized index' : 'detections',
 )
 
 const months = computed(() => result.value?.months ?? [])
@@ -113,7 +60,7 @@ const shownYear = computed(() => result.value?.year ?? null)
 const counts = computed(() => {
   const tally = { above: 0, below: 0, comparable: 0 }
   for (const month of months.value) {
-    const status = monthStatus(month, props.metric)
+    const status = monthStatus(month, metric.value)
     if (status === 'above') tally.above += 1
     if (status === 'below') tally.below += 1
     if (status === 'above' || status === 'below' || status === 'typical') tally.comparable += 1
@@ -145,7 +92,7 @@ const summary = computed(() => {
 const isEmpty = computed(() => result.value !== null && result.value.coverage === null)
 const harmonizedMissing = computed(
   () =>
-    props.metric === 'harmonized' &&
+    metric.value === 'harmonized' &&
     months.value.length > 0 &&
     months.value.every((m) => (m.year_count ?? 0) === 0 && (m.historic.max ?? 0) === 0) &&
     months.value.some((m) => (m.year_raw_count ?? 0) > 0),
@@ -160,7 +107,6 @@ const chartDescription = computed(() =>
 const monthNames = (list: readonly { month: number }[]) =>
   list.map((m) => MONTH_LABELS[m.month - 1]).join(', ')
 
-/** Avisos sobre meses que no se comparan igual que los demás. */
 const dataNotes = computed(() => {
   const target = shownYear.value
   const notes: string[] = []
@@ -176,7 +122,7 @@ const dataNotes = computed(() => {
   }
   if (months.value.some((m) => m.provisional)) {
     notes.push(
-      props.metric === 'harmonized'
+      metric.value === 'harmonized'
         ? 'Months with a dashed outline come from the near-real-time feed, which is not harmonized yet, so they are not compared on this scale.'
         : 'Months with a dashed outline come from the near-real-time feed: not harmonized yet and with one more VIIRS satellite than the archive, so they read higher than earlier years.',
     )
@@ -202,40 +148,40 @@ const legend = computed(() => {
 
 <template>
   <section aria-labelledby="monthly-comparison-title">
-    <header class="flex flex-col gap-4 border-b border-border-subtle p-5 lg:flex-row lg:items-start lg:justify-between">
+    <header class="flex flex-wrap items-start justify-between gap-4 border-b border-border-subtle p-5">
       <div class="max-w-[62ch]">
         <h2 id="monthly-comparison-title" class="text-base font-semibold text-ink-primary">
-          Monthly activity against the historical baseline
+          This year against the typical range
         </h2>
         <p class="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
-          Each bar is one month of the selected year. The shaded band is the typical range of the
-          other years in the archive (25th to 75th percentile) and the dashed line is their median.
+          Each month compared against the median of the other years in the archive. The shaded band
+          shows the middle 50% of years (25th to 75th percentile); bars above it mark an unusually
+          active month.
         </p>
       </div>
-
-      <div class="flex flex-wrap items-center gap-2">
+      <div v-if="yearOptions.length > 0" class="flex items-center gap-2.5">
+        <span id="monthly-year-label" class="text-xs font-medium text-ink-secondary">Year</span>
         <BaseSelect
-          v-if="yearOptions.length > 0"
           v-model="selectedYear"
           :options="yearOptions"
-          label="Year to compare"
-          :disabled="isLoading && result === null"
+          label="Year"
+          aria-labelledby="monthly-year-label"
+          :disabled="isLoading"
         />
       </div>
     </header>
 
     <div class="space-y-4 p-5">
-
       <div
         v-if="error"
         role="alert"
         class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-100"
       >
-        <span>Could not load the comparison. {{ error }}</span>
+        <span>Could not load the monthly comparison. {{ error }}</span>
         <button
           type="button"
           class="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-red-300/40 px-3 text-xs font-medium hover:bg-red-400/10 focus-visible:outline-2 focus-visible:outline-focus"
-          @click="load"
+          @click="refresh"
         >
           <RotateCw aria-hidden="true" class="h-3.5 w-3.5" />
           Try again
@@ -244,7 +190,7 @@ const legend = computed(() => {
 
       <div
         v-if="result === null && isLoading"
-        class="h-[22rem] rounded-lg bg-white/[0.03] motion-safe:animate-pulse"
+        class="h-[21rem] rounded-lg bg-white/[0.03] motion-safe:animate-pulse"
         aria-hidden="true"
       />
 
@@ -252,35 +198,41 @@ const legend = computed(() => {
         v-else-if="isEmpty"
         class="rounded-lg border border-dashed border-border-strong px-4 py-10 text-center text-[13px] text-ink-muted"
       >
-        No hotspot records are loaded for this selection yet.
+        No hotspot records are loaded yet.
       </p>
 
-      <template v-else-if="result !== null && shownYear !== null">
-        <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+      <template v-else-if="result !== null">
+        <div class="space-y-1">
           <p role="status" class="text-sm text-ink-primary" :aria-busy="isLoading">
             {{ summary }}
           </p>
           <p class="text-xs text-ink-muted">{{ baselineText }}</p>
+          <p v-for="(note, index) in dataNotes" :key="index" class="text-xs text-ink-muted">
+            {{ note }}
+          </p>
         </div>
-        <ul v-if="dataNotes.length > 0" class="space-y-1 text-xs leading-relaxed text-ink-muted">
-          <li v-for="note in dataNotes" :key="note">{{ note }}</li>
-        </ul>
 
         <p
           v-if="harmonizedMissing"
           class="rounded-lg border border-accent/30 bg-accent/10 px-4 py-3 text-[13px] text-accent-bright"
         >
-          The database has detections but no harmonized weights yet. Load the output of the
-          harmonization step, or switch to Detections.
+          The database has detections for this area, but no harmonized weights yet. Load the output
+          of the harmonization step, or switch to Detections.
         </p>
 
-        <div :class="isLoading ? 'opacity-60 transition-opacity duration-200' : 'transition-opacity duration-200'">
-          <MonthlyComparisonChart
+        <div
+          :class="
+            isLoading
+              ? 'opacity-60 transition-opacity duration-200'
+              : 'transition-opacity duration-200'
+          "
+        >
+          <MonthlyComparisonRenderer
             :months="months"
-            :year="shownYear"
-            :metric="metric"
+            :year="shownYear ?? selectedYear"
             :value-label="valueLabel"
             :fraction-digits="fractionDigits"
+            :metric="metric"
             :description="chartDescription"
           />
         </div>
@@ -289,18 +241,18 @@ const legend = computed(() => {
           <li v-for="item in legend" :key="item.key" class="inline-flex items-center gap-2">
             <span
               class="h-3 w-3 rounded-sm"
-              :class="item.dashed && 'border border-dashed border-ink-primary'"
+              :class="item.dashed ? 'border border-dashed border-ink-primary' : ''"
               :style="{ backgroundColor: item.swatch }"
             />
             {{ item.label }}
           </li>
           <li class="inline-flex items-center gap-2">
-            <span class="h-3 w-5 rounded-sm bg-slate-300/[0.11] ring-1 ring-slate-300/20" />
-            Typical range
+            <span class="w-5 border-t-2 border-dashed border-ink-secondary" />
+            Median
           </li>
           <li class="inline-flex items-center gap-2">
-            <span class="w-5 border-t-[1.5px] border-dashed border-ink-secondary" />
-            Median
+            <span class="h-3 w-5 rounded-sm bg-white/10" />
+            Typical range (25th to 75th pct)
           </li>
         </ul>
 
@@ -308,16 +260,16 @@ const legend = computed(() => {
           <summary
             class="cursor-pointer list-none rounded-lg px-4 py-3 text-xs font-medium text-ink-secondary hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-focus"
           >
-            <span class="group-open:hidden">Show monthly values</span>
-            <span class="hidden group-open:inline">Hide monthly values</span>
+            <span class="group-open:hidden">Show monthly table</span>
+            <span class="hidden group-open:inline">Hide monthly table</span>
           </summary>
           <div class="border-t border-border-subtle px-4 pb-3">
             <MonthlyComparisonTable
               :months="months"
-              :year="shownYear"
+              :year="shownYear ?? selectedYear"
+              :fraction-digits="fractionDigits"
               :metric="metric"
               :value-label="valueLabel"
-              :fraction-digits="fractionDigits"
             />
           </div>
         </details>

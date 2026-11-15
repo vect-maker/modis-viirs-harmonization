@@ -1,84 +1,40 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { RotateCw } from '@lucide/vue'
-import { z } from 'zod'
-import type { GeoJSONPolygon } from 'zod-geojson'
-import { useApiFetch } from '@/api/useApiFetch'
-import { ChartResponseSchema } from '@/api/modules/shared/schemas'
-import AnnualActivityChart, {
+import { useTemporalChartsApi } from '@/api'
+import { useChartLifecycle } from '@/composables/useChartLifecycle'
+import { useChartFiltersStore } from '@/stores/chartFilters'
+import AnnualActivityRenderer, {
   SERIES_COLORS,
   annualValue,
   completeYearMedian,
 } from '@/components/common/AnnualActivityChart.vue'
 import AnnualActivityTable from '@/components/common/AnnualActivityTable.vue'
 
-const props = defineProps<{
-  metric: 'raw' | 'harmonized'
-  /** Polígono dibujado en el mapa, o null para todas las regiones. */
-  polygon: GeoJSONPolygon | null
-}>()
+const filtersStore = useChartFiltersStore()
+const { metric, activePolygon } = storeToRefs(filtersStore)
+const { getAnnualStats } = useTemporalChartsApi()
 
-const ResponseSchema = z.object({
-  range: z.object({ start_year: z.number().int(), end_year: z.number().int() }).nullable(),
-  coverage: z
-    .object({ first_detection: z.iso.date(), last_detection: z.iso.date() })
-    .nullable(),
-  rows: z.array(
-    z.object({
-      year: z.number().int(),
-      months_in_archive: z.number().int().min(0).max(12),
-      complete: z.boolean(),
-      provisional_months: z.number().int().min(0).max(12).default(0),
-      total_hotspots: z.number().int().nonnegative(),
-      modis_count: z.number().int().nonnegative(),
-      viirs_count: z.number().int().nonnegative(),
-      harmonized_index: z.number(),
+const {
+  data: result,
+  isLoading,
+  error,
+  refresh,
+} = useChartLifecycle({
+  fetcher: () =>
+    getAnnualStats({
+      include_distributions: false,
+      polygon: activePolygon.value,
     }),
-  ),
+  watchSources: [activePolygon],
 })
-const EnvelopeSchema = ChartResponseSchema(ResponseSchema)
-type AnnualResponse = z.infer<typeof ResponseSchema>
-
-const result = shallowRef<AnnualResponse | null>(null)
-const isLoading = shallowRef(false)
-const error = shallowRef<string | null>(null)
-let latestRequest = 0
-
-// La métrica solo cambia cómo se dibuja; el área sí requiere pedir los datos de nuevo.
-async function load() {
-  const requestId = ++latestRequest
-  isLoading.value = true
-  error.value = null
-
-  const params = new URLSearchParams({ include_distributions: 'false' })
-  if (props.polygon) params.set('polygon', JSON.stringify(props.polygon))
-
-  const { data, error: fetchError } = await useApiFetch(
-    `/charts/temporal/annual-stats?${params.toString()}`,
-  )
-    .get()
-    .json()
-
-  if (requestId !== latestRequest) return
-  try {
-    if (fetchError.value || !data.value) {
-      throw fetchError.value ?? new Error('The server returned no data.')
-    }
-    result.value = EnvelopeSchema.parse(data.value).data
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unknown error.'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-watch(() => props.polygon, load, { immediate: true })
 
 const rows = computed(() => result.value?.rows ?? [])
 const isEmpty = computed(
   () => result.value !== null && rows.value.every((row) => row.total_hotspots === 0),
 )
-const isHarmonized = computed(() => props.metric === 'harmonized')
+const isHarmonized = computed(() => metric.value === 'harmonized')
 
 const valueFormat = computed(
   () => new Intl.NumberFormat('en-US', { maximumFractionDigits: isHarmonized.value ? 1 : 0 }),
@@ -95,12 +51,12 @@ const summary = computed(() => {
   const complete = rows.value.filter((row) => row.complete)
   if (complete.length === 0) return 'The archive has no complete year to compare yet.'
   const ranked = [...complete].sort(
-    (a, b) => annualValue(b, props.metric) - annualValue(a, props.metric),
+    (a, b) => annualValue(b, metric.value) - annualValue(a, metric.value),
   )
   const busiest = ranked[0]!
   const quietest = ranked[ranked.length - 1]!
-  const median = completeYearMedian(rows.value, props.metric)
-  const busiestValue = annualValue(busiest, props.metric)
+  const median = completeYearMedian(rows.value, metric.value)
+  const busiestValue = annualValue(busiest, metric.value)
   const vsMedian =
     median !== null && median > 0
       ? `, ${pctFormat.format(((busiestValue - median) / median) * 100)}% above the median year`
@@ -174,7 +130,7 @@ const legend = computed(() =>
         <button
           type="button"
           class="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-red-300/40 px-3 text-xs font-medium hover:bg-red-400/10 focus-visible:outline-2 focus-visible:outline-focus"
-          @click="load"
+          @click="refresh"
         >
           <RotateCw aria-hidden="true" class="h-3.5 w-3.5" />
           Try again
@@ -218,7 +174,7 @@ const legend = computed(() =>
               : 'transition-opacity duration-200'
           "
         >
-          <AnnualActivityChart :rows="rows" :metric="metric" :description="chartDescription" />
+          <AnnualActivityRenderer :rows="rows" :metric="metric" :description="chartDescription" />
         </div>
 
         <ul class="flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-secondary" aria-label="Chart legend">

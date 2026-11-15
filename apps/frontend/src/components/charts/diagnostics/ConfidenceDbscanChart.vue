@@ -1,45 +1,24 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef } from 'vue'
+import { storeToRefs } from 'pinia'
 import { RotateCw } from '@lucide/vue'
-import { z } from 'zod'
-import type { GeoJSONPolygon } from 'zod-geojson'
-import { useApiFetch } from '@/api/useApiFetch'
-import { ChartResponseSchema } from '@/api/modules/shared/schemas'
+import { useDiagnosticChartsApi } from '@/api'
+import { useChartLifecycle } from '@/composables/useChartLifecycle'
+import { useChartFiltersStore } from '@/stores/chartFilters'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
-import ConfidenceDbscanChart from '@/components/common/ConfidenceDbscanChart.vue'
+import ConfidenceDbscanRenderer from '@/components/common/ConfidenceDbscanChart.vue'
 
-const props = defineProps<{
-  polygon?: GeoJSONPolygon | null
-  metric?: 'raw' | 'harmonized'
-}>()
+const filtersStore = useChartFiltersStore()
+const { metric, activePolygon, selectedYear: storeYear } = storeToRefs(filtersStore)
+const { getConfidenceDbscan } = useDiagnosticChartsApi()
 
-const selectedYear = defineModel<number>('year', { default: 2025 })
-
-const PointSchema = z.object({
-  confidence: z.number().int(),
-  count: z.number().int().nonnegative(),
-  cluster: z.number().int(),
-  is_anomaly: z.boolean(),
+const selectedYear = computed<number>({
+  get: () => storeYear.value,
+  set: (value) => filtersStore.setSelectedYear(value),
 })
-
-const ResponseSchema = z.object({
-  summary: z.object({
-    total_rows: z.number().int().nonnegative(),
-    unique_values: z.number().int().nonnegative(),
-    clusters_count: z.number().int().nonnegative(),
-    anomaly_rows: z.number().int().nonnegative(),
-    anomaly_pct: z.number(),
-    eps: z.number(),
-    min_samples: z.number().int(),
-  }),
-  points: z.array(PointSchema),
-  anomalies: z.array(PointSchema).optional(),
-})
-type ConfidenceDbscanResponse = z.infer<typeof ResponseSchema>
 
 const EPS_OPTIONS = [
-  { value: '1', label: 'eps = 1' },
   { value: '2', label: 'eps = 2' },
   { value: '5', label: 'eps = 5' },
   { value: '10', label: 'eps = 10' },
@@ -50,49 +29,26 @@ const YEAR_OPTIONS = Array.from({ length: 26 }, (_, idx) => {
   return { value: year, label: String(year) }
 })
 
-const eps = shallowRef<'1' | '2' | '5' | '10'>('2')
-const result = shallowRef<ConfidenceDbscanResponse | null>(null)
-const isLoading = shallowRef(false)
-const error = shallowRef<string | null>(null)
-let latestRequest = 0
+const eps = shallowRef<string>('5')
 
-async function load() {
-  const requestId = ++latestRequest
-  isLoading.value = true
-  error.value = null
-
-  const params = new URLSearchParams({
-    eps: eps.value,
-    min_samples: '2',
-    high_value: '90',
-    metric: props.metric ?? 'raw',
-    start_date: `${selectedYear.value}-01-01`,
-    end_date: `${selectedYear.value}-12-31`,
-  })
-  if (props.polygon) {
-    params.set('polygon', JSON.stringify(props.polygon))
-  }
-
-  const { data, error: fetchError } = await useApiFetch(
-    `/charts/diagnostics/confidence-dbscan?${params.toString()}`,
-  )
-    .get()
-    .json()
-
-  if (requestId !== latestRequest) return
-  try {
-    if (fetchError.value || !data.value) {
-      throw fetchError.value ?? new Error('The server returned no data.')
-    }
-    result.value = ChartResponseSchema(ResponseSchema).parse(data.value).data
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unknown error.'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-watch([eps, selectedYear, () => props.polygon, () => props.metric], load, { immediate: true })
+const {
+  data: result,
+  isLoading,
+  error,
+  refresh,
+} = useChartLifecycle({
+  fetcher: () =>
+    getConfidenceDbscan({
+      eps: eps.value,
+      min_samples: 2,
+      high_value: 90,
+      metric: metric.value,
+      start_date: `${selectedYear.value}-01-01`,
+      end_date: `${selectedYear.value}-12-31`,
+      polygon: activePolygon.value,
+    }),
+  watchSources: [eps, selectedYear, activePolygon, metric],
+})
 
 const points = computed(() => result.value?.points ?? [])
 const isEmpty = computed(() => result.value !== null && points.value.length === 0)
@@ -122,7 +78,7 @@ const chartDescription = computed(
           <span
             class="rounded border border-border-subtle bg-surface-input px-2 py-0.5 text-[11px] text-ink-muted"
           >
-            {{ polygon ? 'Drawn area (Polygon)' : 'All regions' }} ·
+            {{ activePolygon ? 'Drawn area (Polygon)' : 'All regions' }} ·
             {{ metric === 'harmonized' ? 'Harmonized' : 'Raw' }} · high_value=90
           </span>
         </div>
@@ -154,7 +110,7 @@ const chartDescription = computed(
         <button
           type="button"
           class="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-red-300/40 px-3 text-xs font-medium hover:bg-red-400/10 focus-visible:outline-2 focus-visible:outline-focus"
-          @click="load"
+          @click="refresh"
         >
           <RotateCw aria-hidden="true" class="h-3.5 w-3.5" />
           Try again
@@ -186,7 +142,7 @@ const chartDescription = computed(
               : 'transition-opacity duration-200'
           "
         >
-          <ConfidenceDbscanChart :points="points" :description="chartDescription" />
+          <ConfidenceDbscanRenderer :points="points" :description="chartDescription" />
         </div>
 
         <ul

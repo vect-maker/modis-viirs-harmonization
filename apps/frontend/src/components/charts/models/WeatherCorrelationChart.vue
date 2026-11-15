@@ -1,46 +1,22 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef } from 'vue'
+import { storeToRefs } from 'pinia'
 import { RotateCw } from '@lucide/vue'
 import { z } from 'zod'
-import type { GeoJSONPolygon } from 'zod-geojson'
+import { useModelChartsApi } from '@/api'
 import { useApiFetch } from '@/api/useApiFetch'
-import { ChartResponseSchema } from '@/api/modules/shared/schemas'
+import { useChartLifecycle } from '@/composables/useChartLifecycle'
+import { useChartFiltersStore } from '@/stores/chartFilters'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
-import WeatherCorrelationChart, {
+import WeatherCorrelationRenderer, {
   formatNasaDate,
   type RawWeatherRecord,
 } from '@/components/common/WeatherCorrelationChart.vue'
-import type { ActiveClusterContext } from './ClusterMovementPanel.vue'
 
-const props = defineProps<{
-  polygon: GeoJSONPolygon | null
-  clusterContext?: ActiveClusterContext | null
-}>()
-
-const selectedYear = defineModel<number>('year', { default: 2025 })
-
-const CorrelationRecordSchema = z.object({
-  date: z.string(),
-  is_complete: z.boolean(),
-  wind_speed: z.number().nullable(),
-  wind_direction_from_deg: z.number().nullable(),
-  wind_direction_to_deg: z.number().nullable(),
-  wind_u: z.number().nullable(),
-  wind_v: z.number().nullable(),
-  temperature: z.number().nullable(),
-  humidity: z.number().nullable(),
-  precipitation: z.number().nullable(),
-  wind_fire_angle_diff_deg: z.number().nullable(),
-  wind_fire_alignment_cos: z.number().nullable(),
-  status_message: z.string(),
-})
-
-const CorrelationResponseSchema = z.object({
-  records: z.array(CorrelationRecordSchema),
-  total: z.number().int().nonnegative(),
-})
-type CorrelationResponse = z.infer<typeof CorrelationResponseSchema>
+const filtersStore = useChartFiltersStore()
+const { activePolygon, selectedYear, activeClusterContext } = storeToRefs(filtersStore)
+const { getWeatherCorrelation } = useModelChartsApi()
 
 const RawWeatherResponseSchema = z.object({
   data: z.array(
@@ -85,27 +61,22 @@ const fireDirection = shallowRef<'270' | '315' | '0' | '90'>('270')
 const viewMode = shallowRef<'alignment' | 'meteo'>('alignment')
 const sourceMode = shallowRef<'cluster' | 'preset'>('cluster')
 
-const correlationResult = shallowRef<CorrelationResponse | null>(null)
-const weatherRows = shallowRef<readonly RawWeatherRecord[]>([])
-const isLoading = shallowRef(false)
-const error = shallowRef<string | null>(null)
-let latestRequest = 0
-
 const usingCluster = computed(
-  () => sourceMode.value === 'cluster' && props.clusterContext != null,
+  () => sourceMode.value === 'cluster' && activeClusterContext.value != null,
 )
 
 const activeTarget = computed(() => {
-  if (usingCluster.value && props.clusterContext) {
+  const clusterCtx = activeClusterContext.value
+  if (usingCluster.value && clusterCtx) {
     return {
-      latitude: props.clusterContext.latitude,
-      longitude: props.clusterContext.longitude,
-      startDate: props.clusterContext.startDate,
-      endDate: props.clusterContext.endDate,
-      directionDeg: props.clusterContext.directionDeg,
+      latitude: clusterCtx.latitude,
+      longitude: clusterCtx.longitude,
+      startDate: clusterCtx.startDate,
+      endDate: clusterCtx.endDate,
+      directionDeg: clusterCtx.directionDeg,
       fromPolygon: false,
       fromCluster: true,
-      clusterId: props.clusterContext.fireId,
+      clusterId: clusterCtx.fireId,
     }
   }
   const yr = selectedYear.value
@@ -113,8 +84,8 @@ const activeTarget = computed(() => {
   const startDate = `${yr}-${mo}-01T00:00:00`
   const endDate = `${yr}-${mo}-15T23:59:59`
 
-  if (props.polygon) {
-    const ring = props.polygon.coordinates[0]
+  if (activePolygon.value) {
+    const ring = activePolygon.value.coordinates[0]
     if (ring && ring.length > 0) {
       const sumLon = ring.reduce((acc, pt) => acc + (pt[0] ?? 0), 0)
       const sumLat = ring.reduce((acc, pt) => acc + (pt[1] ?? 0), 0)
@@ -143,72 +114,47 @@ const activeTarget = computed(() => {
   }
 })
 
-async function load() {
-  const requestId = ++latestRequest
-  isLoading.value = true
-  error.value = null
-
-  const { latitude, longitude, startDate, endDate, directionDeg } = activeTarget.value
-  const corrParams = new URLSearchParams({
-    limit: '50',
-    offset: '0',
-    latitude: String(latitude),
-    longitude: String(longitude),
-    start_date: startDate.slice(0, 10),
-    end_date: endDate.slice(0, 10),
-  })
-  if (directionDeg !== null && directionDeg !== undefined) {
-    corrParams.set('fire_direction_deg', String(directionDeg))
-  }
-
-  const [corrFetch, rawFetch] = await Promise.all([
-    useApiFetch(`/charts/models/weather-correlation?${corrParams.toString()}`)
-      .get()
-      .json(),
-    useApiFetch('/weather?limit=50&offset=0')
-      .post({
+const {
+  data: bundle,
+  isLoading,
+  error,
+  refresh,
+} = useChartLifecycle({
+  fetcher: async () => {
+    const { latitude, longitude, startDate, endDate, directionDeg } = activeTarget.value
+    const [correlation, rawFetch] = await Promise.all([
+      getWeatherCorrelation({
         latitude,
         longitude,
-        start: startDate,
-        end: endDate,
-        parameters: 'T2M,RH2M,WS10M,WD10M,PRECTOTCORR',
-        community: 'AG',
-      })
-      .json(),
-  ])
-
-  if (requestId !== latestRequest) return
-  try {
-    if (corrFetch.error.value || !corrFetch.data.value) {
-      throw corrFetch.error.value ?? new Error('Could not query NASA POWER weather correlation.')
-    }
-    correlationResult.value = ChartResponseSchema(CorrelationResponseSchema).parse(
-      corrFetch.data.value,
-    ).data
+        start_date: startDate.slice(0, 10),
+        end_date: endDate.slice(0, 10),
+        fire_direction_deg: directionDeg,
+        limit: 50,
+        offset: 0,
+      }),
+      useApiFetch('/weather?limit=50&offset=0')
+        .post({
+          latitude,
+          longitude,
+          start: startDate,
+          end: endDate,
+          parameters: 'T2M,RH2M,WS10M,WD10M,PRECTOTCORR',
+          community: 'AG',
+        })
+        .json(),
+    ])
+    let weatherRows: readonly RawWeatherRecord[] = []
     if (rawFetch.data.value) {
       const parsedRaw = RawWeatherResponseSchema.safeParse(rawFetch.data.value)
-      weatherRows.value = parsedRaw.success ? parsedRaw.data.data : []
+      weatherRows = parsedRaw.success ? parsedRaw.data.data : []
     }
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unknown error.'
-  } finally {
-    isLoading.value = false
-  }
-}
+    return { correlation, weatherRows }
+  },
+  watchSources: [presetLocation, fireDirection, sourceMode, selectedYear, activePolygon, activeClusterContext],
+})
 
-watch(
-  [
-    presetLocation,
-    fireDirection,
-    sourceMode,
-    selectedYear,
-    () => props.polygon,
-    () => props.clusterContext,
-  ],
-  load,
-  { immediate: true },
-)
-
+const correlationResult = computed(() => bundle.value?.correlation ?? null)
+const weatherRows = computed(() => bundle.value?.weatherRows ?? [])
 const rows = computed(() => correlationResult.value?.records ?? [])
 const isEmpty = computed(() => correlationResult.value !== null && rows.value.length === 0)
 
@@ -260,7 +206,7 @@ const summaryText = computed(() => {
 
       <div class="flex flex-wrap items-center gap-2.5">
         <BaseToggleGroup
-          v-if="clusterContext"
+          v-if="activeClusterContext"
           v-model="sourceMode"
           :options="SOURCE_OPTIONS"
           label="Coordinates source"
@@ -292,7 +238,7 @@ const summaryText = computed(() => {
         <button
           type="button"
           class="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-red-300/40 px-3 text-xs font-medium hover:bg-red-400/10 focus-visible:outline-2 focus-visible:outline-focus"
-          @click="load"
+          @click="refresh"
         >
           <RotateCw aria-hidden="true" class="h-3.5 w-3.5" />
           Try again
@@ -324,7 +270,7 @@ const summaryText = computed(() => {
               : 'transition-opacity duration-200'
           "
         >
-          <WeatherCorrelationChart
+          <WeatherCorrelationRenderer
             :correlation-rows="rows"
             :weather-rows="weatherRows"
             :mode="viewMode"
@@ -358,7 +304,7 @@ const summaryText = computed(() => {
             </li>
             <li class="inline-flex items-center gap-2">
               <span class="h-3 w-3 rounded-sm bg-slate-400/50" />
-              Precipitation PRECTOTCORR (mm/day)
+              Precipitation (mm/day)
             </li>
           </template>
         </ul>
@@ -367,44 +313,37 @@ const summaryText = computed(() => {
           <summary
             class="cursor-pointer list-none rounded-lg px-4 py-3 text-xs font-medium text-ink-secondary hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-focus"
           >
-            <span class="group-open:hidden">Show daily NASA POWER records ({{ rows.length }})</span>
-            <span class="hidden group-open:inline">Hide daily NASA POWER records</span>
+            <span class="group-open:hidden">Show daily wind-fire table ({{ rows.length }} days)</span>
+            <span class="hidden group-open:inline">Hide daily wind-fire table</span>
           </summary>
-          <div class="max-h-72 overflow-auto border-t border-border-subtle px-4 pb-3">
+          <div class="overflow-x-auto border-t border-border-subtle px-4 pb-3">
             <table class="w-full min-w-[38rem] text-left text-xs tabular-nums">
-              <caption class="sr-only">
-                Daily meteorological and wind vector alignment table
-              </caption>
-              <thead class="sticky top-0 bg-surface-panel text-ink-muted">
-                <tr class="border-b border-border-subtle">
-                  <th scope="col" class="py-2 pr-4 font-medium">Date</th>
-                  <th scope="col" class="py-2 pr-4 text-right font-medium">Wind (m/s)</th>
-                  <th scope="col" class="py-2 pr-4 text-right font-medium">Wind To (°)</th>
-                  <th scope="col" class="py-2 pr-4 text-right font-medium">cos(Δθ)</th>
-                  <th scope="col" class="py-2 pr-4 text-right font-medium">Temp (°C)</th>
-                  <th scope="col" class="py-2 pr-4 text-right font-medium">Humidity (%)</th>
-                  <th scope="col" class="py-2 text-right font-medium">Precip (mm)</th>
+              <thead class="border-b border-border-subtle text-ink-muted">
+                <tr>
+                  <th class="py-2 pr-3 font-medium">Date</th>
+                  <th class="px-2 py-2 text-right font-medium">Wind (m/s)</th>
+                  <th class="px-2 py-2 text-right font-medium">To (°)</th>
+                  <th class="px-2 py-2 text-right font-medium">cos(Δθ)</th>
+                  <th class="px-2 py-2 text-right font-medium">T2M (°C)</th>
+                  <th class="pl-2 py-2 text-right font-medium">RH2M (%)</th>
                 </tr>
               </thead>
               <tbody class="text-ink-secondary">
                 <tr
-                  v-for="row in rows"
-                  :key="row.date"
+                  v-for="r in rows"
+                  :key="r.date"
                   class="border-b border-border-subtle/60 last:border-0"
                 >
-                  <th scope="row" class="py-2 pr-4 font-mono font-medium text-ink-primary">
-                    {{ formatNasaDate(row.date) }}
+                  <th scope="row" class="py-1.5 pr-3 font-mono font-medium text-ink-primary">
+                    {{ formatNasaDate(r.date) }}
                   </th>
-                  <td class="py-2 pr-4 text-right">{{ row.wind_speed?.toFixed(1) ?? '—' }}</td>
-                  <td class="py-2 pr-4 text-right">
-                    {{ row.wind_direction_to_deg !== null ? `${row.wind_direction_to_deg.toFixed(0)}°` : '—' }}
+                  <td class="px-2 py-1.5 text-right">{{ r.wind_speed?.toFixed(1) ?? '—' }}</td>
+                  <td class="px-2 py-1.5 text-right">{{ r.wind_direction_to_deg?.toFixed(0) ?? '—' }}</td>
+                  <td class="px-2 py-1.5 text-right text-accent-bright">
+                    {{ r.wind_fire_alignment_cos?.toFixed(2) ?? '—' }}
                   </td>
-                  <td class="py-2 pr-4 text-right font-mono text-accent-bright">
-                    {{ row.wind_fire_alignment_cos?.toFixed(3) ?? '—' }}
-                  </td>
-                  <td class="py-2 pr-4 text-right">{{ row.temperature?.toFixed(1) ?? '—' }}</td>
-                  <td class="py-2 pr-4 text-right">{{ row.humidity?.toFixed(1) ?? '—' }}</td>
-                  <td class="py-2 text-right">{{ row.precipitation?.toFixed(2) ?? '—' }}</td>
+                  <td class="px-2 py-1.5 text-right">{{ r.temperature?.toFixed(1) ?? '—' }}</td>
+                  <td class="pl-2 py-1.5 text-right">{{ r.humidity?.toFixed(0) ?? '—' }}</td>
                 </tr>
               </tbody>
             </table>

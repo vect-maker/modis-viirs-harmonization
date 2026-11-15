@@ -27,3 +27,10 @@ export * from "./modules/feedback/useFeedbackApi";
 // Clusters (Fire Events)
 export * from "./modules/clusters/types.d";
 export * from "./modules/clusters/useClustersApi";
+
+// Charts
+export * from "./modules/charts/types.d";
+export * from "./modules/charts/requests";
+export * from "./modules/charts/useTemporalChartsApi";
+export * from "./modules/charts/useDiagnosticChartsApi";
+export * from "./modules/charts/useModelChartsApi";
