@@ -3,10 +3,12 @@ from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 
-# Cargar variables de entorno desde la raíz del proyecto si existe .env
-root_env = Path(__file__).resolve().parents[3] / ".env"
-if root_env.exists():
-    load_dotenv(root_env)
+# Cargar variables de entorno desde el primer .env encontrado en los directorios padre
+for parent in Path(__file__).resolve().parents:
+    env_file = parent / ".env"
+    if env_file.exists():
+        load_dotenv(env_file)
+        break
 else:
     load_dotenv()
 

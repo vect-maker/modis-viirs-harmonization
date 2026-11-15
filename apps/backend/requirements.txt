@@ -1,6 +1,11 @@
 fastapi[standard]
 httpx
-psycopg[binary]
-sqlmodel
+numpy
+psycopg[binary]>=3.3.9
+pytest
+python-dotenv
 ruff
 basedpyright
+scikit-learn
+scipy
+sqlmodel
