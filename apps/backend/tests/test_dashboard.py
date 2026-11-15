@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine
 
 from api.dashboard import (
@@ -178,3 +179,99 @@ def test_dashboard_monthly_comparison_anomalies_and_forecast():
     assert forecast["metrics"]["rmse"] >= 0.0
     assert "smape_pct" in forecast["metrics"]
     assert len(forecast["future"]) == 3
+
+
+def _seed_comparison_session() -> Session:
+    """
+    2022 y 2023 completos, 2024 solo hasta marzo. Marzo 2023 sin detecciones.
+    Cada MODIS pesa 2.0 y cada VIIRS 1.0 en harmonized_weight.
+    """
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine, tables=[Hotspots.__table__])  # type: ignore[attr-defined]
+    session = Session(engine)
+    records: list[Hotspots] = []
+
+    def add(yr: int, mo: int, n: int, instrument: str, lat: float = 12.1) -> None:
+        for k in range(n):
+            records.append(
+                Hotspots(
+                    id=uuid4(),
+                    country="Nicaragua",
+                    latitude=lat,
+                    longitude=-86.2,
+                    frp=10.0,
+                    instrument=instrument,
+                    harmonized_weight=2.0 if instrument == "MODIS" else 1.0,
+                    acq_datetime=datetime(yr, mo, 1 + k, 10, 0, 0, tzinfo=UTC),
+                )
+            )
+
+    for yr, n in ((2022, 4), (2023, 6)):
+        for mo in range(1, 13):
+            if (yr, mo) != (2023, 3):
+                add(yr, mo, n, "MODIS")
+    for mo in (1, 2, 3):
+        add(2024, mo, 10, "VIIRS")
+    add(2024, 1, 3, "VIIRS", lat=14.9)  # fuera del polígono de prueba
+    session.add_all(records)
+    session.commit()
+    return session
+
+
+def test_monthly_comparison_baseline_excludes_target_and_fills_gaps():
+    session = _seed_comparison_session()
+    comp = _run_coro(get_monthly_comparison(session=session, year=2024))
+
+    assert comp["year"] == 2024
+    assert comp["baseline_years"] == [2022, 2023]
+    assert comp["coverage"] == {
+        "first_detection": "2022-01-01",
+        "last_detection": "2024-03-10",
+    }
+    jan, feb, mar, apr = comp["months"][:4]
+
+    # Enero: 2024 tiene 13 detecciones; línea base = mediana(4, 6) = 5
+    assert jan["year_count"] == 13.0
+    assert jan["historic"]["median"] == 5.0
+    assert jan["anomaly_pct_median"] == 160.0
+
+    # Marzo 2023 no tiene detecciones pero está en el archivo: cuenta como 0
+    assert mar["historic"]["count"] == 2
+    assert mar["historic"]["min"] == 0.0
+
+    # Abril 2024 aún no está en el archivo: sin dato, sin anomalía
+    assert apr["has_data"] is False
+    assert apr["year_count"] is None
+    assert apr["anomaly_pct"] is None
+    assert feb["has_data"] is True
+
+
+def test_monthly_comparison_harmonized_metric_and_polygon():
+    session = _seed_comparison_session()
+    harmonized = _run_coro(
+        get_monthly_comparison(session=session, year=2023, metric="harmonized")
+    )
+    # 2023 enero: 6 MODIS x 2.0 = 12; base: 2022 (8) y 2024 (13 VIIRS x 1.0)
+    jan = harmonized["months"][0]
+    assert harmonized["metric"] == "harmonized"
+    assert jan["year_count"] == 12.0
+    assert jan["year_raw_count"] == 6
+    assert jan["historic"]["median"] == 10.5
+
+    polygon = (
+        '{"type":"Polygon","coordinates":[[[-87,11],[-85,11],[-85,13],[-87,13],[-87,11]]]}'
+    )
+    clipped = _run_coro(
+        get_monthly_comparison(session=session, year=2024, polygon=polygon)
+    )
+    assert clipped["months"][0]["year_count"] == 10.0
+
+
+def test_monthly_comparison_rejects_year_outside_archive():
+    session = _seed_comparison_session()
+    try:
+        _run_coro(get_monthly_comparison(session=session, year=2030))
+    except HTTPException as exc:
+        assert exc.status_code == 400
+    else:
+        raise AssertionError("Se esperaba HTTPException")

@@ -26,5 +26,9 @@ class Hotspots(SQLModel, table=True):
     frp: float | None = Field(default=None)
     daynight: str | None = Field(default=None)
     type: int | None = Field(default=None)
+    overpass_window: str | None = Field(default=None)
+    harmonization_category: str | None = Field(default=None)
+    harmonized_weight: float | None = Field(default=None)
+    harmonized_frp: float | None = Field(default=None)
 
     clusters: list["ClusterHotspots"] = Relationship(back_populates="hotspots")

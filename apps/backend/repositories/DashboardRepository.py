@@ -2,13 +2,21 @@ from __future__ import annotations
 
 import math
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from sqlalchemy import text
 from sqlmodel import Session
 
 from analytics.DashboardAnalytics import compute_descriptive_stats
+from repositories.spatial_filter import SpatialAreaFilter, build_spatial_sql
+
+
+def _as_datetime(value: Any) -> datetime:
+    """SQLite devuelve texto en agregados MIN/MAX; PostgreSQL devuelve datetime."""
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
 
 
 class DashboardRepository:
@@ -432,11 +440,38 @@ class DashboardRepository:
             for r in rows
         ]
 
+    def _area_conditions(
+        self,
+        country: str | None = None,
+        polygon_wkt: str | None = None,
+    ) -> tuple[list[str], dict[str, Any]]:
+        """Filtros de país y polígono (PostGIS en PostgreSQL, bbox en SQLite)."""
+        conditions: list[str] = []
+        params: dict[str, Any] = {}
+        if country is not None and country.strip():
+            conditions.append("LOWER(TRIM(country)) = LOWER(TRIM(:country))")
+            params["country"] = country
+        if polygon_wkt is not None:
+            spatial_conditions, spatial_params = build_spatial_sql(
+                SpatialAreaFilter(polygon_wkt=polygon_wkt), self.dialect
+            )
+            conditions.extend(spatial_conditions)
+            params.update(spatial_params)
+        return conditions, params
+
     def get_monthly_counts(
         self,
         start_year: int | None = None,
         end_year: int | None = None,
+        metric: Literal["raw", "harmonized"] = "raw",
+        country: str | None = None,
+        polygon_wkt: str | None = None,
     ) -> list[dict[str, Any]]:
+        """
+        Agregado mensual. `count` siempre es el número de detecciones crudas;
+        `value` es la métrica pedida: detecciones crudas o suma de
+        `harmonized_weight` (índice armonizado MODIS-VIIRS con VIIRS como referencia).
+        """
         year_expr = self._year_expr()
         month_expr = self._month_expr()
         conditions = ["acq_datetime IS NOT NULL"]
@@ -447,7 +482,15 @@ class DashboardRepository:
         if end_year is not None:
             conditions.append(f"{year_expr} <= :end_year")
             params["end_year"] = end_year
+        area_conditions, area_params = self._area_conditions(country, polygon_wkt)
+        conditions.extend(area_conditions)
+        params.update(area_params)
 
+        value_expr = (
+            "COALESCE(SUM(harmonized_weight), 0.0)"
+            if metric == "harmonized"
+            else "COUNT(*)"
+        )
         where_sql = " AND ".join(conditions)
         query = text(
             f"""
@@ -456,7 +499,8 @@ class DashboardRepository:
                 {month_expr} AS mo,
                 COUNT(*) AS cnt,
                 COALESCE(SUM(frp), 0.0) AS sum_frp,
-                AVG(frp) AS avg_frp
+                AVG(frp) AS avg_frp,
+                {value_expr} AS metric_value
             FROM hotspots
             WHERE {where_sql}
             GROUP BY yr, mo
@@ -472,9 +516,32 @@ class DashboardRepository:
                 "count": int(r[2]),
                 "sum_frp": round(float(r[3] or 0.0), 4),
                 "avg_frp": round(float(r[4]), 4) if r[4] is not None else None,
+                "value": round(float(r[5] or 0.0), 4),
             }
             for r in rows
         ]
+
+    def get_data_coverage(
+        self, country: str | None = None
+    ) -> tuple[datetime, datetime] | None:
+        """
+        Primera y última detección del archivo (sin filtro espacial). Define qué
+        meses existen en el registro: dentro de este rango, un mes sin detecciones
+        en el área elegida cuenta como 0; fuera de él, no hay dato.
+        """
+        conditions, params = self._area_conditions(country=country)
+        conditions.append("acq_datetime IS NOT NULL")
+        where_sql = " AND ".join(conditions)
+        row = self.session.execute(
+            text(
+                "SELECT MIN(acq_datetime), MAX(acq_datetime) "
+                f"FROM hotspots WHERE {where_sql}"
+            ),
+            params,
+        ).first()
+        if row is None or row[0] is None or row[1] is None:
+            return None
+        return _as_datetime(row[0]), _as_datetime(row[1])
 
     def fetch_spatial_points(
         self,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,6 +15,7 @@ from analytics.DashboardAnalytics import (
 )
 from database.session import get_session
 from repositories.DashboardRepository import DashboardRepository
+from repositories.spatial_filter import parse_geojson_polygon_to_wkt
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -131,75 +132,154 @@ async def get_spatial_density(
     }
 
 
+def _ratio_pct(value: float, reference: float | None) -> float | None:
+    if reference is None or reference == 0.0:
+        return None
+    return round(((value - reference) / reference) * 100.0, 4)
+
+
 @router.get(
     "/monthly-comparison",
     summary="Serie mensual de un año vs línea base histórica (media, mediana, std, z-score)",
 )
 async def get_monthly_comparison(
-    year: int | None = Query(default=None, ge=1990, le=2100),
-    start_year: int | None = Query(default=None, ge=1990, le=2100),
-    end_year: int | None = Query(default=None, ge=1990, le=2100),
-    session: Session = Depends(get_session),
+    session: Annotated[Session, Depends(get_session)],
+    year: Annotated[int | None, Query(ge=1990, le=2100)] = None,
+    start_year: Annotated[int | None, Query(ge=1990, le=2100)] = None,
+    end_year: Annotated[int | None, Query(ge=1990, le=2100)] = None,
+    metric: Annotated[
+        Literal["raw", "harmonized"],
+        Query(
+            description=(
+                "raw: detecciones crudas MODIS+VIIRS. harmonized: suma de "
+                "harmonized_weight (índice armonizado con VIIRS como referencia)."
+            )
+        ),
+    ] = "raw",
+    country: Annotated[str | None, Query(max_length=100)] = None,
+    polygon: Annotated[
+        str | None,
+        Query(description="GeoJSON Polygon o MultiPolygon (EPSG:4326) serializado"),
+    ] = None,
 ):
+    """
+    Compara cada mes del año elegido contra la línea base de los demás años.
+
+    - La línea base excluye el año comparado (evita que el año se compare consigo mismo).
+    - Dentro del rango del archivo, un mes sin detecciones en el área cuenta como 0.
+    - Los meses fuera del archivo (p. ej. meses futuros del año en curso) son `null`.
+    """
     if start_year is not None and end_year is not None and start_year > end_year:
         raise HTTPException(
             status_code=400, detail="start_year debe ser menor o igual a end_year"
         )
+    polygon_wkt = parse_geojson_polygon_to_wkt(polygon)
     repo = DashboardRepository(session)
-    monthly = repo.get_monthly_counts(start_year=start_year, end_year=end_year)
-    if not monthly:
-        return {"year": year, "available_years": [], "months": []}
 
-    available_years = sorted({int(r["year"]) for r in monthly})
-    target_year = year if year is not None else available_years[-1]
+    empty = {
+        "year": year,
+        "metric": metric,
+        "available_years": [],
+        "baseline_years": [],
+        "coverage": None,
+        "months": [],
+    }
+    coverage = repo.get_data_coverage(country=country)
+    if coverage is None:
+        return empty
+    first_dt, last_dt = coverage
+    first_key = (first_dt.year, first_dt.month)
+    last_key = (last_dt.year, last_dt.month)
 
-    by_month_num: dict[int, list[int]] = {m: [] for m in range(1, 13)}
-    year_lookup: dict[int, dict[str, Any]] = {}
-    for r in monthly:
-        m = int(r["month"])
-        by_month_num[m].append(int(r["count"]))
-        if int(r["year"]) == target_year:
-            year_lookup[m] = r
+    lo = max(start_year if start_year is not None else first_dt.year, first_dt.year)
+    hi = min(end_year if end_year is not None else last_dt.year, last_dt.year)
+    if lo > hi:
+        return empty
+    available_years = list(range(lo, hi + 1))
+    target_year = year if year is not None else hi
+    if target_year not in available_years:
+        raise HTTPException(
+            status_code=400,
+            detail=f"year debe estar entre {lo} y {hi} (rango con datos)",
+        )
+    baseline_years = [y for y in available_years if y != target_year]
+
+    monthly = repo.get_monthly_counts(
+        start_year=lo,
+        end_year=hi,
+        metric=metric,
+        country=country,
+        polygon_wkt=polygon_wkt,
+    )
+    lookup: dict[tuple[int, int], dict[str, Any]] = {
+        (int(r["year"]), int(r["month"])): r for r in monthly
+    }
+
+    def in_archive(y: int, m: int) -> bool:
+        return first_key <= (y, m) <= last_key
 
     comparison: list[dict[str, Any]] = []
     for m in range(1, 13):
-        vals = np.array(by_month_num[m], dtype=np.float64)
-        hist = compute_descriptive_stats(vals)
+        baseline = np.array(
+            [
+                float(lookup[(y, m)]["value"]) if (y, m) in lookup else 0.0
+                for y in baseline_years
+                if in_archive(y, m)
+            ],
+            dtype=np.float64,
+        )
+        hist = compute_descriptive_stats(baseline)
         hist_mean = hist["mean"]
+        hist_median = hist["median"]
         hist_std = hist["std"]
-        yr_row = year_lookup.get(m)
-        yr_count = int(yr_row["count"]) if yr_row is not None else 0
 
-        anomaly_abs = (
-            round(yr_count - float(hist_mean), 4) if hist_mean is not None else None
-        )
-        anomaly_pct = (
-            round(((yr_count - float(hist_mean)) / float(hist_mean)) * 100.0, 4)
-            if hist_mean not in (None, 0.0)
+        yr_row = lookup.get((target_year, m))
+        has_data = in_archive(target_year, m)
+        yr_value: float | None = (
+            (float(yr_row["value"]) if yr_row is not None else 0.0)
+            if has_data
             else None
         )
-        z_score = (
-            round((yr_count - float(hist_mean)) / float(hist_std), 4)
-            if hist_mean is not None and hist_std not in (None, 0.0)
-            else None
-        )
+
+        anomaly_abs = anomaly_pct = anomaly_pct_median = z_score = None
+        if yr_value is not None and hist_mean is not None:
+            anomaly_abs = round(yr_value - float(hist_mean), 4)
+            anomaly_pct = _ratio_pct(yr_value, float(hist_mean))
+            anomaly_pct_median = _ratio_pct(
+                yr_value, float(hist_median) if hist_median is not None else None
+            )
+            if hist_std not in (None, 0.0):
+                z_score = round((yr_value - float(hist_mean)) / float(hist_std), 4)
 
         comparison.append(
             {
                 "month": m,
-                "year_count": yr_count,
-                "year_sum_frp": yr_row["sum_frp"] if yr_row is not None else 0.0,
+                "has_data": has_data,
+                "year_count": yr_value,
+                "year_raw_count": (
+                    int(yr_row["count"])
+                    if yr_row is not None
+                    else (0 if has_data else None)
+                ),
+                "year_sum_frp": yr_row["sum_frp"] if yr_row is not None else None,
                 "year_avg_frp": yr_row["avg_frp"] if yr_row is not None else None,
                 "historic": hist,
                 "anomaly_abs": anomaly_abs,
                 "anomaly_pct": anomaly_pct,
+                "anomaly_pct_median": anomaly_pct_median,
                 "z_score": z_score,
             }
         )
 
     return {
         "year": target_year,
+        "metric": metric,
         "available_years": available_years,
+        "baseline_years": baseline_years,
+        "coverage": {
+            "first_detection": first_dt.date().isoformat(),
+            "last_detection": last_dt.date().isoformat(),
+        },
         "months": comparison,
     }
 
