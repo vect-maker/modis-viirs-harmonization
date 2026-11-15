@@ -20,7 +20,7 @@ services:
       SSE_PRESENCE_TTL_SECONDS: ${SSE_PRESENCE_TTL_SECONDS:-45}
     volumes:
       - ./apps/backend:/workspace/apps/backend:Z
-      - ./shared:/workspace/shared:Z
+      - ./shared:/workspace/shared:z
       - backend_venv:/opt/venv
 
   worker:
@@ -38,7 +38,7 @@ services:
       NRT_POLL_INTERVAL_SECONDS: ${NRT_POLL_INTERVAL_SECONDS:-300}
     volumes:
       - ./apps/worker:/workspace/apps/worker:Z
-      - ./shared:/workspace/shared:Z
+      - ./shared:/workspace/shared:z
       - worker_venv:/opt/venv
 
   caddy:
