@@ -1336,6 +1336,7 @@
 .landing-team-challenge > .landing-text-link {
   display: inline-flex;
   margin-top: 26px;
+  margin-right: 32px;
   color: var(--landing-sage);
 }
 .landing-team-people h3 {
