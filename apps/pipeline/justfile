@@ -93,6 +93,16 @@ db-schema:
 db-load:
     duckdb -dark-mode -cmd "LOAD postgres; LOAD spatial; ATTACH '$DATABASE_URL' AS pg (TYPE POSTGRES);" -f sql/load_star_schema.sql
 
+# Group hotspots into spatio-temporal Fire Events using pure DuckDB SQL and bulk-load into PostGIS
+cluster-events:
+    mkdir -p data/clusters data/temp/clusters
+    for f in sql/clusters/*.sql; do \
+        echo "Running $f..."; \
+        duckdb -dark-mode -f "$f" || exit 1; \
+    done
+    rm -rf data/temp/clusters
+    duckdb -dark-mode -cmd "LOAD postgres; LOAD spatial; ATTACH '$DATABASE_URL' AS pg (TYPE POSTGRES);" -f sql/load_clusters.sql
+
 # Full reset and reload of dev database
 db-reset-load: db-schema db-load
 

@@ -23,3 +23,7 @@ export * from "./modules/auth/useAuthApi";
 // Feedback
 export * from "./modules/feedback/types.d";
 export * from "./modules/feedback/useFeedbackApi";
+
+// Clusters (Fire Events)
+export * from "./modules/clusters/types.d";
+export * from "./modules/clusters/useClustersApi";

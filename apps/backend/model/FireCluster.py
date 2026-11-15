@@ -39,3 +39,12 @@ class FireCluster(SQLModel, table=True):
 
     dirExpansion: float | None = Field(default=None, nullable=True)
     veloExpansion: float | None = Field(default=None, nullable=True)
+
+    area_km2: float = Field(default=0.0, nullable=False)
+    centroid_lat: float | None = Field(default=None, nullable=True)
+    centroid_lon: float | None = Field(default=None, nullable=True)
+    hotspot_count: int = Field(default=0, nullable=False)
+    modis_count: int = Field(default=0, nullable=False)
+    viirs_count: int = Field(default=0, nullable=False)
+    total_frp: float | None = Field(default=None, nullable=True)
+    harmonized_weight: float | None = Field(default=None, nullable=True)

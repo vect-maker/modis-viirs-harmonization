@@ -105,21 +105,33 @@ CREATE TYPE clusterstatus AS ENUM ('ACTIVO', 'AISLADO', 'FINALIZADO');
 
 CREATE TABLE firecluster (
     id SERIAL PRIMARY KEY,
-    polygon DOUBLE PRECISION NOT NULL,
+    polygon DOUBLE PRECISION NOT NULL DEFAULT 0,
     status clusterstatus NOT NULL DEFAULT 'ACTIVO',
     "datetimeStart" TIMESTAMP WITH TIME ZONE,
     "datetimeEnd" TIMESTAMP WITH TIME ZONE,
     "maxFrp" DOUBLE PRECISION,
     "dirExpansion" DOUBLE PRECISION,
-    "veloExpansion" DOUBLE PRECISION
+    "veloExpansion" DOUBLE PRECISION,
+    centroid GEOMETRY(Point, 4326),
+    geom GEOMETRY(Polygon, 4326),
+    area_km2 DOUBLE PRECISION NOT NULL DEFAULT 0,
+    centroid_lat DOUBLE PRECISION,
+    centroid_lon DOUBLE PRECISION,
+    hotspot_count INTEGER NOT NULL DEFAULT 0,
+    modis_count INTEGER NOT NULL DEFAULT 0,
+    viirs_count INTEGER NOT NULL DEFAULT 0,
+    total_frp DOUBLE PRECISION,
+    harmonized_weight DOUBLE PRECISION
 );
 
 CREATE INDEX idx_firecluster_status ON firecluster (status);
 CREATE INDEX idx_firecluster_datetime ON firecluster ("datetimeStart", "datetimeEnd");
+CREATE INDEX idx_firecluster_geom ON firecluster USING GIST (geom);
+CREATE INDEX idx_firecluster_centroid ON firecluster USING GIST (centroid);
 
 CREATE TABLE clusterhotspots (
     "clusterId" INTEGER NOT NULL REFERENCES firecluster (id) ON DELETE CASCADE,
-    "hotspotsId" INTEGER NOT NULL,
+    "hotspotsId" UUID NOT NULL REFERENCES fact_hotspots (id) ON DELETE CASCADE,
     PRIMARY KEY ("clusterId", "hotspotsId")
 );
 

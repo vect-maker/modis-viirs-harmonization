@@ -11,12 +11,15 @@ import * as turf from '@turf/turf'
 import type { Feature, Point, Polygon } from 'geojson'
 import { GeoJSONPolygonSchema } from 'zod-geojson'
 
-import type { HotspotResponse } from '@/api'
+import type { FireEventProperties, HotspotResponse } from '@/api'
 import { Flame } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { useHotspotsStore } from '@/stores/hotspots'
+import { useFiltersStore } from '@/stores/filters'
+import { useClustersStore, type MapViewMode } from '@/stores/clusters'
 import { useFeedbackStore } from '@/stores/feedback'
 import FirePopup from './FirePopup.vue'
+import FireEventPopup from './FireEventPopup.vue'
 import MapLegendTooltip from './MapLegendTooltip.vue'
 import UserLocationMarker from './UserLocationMarker.vue'
 import SpaceBackground from '@/components/common/SpaceBackground.vue'
@@ -67,7 +70,18 @@ const map = shallowRef<maplibregl.Map | null>(null)
 const draw = shallowRef<MapboxDraw | null>(null)
 
 const hotspotsStore = useHotspotsStore()
-const { filteredHotspots } = storeToRefs(hotspotsStore)
+const { filteredHotspots, selectedPolygon } = storeToRefs(hotspotsStore)
+const filtersStore = useFiltersStore()
+const { dateRange } = storeToRefs(filtersStore)
+const clustersStore = useClustersStore()
+const {
+  fireEvents,
+  viewMode,
+  selectedCluster,
+  clusterHotspots,
+  hasFetchedEvents,
+  isLoadingDetail,
+} = storeToRefs(clustersStore)
 const activeRoiArea = shallowRef<number | null>(null)
 const isDrawing = shallowRef(false)
 const filteredCount = computed(() => hotspotsStore.filteredHotspots.length)
@@ -215,6 +229,96 @@ watch([filteredHotspots, activeRoiArea], () => {
   source?.setData(buildGeoJson(filteredHotspots.value))
   activePopup.value?.remove()
   emitRoiChange()
+})
+
+function buildEventCentroidsGeoJson(
+  collection: typeof fireEvents.value,
+): GeoJSON.FeatureCollection<Point> {
+  return {
+    type: 'FeatureCollection',
+    features: collection.features
+      .filter((f) => f.properties.centroid_lon != null && f.properties.centroid_lat != null)
+      .map((f) => ({
+        type: 'Feature',
+        id: f.id,
+        geometry: {
+          type: 'Point',
+          coordinates: [f.properties.centroid_lon as number, f.properties.centroid_lat as number],
+        },
+        properties: f.properties,
+      })),
+  }
+}
+
+watch(fireEvents, (collection) => {
+  const source = map.value?.getSource('fire-events') as maplibregl.GeoJSONSource | undefined
+  source?.setData(collection)
+  const centroidSource = map.value?.getSource('fire-events-centroids') as
+    | maplibregl.GeoJSONSource
+    | undefined
+  centroidSource?.setData(buildEventCentroidsGeoJson(collection))
+})
+
+watch(clusterHotspots, (points) => {
+  const source = map.value?.getSource('cluster-hotspots') as maplibregl.GeoJSONSource | undefined
+  source?.setData(buildGeoJson(points))
+})
+
+function syncLayerVisibility() {
+  const m = map.value
+  if (!m) return
+  const showEvents = viewMode.value === 'events' || viewMode.value === 'both'
+  const showHotspots = viewMode.value === 'hotspots' || viewMode.value === 'both'
+
+  for (const id of [
+    'fire-events-fill',
+    'fire-events-outline',
+    'fire-events-centroid',
+    'fire-events-count',
+  ]) {
+    if (m.getLayer(id)) {
+      m.setLayoutProperty(id, 'visibility', showEvents ? 'visible' : 'none')
+    }
+  }
+  for (const id of ['hotspots-glow', 'hotspots-symbol']) {
+    if (m.getLayer(id)) {
+      m.setLayoutProperty(id, 'visibility', showHotspots ? 'visible' : 'none')
+    }
+  }
+}
+
+function buildEventQueryParams() {
+  return {
+    start_date: dateRange.value?.start ? `${dateRange.value.start}T00:00:00Z` : undefined,
+    end_date: dateRange.value?.end ? `${dateRange.value.end}T23:59:59Z` : undefined,
+    aoi: selectedPolygon.value,
+  }
+}
+
+watch(viewMode, (mode) => {
+  syncLayerVisibility()
+  if ((mode === 'events' || mode === 'both') && !hasFetchedEvents.value) {
+    void clustersStore.fetchFireEvents(buildEventQueryParams())
+  }
+  if ((mode === 'hotspots' || mode === 'both') && hotspotsStore.hotspots.length === 0) {
+    if (dateRange.value) {
+      void hotspotsStore.fetchHotspots({
+        start_date: dateRange.value.start,
+        end_date: dateRange.value.end,
+        limit: 100,
+      })
+    } else {
+      void hotspotsStore.fetchHotspots({ limit: 100 })
+    }
+  }
+})
+
+watch([dateRange, selectedPolygon], () => {
+  if (viewMode.value === 'events' || viewMode.value === 'both') {
+    void clustersStore.fetchFireEvents(buildEventQueryParams())
+  } else {
+    clustersStore.clearFireEvents()
+  }
 })
 
 function startDrawPolygon() {
@@ -443,9 +547,191 @@ onMounted(() => {
         loadedIcons += 1
         if (loadedIcons === confidenceStyles.length) {
           ensureSymbolLayer()
+          syncLayerVisibility()
         }
       }
       img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`
+    }
+
+    // Fire Events (grouped spatio-temporal clusters)
+    m.addSource('fire-events', {
+      type: 'geojson',
+      data: fireEvents.value,
+    })
+
+    m.addSource('fire-events-centroids', {
+      type: 'geojson',
+      data: buildEventCentroidsGeoJson(fireEvents.value),
+    })
+
+    m.addLayer({
+      id: 'fire-events-fill',
+      type: 'fill',
+      source: 'fire-events',
+      filter: ['==', ['geometry-type'], 'Polygon'],
+      paint: {
+        'fill-color': [
+          'interpolate',
+          ['linear'],
+          ['coalesce', ['get', 'max_frp'], 0],
+          0,
+          '#f59e0b',
+          30,
+          '#ea580c',
+          80,
+          '#dc2626',
+        ],
+        'fill-opacity': 0.22,
+      },
+    })
+
+    m.addLayer({
+      id: 'fire-events-outline',
+      type: 'line',
+      source: 'fire-events',
+      filter: ['==', ['geometry-type'], 'Polygon'],
+      paint: {
+        'line-color': '#fb923c',
+        'line-width': 2,
+        'line-dasharray': [2, 1.5],
+        'line-opacity': 0.9,
+      },
+    })
+
+    m.addLayer({
+      id: 'fire-events-centroid',
+      type: 'circle',
+      source: 'fire-events-centroids',
+      paint: {
+        'circle-color': 'rgba(24, 24, 27, 0.72)',
+        'circle-stroke-color': [
+          'interpolate',
+          ['linear'],
+          ['coalesce', ['get', 'max_frp'], 0],
+          0,
+          '#fbbf24',
+          30,
+          '#fb923c',
+          80,
+          '#f87171',
+        ],
+        'circle-stroke-width': 2.25,
+        'circle-radius': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          3,
+          ['interpolate', ['linear'], ['coalesce', ['get', 'hotspot_count'], 1], 1, 5, 10, 9, 50, 14],
+          8,
+          ['interpolate', ['linear'], ['coalesce', ['get', 'hotspot_count'], 1], 1, 8, 10, 13, 50, 19],
+          12,
+          ['interpolate', ['linear'], ['coalesce', ['get', 'hotspot_count'], 1], 1, 7, 10, 11, 50, 16],
+        ],
+        'circle-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.9, 11, 0.2],
+        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.95, 11, 0.25],
+      },
+    })
+
+    m.addLayer({
+      id: 'fire-events-count',
+      type: 'symbol',
+      source: 'fire-events-centroids',
+      filter: ['>', ['coalesce', ['get', 'hotspot_count'], 1], 1],
+      layout: {
+        'text-field': ['to-string', ['get', 'hotspot_count']],
+        'text-size': 11,
+        'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+        'text-allow-overlap': true,
+      },
+      paint: {
+        'text-color': '#fef3c7',
+        'text-halo-color': '#09090b',
+        'text-halo-width': 1.25,
+        'text-opacity': ['interpolate', ['linear'], ['zoom'], 9, 1, 11, 0.25],
+      },
+    })
+
+    // Highlighted constituent hotspots when inspecting a Fire Event
+    m.addSource('cluster-hotspots', {
+      type: 'geojson',
+      data: buildGeoJson(clusterHotspots.value),
+    })
+
+    m.addLayer({
+      id: 'cluster-hotspots-circle',
+      type: 'circle',
+      source: 'cluster-hotspots',
+      paint: {
+        'circle-color': '#38bdf8',
+        'circle-stroke-color': '#0f172a',
+        'circle-stroke-width': 1.5,
+        'circle-radius': 5,
+      },
+    })
+
+    const handleFireEventClick = (e: MapLayerMouseEvent) => {
+      const feature = e.features?.[0]
+      if (!feature || !feature.properties) return
+
+      const eventProps = feature.properties as unknown as FireEventProperties
+      const lngLat: [number, number] =
+        eventProps.centroid_lon != null && eventProps.centroid_lat != null
+          ? [Number(eventProps.centroid_lon), Number(eventProps.centroid_lat)]
+          : [e.lngLat.lng, e.lngLat.lat]
+
+      const popupWrapper = document.createElement('div')
+      const renderEventPopup = () => {
+        const isCurrent = selectedCluster.value?.id === eventProps.id
+        const vnode = h(FireEventPopup, {
+          event: eventProps,
+          hotspots: isCurrent ? clusterHotspots.value : undefined,
+          isInspecting: isCurrent && clusterHotspots.value.length > 0,
+          isLoadingDetail: isLoadingDetail.value,
+          inspectedCount: clusterHotspots.value.length,
+          detailError: clustersStore.error,
+          onInspect: (target: FireEventProperties) => {
+            void clustersStore.selectCluster(target).then(() => {
+              m.flyTo({
+                center: lngLat,
+                zoom: Math.max(m.getZoom(), 11.5),
+                duration: reducedMotion.value === 'reduce' ? 0 : 700,
+              })
+            })
+          },
+        })
+        render(vnode, popupWrapper)
+      }
+
+      renderEventPopup()
+      const stopPopupWatch = watch(
+        [selectedCluster, isLoadingDetail, clusterHotspots],
+        () => renderEventPopup(),
+      )
+
+      activePopup.value?.remove()
+      activePopup.value = new maplibregl.Popup({ offset: 14, maxWidth: '310px' })
+        .setLngLat(lngLat)
+        .setDOMContent(popupWrapper)
+        .addTo(m)
+      activePopup.value.on('close', () => {
+        stopPopupWatch()
+        render(null, popupWrapper)
+      })
+    }
+
+    for (const layerId of ['fire-events-fill', 'fire-events-centroid']) {
+      m.on('mouseenter', layerId, () => {
+        m.getCanvas().style.cursor = 'pointer'
+      })
+      m.on('mouseleave', layerId, () => {
+        m.getCanvas().style.cursor = ''
+      })
+      m.on('click', layerId, handleFireEventClick)
+    }
+
+    syncLayerVisibility()
+    if (viewMode.value === 'events' || viewMode.value === 'both') {
+      void clustersStore.fetchFireEvents(buildEventQueryParams())
     }
 
     // Cursor pointer on hover
@@ -506,8 +792,28 @@ onUnmounted(() => {
     <SpaceBackground :visible="spaceVisible" />
     <div ref="mapContainer" class="fire-map__canvas" />
 
-    <div class="absolute top-3 left-13 z-10">
+    <div class="absolute top-3 left-13 z-10 flex items-center gap-2">
       <MapLegendTooltip />
+      <div
+        role="group"
+        aria-label="Map layer mode"
+        class="inline-flex rounded-lg border border-border-strong bg-surface-panel/90 p-0.5 text-xs shadow-md backdrop-blur-md"
+      >
+        <button
+          v-for="mode in (['events', 'hotspots', 'both'] as MapViewMode[])"
+          :key="mode"
+          type="button"
+          class="cursor-pointer rounded-md px-2.5 py-1 font-medium capitalize transition"
+          :class="
+            viewMode === mode
+              ? 'bg-orange-500/25 text-orange-200'
+              : 'text-ink-secondary hover:text-ink-primary'
+          "
+          @click="clustersStore.setViewMode(mode)"
+        >
+          {{ mode === 'events' ? 'Fire Events' : mode === 'hotspots' ? 'Hotspots' : 'Both' }}
+        </button>
+      </div>
     </div>
 
     <slot

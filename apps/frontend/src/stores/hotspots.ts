@@ -12,6 +12,7 @@ import {
 } from '@/api'
 import { aggregateDailyActivity } from '@/utils/hotspotActivity'
 import { useFiltersStore, type SensorFilter } from '@/stores/filters'
+import { useClustersStore } from '@/stores/clusters'
 import type { DailyHotspotActivity } from '@/types/hotspot'
 import type { HotspotDateRange } from '@/types/filters'
 
@@ -109,6 +110,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
 
   async function setSelectedPolygon(polygon: GeoJSONPolygon | null) {
     selectedPolygon.value = polygon
+    if (useClustersStore().viewMode === 'events') return
     if (dateRange.value) {
       await fetchHotspots({
         start_date: dateRange.value.start,
@@ -166,6 +168,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
       clearHotspots()
       return
     }
+    if (useClustersStore().viewMode === 'events') return
     await fetchHotspots({ start_date: range.start, end_date: range.end, limit: 100 })
   }
 

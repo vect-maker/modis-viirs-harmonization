@@ -15,10 +15,12 @@ import HotspotFeedbackDrawer from '@/components/features/HotspotFeedbackDrawer.v
 import MapActionBar from '@/components/common/MapActionBar.vue'
 import type { HotspotResponse } from '@/api'
 import { useHotspotsStore } from '@/stores/hotspots'
+import { useClustersStore } from '@/stores/clusters'
 import { useFeedbackStore } from '@/stores/feedback'
 import { useCalendarStore } from '@/stores/calendar'
 
 const hotspotsStore = useHotspotsStore()
+const clustersStore = useClustersStore()
 const feedbackStore = useFeedbackStore()
 const calendarStore = useCalendarStore()
 const {
@@ -153,7 +155,9 @@ onMounted(async () => {
     hasInitializedDates.value = true
     return
   }
-  await hotspotsStore.fetchHotspots({ limit: 100 })
+  if (clustersStore.viewMode !== 'events') {
+    await hotspotsStore.fetchHotspots({ limit: 100 })
+  }
   hasInitializedDates.value = true
 })
 
