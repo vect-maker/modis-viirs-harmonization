@@ -234,9 +234,18 @@ class DashboardRepository:
         high_value: int = 85,
         start_year: int = 2001,
         end_year: int = 2025,
+        country: str | None = None,
+        polygon_wkt: str | None = None,
     ) -> list[dict[str, Any]]:
         conf_expr = self._confidence_sql(high_value)
         year_expr = self._year_expr()
+        area_conditions, area_params = self._area_conditions(country, polygon_wkt)
+        area_sql = "".join(f" AND {c}" for c in area_conditions)
+        params: dict[str, Any] = {
+            "start_year": start_year,
+            "end_year": end_year,
+            **area_params,
+        }
 
         if self.dialect == "postgresql":
             query = text(
@@ -250,6 +259,7 @@ class DashboardRepository:
                         bright_mir
                     FROM hotspots
                     WHERE acq_datetime IS NOT NULL
+                      AND {year_expr} BETWEEN :start_year AND :end_year{area_sql}
                 )
                 SELECT
                     yr,
@@ -291,9 +301,7 @@ class DashboardRepository:
                 ORDER BY yr ASC
                 """
             )
-            rows = self.session.execute(
-                query, {"start_year": start_year, "end_year": end_year}
-            ).mappings()
+            rows = self.session.execute(query, params).mappings()
 
             def _pack(r: Any, prefix: str) -> dict[str, Any]:
                 p25 = r[f"{prefix}_p25"]
@@ -336,13 +344,11 @@ class DashboardRepository:
                 bright_mir
             FROM hotspots
             WHERE acq_datetime IS NOT NULL
-              AND {year_expr} BETWEEN :start_year AND :end_year
+              AND {year_expr} BETWEEN :start_year AND :end_year{area_sql}
             ORDER BY yr ASC
             """
         )
-        rows = self.session.execute(
-            query, {"start_year": start_year, "end_year": end_year}
-        ).all()
+        rows = self.session.execute(query, params).all()
         by_year: dict[int, dict[str, list[float]]] = {}
         totals: dict[int, int] = {}
         for yr, frp, conf, tir, mir in rows:
@@ -458,6 +464,54 @@ class DashboardRepository:
             conditions.extend(spatial_conditions)
             params.update(spatial_params)
         return conditions, params
+
+    def get_annual_totals(
+        self,
+        start_year: int,
+        end_year: int,
+        country: str | None = None,
+        polygon_wkt: str | None = None,
+    ) -> dict[int, dict[str, Any]]:
+        """
+        Totales por año: detecciones crudas por sensor e índice armonizado
+        (SUM(harmonized_weight)). Mucho más liviano que get_annual_stats.
+        """
+        year_expr = self._year_expr()
+        conditions = [
+            "acq_datetime IS NOT NULL",
+            f"{year_expr} BETWEEN :start_year AND :end_year",
+        ]
+        params: dict[str, Any] = {"start_year": start_year, "end_year": end_year}
+        area_conditions, area_params = self._area_conditions(country, polygon_wkt)
+        conditions.extend(area_conditions)
+        params.update(area_params)
+
+        query = text(
+            f"""
+            SELECT
+                {year_expr} AS yr,
+                COUNT(*) AS total,
+                SUM(CASE WHEN UPPER(instrument) = 'MODIS' THEN 1 ELSE 0 END) AS modis,
+                SUM(CASE WHEN UPPER(instrument) = 'VIIRS' THEN 1 ELSE 0 END) AS viirs,
+                COALESCE(SUM(harmonized_weight), 0.0) AS harmonized,
+                AVG(frp) AS avg_frp
+            FROM hotspots
+            WHERE {" AND ".join(conditions)}
+            GROUP BY yr
+            ORDER BY yr ASC
+            """
+        )
+        rows = self.session.execute(query, params).all()
+        return {
+            int(r[0]): {
+                "total": int(r[1]),
+                "modis": int(r[2] or 0),
+                "viirs": int(r[3] or 0),
+                "harmonized": round(float(r[4] or 0.0), 4),
+                "avg_frp": round(float(r[5]), 4) if r[5] is not None else None,
+            }
+            for r in rows
+        }
 
     def get_monthly_counts(
         self,

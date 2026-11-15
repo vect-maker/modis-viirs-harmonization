@@ -275,3 +275,31 @@ def test_monthly_comparison_rejects_year_outside_archive():
         assert exc.status_code == 400
     else:
         raise AssertionError("Se esperaba HTTPException")
+
+
+def test_annual_stats_sensor_totals_partial_years_and_polygon():
+    session = _seed_comparison_session()
+    annual = _run_coro(get_annual_stats(session=session, include_distributions=False))
+
+    assert annual["range"] == {"start_year": 2022, "end_year": 2024}
+    by_year = {row["year"]: row for row in annual["data"]}
+    assert by_year[2022]["modis_count"] == 48
+    assert by_year[2022]["harmonized_index"] == 96.0
+    assert by_year[2023]["total_hotspots"] == 66  # marzo 2023 sin detecciones
+    assert by_year[2024]["viirs_count"] == 33
+    assert by_year[2024]["months_in_archive"] == 3
+    assert by_year[2024]["complete"] is False
+    assert by_year[2022]["complete"] is True
+    assert "frp" not in by_year[2022]
+
+    polygon = (
+        '{"type":"Polygon","coordinates":[[[-87,11],[-85,11],[-85,13],[-87,13],[-87,11]]]}'
+    )
+    clipped = _run_coro(
+        get_annual_stats(session=session, start_year=2024, polygon=polygon)
+    )
+    row = clipped["data"][0]
+    assert clipped["range"] == {"start_year": 2024, "end_year": 2024}
+    assert row["total_hotspots"] == 30
+    assert row["frp"]["median"] == 10.0
+

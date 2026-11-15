@@ -70,26 +70,94 @@ async def get_correlations(
 
 @router.get(
     "/annual-stats",
-    summary="Estadísticas descriptivas anuales (media, std, mediana, cuartiles, P90, IQR)",
+    summary="Actividad anual por sensor, índice armonizado y estadísticas descriptivas",
 )
 async def get_annual_stats(
-    high_value: int = Query(default=85, ge=1, le=100),
-    start_year: int = Query(default=2001, ge=1990, le=2100),
-    end_year: int = Query(default=2025, ge=1990, le=2100),
-    session: Session = Depends(get_session),
+    session: Annotated[Session, Depends(get_session)],
+    high_value: Annotated[int, Query(ge=1, le=100)] = 85,
+    start_year: Annotated[int | None, Query(ge=1990, le=2100)] = None,
+    end_year: Annotated[int | None, Query(ge=1990, le=2100)] = None,
+    country: Annotated[str | None, Query(max_length=100)] = None,
+    polygon: Annotated[
+        str | None,
+        Query(description="GeoJSON Polygon o MultiPolygon (EPSG:4326) serializado"),
+    ] = None,
+    include_distributions: Annotated[
+        bool,
+        Query(
+            description=(
+                "Incluye media, mediana, cuartiles, P90 e IQR de FRP, confianza y "
+                "brillo por año. Es la parte costosa de la consulta."
+            )
+        ),
+    ] = True,
 ):
-    if start_year > end_year:
+    """
+    Una fila por año dentro del archivo (sin filtro espacial), también los años
+    sin detecciones en el área elegida. `months_in_archive` < 12 marca un año
+    incompleto (inicio o fin del registro), que no debe leerse como una caída.
+    """
+    if start_year is not None and end_year is not None and start_year > end_year:
         raise HTTPException(
             status_code=400, detail="start_year debe ser menor o igual a end_year"
         )
+    polygon_wkt = parse_geojson_polygon_to_wkt(polygon)
     repo = DashboardRepository(session)
-    rows = repo.get_annual_stats(
-        high_value=high_value,
-        start_year=start_year,
-        end_year=end_year,
-    )
+
+    coverage = repo.get_data_coverage(country=country)
+    if coverage is None:
+        return {"range": None, "coverage": None, "data": []}
+    first_dt, last_dt = coverage
+    lo = max(start_year if start_year is not None else first_dt.year, first_dt.year)
+    hi = min(end_year if end_year is not None else last_dt.year, last_dt.year)
+    coverage_info = {
+        "first_detection": first_dt.date().isoformat(),
+        "last_detection": last_dt.date().isoformat(),
+    }
+    if lo > hi:
+        return {"range": None, "coverage": coverage_info, "data": []}
+
+    totals = repo.get_annual_totals(lo, hi, country=country, polygon_wkt=polygon_wkt)
+    distributions: dict[int, dict[str, Any]] = {}
+    if include_distributions:
+        distributions = {
+            int(r["year"]): r
+            for r in repo.get_annual_stats(
+                high_value=high_value,
+                start_year=lo,
+                end_year=hi,
+                country=country,
+                polygon_wkt=polygon_wkt,
+            )
+        }
+
+    first_key = (first_dt.year, first_dt.month)
+    last_key = (last_dt.year, last_dt.month)
+    rows: list[dict[str, Any]] = []
+    for y in range(lo, hi + 1):
+        months_in_archive = sum(
+            1 for m in range(1, 13) if first_key <= (y, m) <= last_key
+        )
+        t = totals.get(y)
+        row: dict[str, Any] = {
+            "year": y,
+            "months_in_archive": months_in_archive,
+            "complete": months_in_archive == 12,
+            "total_hotspots": t["total"] if t else 0,
+            "modis_count": t["modis"] if t else 0,
+            "viirs_count": t["viirs"] if t else 0,
+            "harmonized_index": t["harmonized"] if t else 0.0,
+            "avg_frp": t["avg_frp"] if t else None,
+        }
+        if include_distributions:
+            d = distributions.get(y)
+            for key in ("frp", "confidence", "bright_tir", "bright_mir"):
+                row[key] = d[key] if d else None
+        rows.append(row)
+
     return {
-        "range": {"start_year": start_year, "end_year": end_year},
+        "range": {"start_year": lo, "end_year": hi},
+        "coverage": coverage_info,
         "data": rows,
     }
 
@@ -165,7 +233,7 @@ async def get_monthly_comparison(
     """
     Compara cada mes del año elegido contra la línea base de los demás años.
 
-    - La línea base excluye el año comparado (evita que el año se compare consigo mismo).
+    - La línea base excluye el año comparado (no se compara consigo mismo).
     - Dentro del rango del archivo, un mes sin detecciones en el área cuenta como 0.
     - Los meses fuera del archivo (p. ej. meses futuros del año en curso) son `null`.
     """
