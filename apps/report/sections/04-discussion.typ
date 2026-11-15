@@ -1,23 +1,39 @@
-#import "../template.typ": todo
+= Discussion and Validation Plan
 
-= Discussion
+== Interpretation of the current result
 
-== Scientific and Operational Significance
+The defensible result is an experimental observation-weighting workflow with traceable inputs and explicit assumptions. It provides a basis for testing candidate harmonization rules. It does not yet yield a sensor-independent historical series.
 
-The Nicaragua 2000–2025 record highlights the core challenge of multi-sensor fire monitoring: raw counts jump from 2,419 (April 2011) to 49,025 (April 2020) largely because 375 m VIIRS instruments resolve smaller, lower-FRP fires (`~10.6 MW` mean FRP vs. `~32.9 MW` for MODIS) and provide multiple pixel detections per 1 km MODIS footprint.
+The main unresolved issues are fixed-bin boundary effects, pooling multiple platforms without exposure normalization, selection of only co-detected fires for some ratios, transfer to morning and pre-2012 conditions, unverified fallback values, and missing coverage information. Country-level aggregation also mixes seasons and ecosystems.
 
-Our point-grain-preserving harmonization design (@eq:weight) bridges this transition without discarding native coordinates, timestamps, or FRP attributes. Crucially, the frontend explicitly marks unharmonized archives (`harmonized: false`, `coverageVerified: false`) so emergency managers and scientists are never misled by uncalibrated sensor transitions.
+The prototype keeps all VIIRS records, including separate views of potentially persistent activity. Such observations can be valuable for monitoring, but they must be distinguished from independent fires and normalized appropriately for comparisons over time.
 
-== Architectural and Reproducibility Advantages
+== FRP-specific limitations
 
-+ *Local-First Analytical ETL:* Combining SQLite (`ArchiveFile` state machine) with out-of-core DuckDB SQL (`max_memory = '10GB'`, ZSTD Parquet) enables multi-decade country archives to be fused and normalized on commodity hardware without a distributed cluster.
-+ *Deterministic Deduplication:* RFC 4122 UUIDv5 primary keys ensure idempotent re-ingestion across overlapping NASA FIRMS updates.
-+ *Reproducible Container Deployment:* The root `compose.yml` and `Caddyfile` orchestrate PostGIS 17-3.5, the Vue 3 + Nginx frontend, the FastAPI backend stack, and Caddy 2.9 automatic HTTPS on rootless Ubuntu hosts (`net.ipv4.ip_unprivileged_port_start=80`).
+A single FRP multiplier cannot be inferred solely from pixel resolution or a difference between mean per-record FRP values. Li et al. document relationships that vary with viewing geometry, ecosystem, season, and aggregation scale @li2018. Their comparison concerns VIIRS 750 m and MODIS 1 km; its coefficients must not be transferred directly to this 375 m workflow.
 
-== Current Limitations and Future Work
+As an arithmetic check, applying the fallback 1.14 to the reported April 2011 MODIS mean of 32.92 MW gives 37.53 MW. It does not transform that mean into the approximately 10-11 MW means of later mixed-sensor records. A reconstructed population of smaller fires would require a separately defined statistical target and evidence.
 
-+ *Meteorological & Training Scope:* `WeatherDataClient` currently relies on NASA POWER daily aggregates (`T2M`, `RH2M`, `WS10M`, `WD10M`, `PRECTOTCORR`) rather than sub-daily reanalysis, and `FirePredictor` trains `RandomForestRegressor` on-demand in memory rather than serving versioned pre-trained model artifacts. Additionally, centroid-based velocity represents apparent detection-cluster drift rather than physical flame-front spread rate.
-+ *Schema Coverage for Subnational & Cluster Joins:* The current PostGIS Star Schema (`sql/schema.sql`) indexes `country` (`dim_country`) but does not yet store `department` or `municipality` administrative boundaries, and `clusterhotspots."hotspotsId"` is stored as an `INTEGER` sequential key rather than the `UUID` primary key of `fact_hotspots`. Consequently, `GET /fire-calendar` validates and rejects `department`/`municipality` queries explicitly (`HTTP 400`) and evaluates `new_fires`/`active_fires` directly from `firecluster` lifespans without fabricating missing joins.
-+ *Empirical Calibration Scope:* The default `2.25` MODIS-to-VIIRS multiplicity fallback in `sql/test_spatial_harmonization.sql` requires cross-biome empirical calibration across diverse fire regimes beyond the Chilecito ROI.
-+ *Observation Coverage Verification:* Cloud cover and orbital swath gaps are not yet modeled (`coverageVerified: false`), meaning zero-detection calendar cells cannot yet distinguish absence of fire from absence of clear-sky observation.
-+ *Near-Real-Time (NRT) Ingestion:* Automated scheduled fetching of daily FIRMS NRT feeds into PostGIS is planned as future work.
+== Proposed empirical evaluation
+
+The following is a plan, not a completed experiment.
+
++ *Specify the target.* Define activity at a fixed spatial support, reference platform, and observation schedule. A provisional afternoon target could use one VIIRS platform and matched Aqua observations during a documented overlap interval. Terra morning observations should remain a separate stratum until transfer is validated.
++ *Control inputs.* Record product collection, science-quality versus NRT provenance, operating periods, anomaly-type policy, and confidence filters. Prefer consistent standard science products for analysis, as recommended by FIRMS @firmsarchive. Retain raw values and quantify the fraction of observations excluded or missing.
++ *Measure observation opportunities.* Use swath and fire-mask/quality information to distinguish observed clear land, clouds, missing acquisitions, and valid no-fire observations. Counts of days with at least one detection are not coverage denominators.
++ *Improve candidate matching.* Use a metric/geodesic distance test, a rolling time tolerance, and available footprint dimensions. Check neighboring spatial and time bins. Select tolerances by sensitivity analysis rather than claiming a universal threshold.
++ *Fit and test separately.* Estimate relationships by platform, season, region/biome, and day/night stratum where sample size permits. Reserve independent years or spatial blocks for evaluation. Simulate historical inference by withholding VIIRS observations from the evaluation set. Co-detection-only fitting must be assessed for selection bias.
++ *Report uncertainty and comparisons.* Compare the adjusted result with raw pooling and sensor-separated baselines. Evaluate bias, MAE, RMSE, temporal residuals, boundary sensitivity, and uncertainty from block resampling. Judge improvement on held-out data and inspect whether any remaining discontinuity tracks platform changes.
+
+For paired target observations $y_j$ and estimates $hat(y)_j$, proposed metrics are:
+$ "Bias" = (1/n) sum_(j=1)^n (hat(y)_j-y_j) $
+$ "MAE" = (1/n) sum_(j=1)^n abs(hat(y)_j-y_j) $
+$ "RMSE" = sqrt((1/n) sum_(j=1)^n (hat(y)_j-y_j)^2) $
+
+No numeric acceptance thresholds are invented here. They should be set before the empirical evaluation, reflect the intended use, and require improvement over relevant baselines without concealing uncertainty.
+
+== Conditions for prototype delivery
+
+The interface can demonstrate raw patterns and explain the experimental weighting workflow. The demonstration should identify raw versus weighted values, disclose the unverified coverage state, and present synthetic examples as synthetic.
+
+The existing export processing flag must not be interpreted as proof of validation. A future integration should distinguish processing status, parameter version, calibration provenance, and scientific validation status. Operational fire-response decisions and long-term climate conclusions are outside the demonstrated evidence.

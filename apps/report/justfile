@@ -5,17 +5,26 @@ default:
 # Compile the Typst report to PDF inside output/
 build:
     mkdir -p output
-    typst compile main.typ output/report.pdf
+    typst compile --font-path fonts main.typ output/report.pdf
+
+# Compile the English APA 7 technical documentation
+documentation:
+    mkdir -p output
+    typst compile --font-path fonts documentation.typ output/PyroTrace_Harmonization.pdf
 
 # Export page PNGs to output/temp/ for visual layout inspection
 preview:
     mkdir -p output/temp
-    typst compile main.typ "output/temp/page-{p}.png" -f png
+    typst compile --font-path fonts main.typ "output/temp/page-{p}.png" -f png
+
+# Reproduce software behavior and known limitations using synthetic inputs
+validate:
+    python validation/verify_prototype.py
 
 # Watch and recompile on changes
 watch:
     mkdir -p output
-    typst watch main.typ output/report.pdf
+    typst watch --font-path fonts main.typ output/report.pdf
 
 # Remove generated output artifacts
 clean:

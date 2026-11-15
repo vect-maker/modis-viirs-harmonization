@@ -1,20 +1,13 @@
 #import "template.typ": paper
 
 #show: paper.with(
-  title: "Multi-Sensor Harmonization of NASA FIRMS MODIS and VIIRS Active Fire Hotspots for Historical Burning Activity Calendars",
-  authors: (
-    (name: "[Author 1]", affil: "1"),
-    (name: "[Author 2]", affil: "1"),
-    (name: "[Author 3]", affil: "1"),
-  ),
-  affiliations: (
-    "1": "[Affiliation / Country]",
-  ),
-  date: "2026 (Draft)",
+  title: "PyroTrace: An Experimental MODIS-VIIRS Weighting Prototype for Historical Fire Activity Calendars",
+  authors: ("PyroTrace project team",),
+  date: "14 November 2026 | Prototype technical report",
   abstract: [
-    Satellite active fire records from NASA's Moderate Resolution Imaging Spectroradiometer (MODIS, \~1 km, 2000–present) and Visible Infrared Imaging Radiometer Suite (VIIRS, 375 m, 2012–present) cannot be directly compared without accounting for spatial resolution, sensor sensitivity, and orbital overpass differences. As MODIS approaches end-of-life, emergency responders and land managers require a unified, multi-decade burning activity calendar. We present *PyroTrace*, an open-source pipeline and interactive web platform developed for the 2026 NASA Space Apps Challenge. Our ETL pipeline combines SQLModel/SQLite metadata orchestration and async HTTP/2 ingestion with out-of-core DuckDB SQL transformations to fuse MODIS and VIIRS archives into ZSTD-compressed Silver Parquet datasets and a deterministic UUIDv5 Star Schema Gold layer for PostGIS. A point-grain-preserving spatio-temporal co-detection model bins detections into \~2 km hourly quadrants to classify five diurnal/sensitivity anomaly regimes and assign harmonized VIIRS-equivalent weights without discarding native coordinates or Fire Radiative Power (FRP). An interactive Vue 3 and MapLibre GL JS frontend renders polygon-filtered hotspots, logarithmic 2000–2025 burning activity calendars, and RFC-4180 CSV exports—demonstrated on 800,480 raw Nicaragua detections (`2000-11-01` to `2025-12-31`).
+    NASA FIRMS active-fire records combine instruments with different pixel sizes, detection responses, and observation schedules. PyroTrace explores a point-preserving weighting workflow for historical fire-activity calendars. Four DuckDB SQL stages retain native attributes, group observations by approximate spatial cells and UTC hour, estimate country-level ratios, and assign experimental weights and derived fire radiative power (FRP). The bundled Nicaragua monthly archive contains 800,480 raw detections from November 2000 to December 2025; it is an interface demonstration, not an independently validated harmonized record. We document the implemented equations, distinguish published product properties from project-selected parameters, and reproduce known limitations on 810 synthetic records. Fixed-bin boundaries and additional VIIRS platforms change the resulting index even when simulated activity is held constant. These checks establish executable behavior and metadata preservation, but do not establish scientific accuracy. The deliverable is a transparent software prototype with an explicit validation plan. Its weighted index must not be interpreted as a count of independent fires, burned area, or a proven sensor-independent trend.
   ],
-  keywords: "NASA FIRMS, MODIS, VIIRS, active fire hotspots, sensor harmonization, DuckDB, PostGIS, burning activity calendar",
+  keywords: "NASA FIRMS, MODIS, VIIRS, prototype, active fire, weighting, reproducibility",
 )
 
 #include "sections/01-introduction.typ"

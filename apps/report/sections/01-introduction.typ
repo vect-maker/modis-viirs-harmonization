@@ -1,36 +1,25 @@
-#import "../template.typ": todo
-
 = Introduction
 
-== Background
+== Scientific motivation
 
-Understanding how burning activity is distributed across Earth's surface over time—spanning wildfires in natural vegetation and forests as well as anthropogenic fires from agriculture, land-clearing, waste disposal, and industrial processes—enables emergency responders, scientists, and land managers to anticipate critical fire periods, guide monitoring efforts, and strengthen fire response. Satellite Earth Observation (EO) sensors operating in the mid-infrared (MIR) and thermal infrared (TIR) spectral ranges provide continuous, regional-to-global active fire hotspot detections, capturing fire location, Fire Radiative Power (FRP), and temporal evolution.
+An active-fire record is a satellite observation of a thermal anomaly. It is not automatically an individual fire event or a measurement of burned area. FIRMS coordinates locate pixel centers; a MODIS pixel can contain more than one fire. MODIS fire detections have nominal 1 km resolution, with larger footprints away from nadir @firmsmodis. VIIRS 375 m detections offer a greater response to smaller fires @firmsviirs. The algorithm publications describe different instrument-specific detection procedures @giglio2016 @schroeder2014.
 
-For more than two decades, NASA's Fire Information for Resource Management System (FIRMS) has distributed active fire detections from the Moderate Resolution Imaging Spectroradiometer (MODIS) aboard the Terra and Aqua satellites (2000–present). As MODIS approaches the end of its operational life, continuity is provided by the Visible Infrared Imaging Radiometer Suite (VIIRS) aboard Suomi-NPP (2012–present), NOAA-20 / JPSS-1 (2018–present), and NOAA-21.
+Consequently, merging records into one schema does not by itself make their counts comparable. Repeated observations, clouds, acquisition timing, collection changes, and the number of operating platforms can affect observed activity. A zero count alone cannot distinguish no fire from missed observation @firmsnotes.
 
-*Active Fire Record Harmonization Challenges:*
-Direct comparison between raw MODIS and VIIRS hotspot counts introduces severe sensor-induced discontinuities:
-+ *Spatial Resolution Disparity:* MODIS nominal nadir pixel resolution is \~1 km, whereas VIIRS I-band active fire detections resolve at 375 m (yielding multiple VIIRS pixels for a single MODIS fire footprint).
-+ *Sensor Sensitivity & Confidence Scales:* VIIRS detects smaller and cooler fires (lower FRP) than MODIS, and the two instruments report incompatible confidence encodings (MODIS integer $0$–$100$ vs. VIIRS categorical `l` / `n` / `h`).
-+ *Orbital Overpass Schedules:* Terra provides a morning pass (\~10:30 AM local solar time) with no VIIRS counterpart, whereas Aqua and VIIRS share afternoon (\~1:30 PM) and nighttime overpasses.
-+ *Lack of Unified Long-Term Calendars:* Without harmonization, multi-decade burning activity calendars exhibit artificial jumps after 2012 and 2018 that reflect sensor transitions rather than true ecological or climatic fire regimes.
+== Prototype objective and scope
 
-== System Overview and Architecture
+PyroTrace is developed in the context of the NASA Space Apps challenge on MODIS and VIIRS hot spots. The objective of this report is to describe a working experimental workflow and its limitations accurately. It does not claim that sensor-transition discontinuities have been removed.
 
-To address these challenges for the 2026 NASA Space Apps Challenge, we present *FIRMS Harmonizer ETL*, an open-source, containerized platform that combines a local-first analytical ETL pipeline with an interactive spatial web application:
+The prototype explores three operations: preserving original observations, identifying candidate MODIS-VIIRS co-occurrences, and weighting MODIS-only records toward a provisional VIIRS-referenced activity index. This reference is not yet fixed to one platform and observation schedule. Historical trend interpretation therefore remains outside the demonstrated scope.
 
-- *ETL & Harmonization Pipeline (`apps/pipeline`):* Python 3.12+ orchestration with SQLModel/SQLite metadata tracking, async HTTP/2 ingestion via `httpx2`, and high-throughput DuckDB SQL transformations producing ZSTD-compressed Silver and Star-Schema Gold Parquet datasets.
-- *Spatial Database (`db` service):* PostgreSQL 17 with PostGIS 3.5 (`postgis:17-3.5`) storing the normalized star schema (`dim_country`, `dim_platform`, `fact_hotspots`) with GIST spatial and composite temporal indexes.
-- *Backend API (`apps/backend`):* FastAPI service built on Python 3.12+, SQLModel, `httpx`, Psycopg 3 (`psycopg[binary]`), NumPy, and Scikit-learn, serving paginated PostGIS queries (`limit`/`offset`) for every table alongside spatio-temporal clustering, movement tracking, NASA POWER weather vector analysis, and fire displacement prediction.
-- *Web Application (`apps/frontend`):* Vue 3.5 (`<script setup lang="ts">`) + Vite 8.2 + Pinia 4.0 dashboard featuring a WebGL-accelerated MapLibre GL JS 5.1 globe/map, interactive polygon/bounding-box ROI drawing (`@mapbox/mapbox-gl-draw`, `@turf/turf`), a 2000–2025 burning activity calendar, daily activity charts, and RFC-4180 CSV export.
-- *Edge Reverse Proxy (`caddy` service):* Caddy 2.9 (`caddy:2.9-alpine`) routing `/api/*` to the backend and `*` to the frontend with automatic HTTPS via `CADDY_DOMAIN`.
+== System and evidence boundaries
 
-== Research Objectives
+The repository contains a Python/SQLite ingestion pipeline, DuckDB/Parquet transformations, a PostgreSQL/PostGIS star schema, a FastAPI backend, and a Vue/MapLibre frontend. These components support data access and visualization; their existence is not evidence of scientific calibration accuracy.
 
-This work aims to:
-+ Build a reproducible, quota-aware ingestion pipeline for multi-decade NASA FIRMS MODIS and VIIRS country archives;
-+ Fuse heterogeneous MODIS and VIIRS schemas into a unified Silver Parquet dataset and a deterministic UUIDv5 Star Schema Gold layer;
-+ Formulate a point-grain-preserving spatio-temporal co-detection model to quantify VIIRS-to-MODIS multiplicity and classify diurnal/sensitivity anomalies;
-+ Deliver an accessible, color-blind-aware burning activity calendar and interactive GIS web interface with CSV export;
-+ Provide modular backend analytics for spatio-temporal fire clustering (`DBSCAN` with Haversine/`BallTree`), apparent centroid movement, NASA POWER wind-vector correlation, and `RandomForestRegressor` displacement forecasting;
-+ Package the full stack for reproducible rootless container deployment via Podman/Docker Compose.
+This revision verifies the SQL using synthetic inputs and checks the bundled monthly JSON. Original FIRMS Parquet inputs and cloud/swath metadata were unavailable in this checkout. No new full-archive calibration, field comparison, or real-data accuracy measurement is reported. Previously recorded ingestion timings and backend test counts are not reused as harmonization evidence.
+
+== Verified source boundaries
+
+The FIRMS archive page distinguishes Terra records beginning in November 2000 from Aqua records beginning in July 2002, and lists NOAA-20 archive availability from April 2018 and NOAA-21 from January 2024 @firmsarchive. Launch dates are not interchangeable with product availability. The supplied monthly JSON is not platform-resolved, so this review cannot independently verify its claimed platform mix.
+
+NASA's product documentation supports the sensor properties in this report. It does not establish the project's fallback factors, bin widths, minimum sample count, or clipping bounds. Those are implementation choices documented in Section 2.
