@@ -14,6 +14,8 @@ PyroTrace uses NASA FIRMS products and open-source software. References document
 
 The source files are in the current project checkout. The four weighting stages are in #raw("apps/pipeline/sql/harmonize/"). No original country-level Parquet files were available for the present review.
 
+A video demonstration of the PyroTrace prototype and dashboard is available at #link("https://youtu.be/WKN75RAhiKw")[https://youtu.be/WKN75RAhiKw].
+
 Run from the repository root in PowerShell:
 #raw("cd apps/report\npython validation/verify_prototype.py", block: true)
 
