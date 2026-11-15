@@ -21,6 +21,8 @@ services:
     build:
       context: apps/frontend
       dockerfile: prod.containerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
     image: localhost/firms-frontend:prod
     container_name: firms-frontend
     restart: unless-stopped

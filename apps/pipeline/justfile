@@ -31,21 +31,31 @@ fetch-data *args:
 sync-local-files:
     uv run pipeline/sync_local_files.py
 
-# Fuse raw archive Parquet files into a unified Silver dataset
-fuse-data:
+# Fuse raw archive Parquet files into a unified Silver dataset (scope: central_america | all)
+fuse-data scope="central_america":
     mkdir -p data/processed data/temp/duckdb
-    duckdb -dark-mode -f sql/fuse_datasets.sql
+    duckdb -dark-mode -c "SET VARIABLE fuse_scope = '{{scope}}';" -c ".read sql/fuse_datasets.sql"
 
-# Normalize Silver dataset into Star Schema Gold Parquet datasets with deterministic UUIDv5 keys
+# Apply universal spatio-temporal MODIS-VIIRS harmonization to Silver dataset
+harmonize-data:
+    mkdir -p data/processed data/temp/duckdb data/temp/harmonize
+    for f in sql/harmonize/*.sql; do \
+        echo "Running $f..."; \
+        duckdb -dark-mode -f "$f" || exit 1; \
+    done
+    rm -rf data/temp/harmonize
+
+# Run a single harmonization step by filename prefix (e.g. just harmonize-step 01)
+harmonize-step step:
+    mkdir -p data/processed data/temp/duckdb data/temp/harmonize
+    duckdb -dark-mode -f sql/harmonize/{{step}}*.sql
+
+# Normalize harmonized Silver dataset into Star Schema Gold Parquet datasets with deterministic UUIDv5 keys
 normalize-data:
     mkdir -p data/processed/star data/temp/duckdb
     duckdb -dark-mode -f sql/normalize_star_schema.sql
 
-# Run spatial harmonization feasibility benchmark
-benchmark-spatial:
-    duckdb -dark-mode -f sql/test_spatial_harmonization.sql
-
-# Export a sample slice of Nicaragua 2024 hotspots as JSON for the frontend
+# Export a sample slice of 2024 hotspots as JSON for the frontend
 export-sample limit="5000":
     mkdir -p ../frontend/src/data
     duckdb -dark-mode -c "COPY ( \
@@ -87,6 +97,7 @@ db-schema:
         podman exec -i firms-postgis psql "$DATABASE_URL" < sql/schema.sql; \
     fi
 
+<<<<<<< HEAD
 # Ingest Nicaragua dev dataset from Parquet into PostGIS via DuckDB
 db-load-nicaragua:
     duckdb -dark-mode -cmd "LOAD postgres; LOAD spatial; ATTACH '$DATABASE_URL' AS pg (TYPE POSTGRES);" -f sql/load_nicaragua_sample.sql
@@ -97,6 +108,14 @@ db-load-clusters:
 
 # Full reset and reload of dev databas;
 db-reset-load: db-schema db-load-nicaragua db-load-clusters
+=======
+# Ingest Star Schema Parquet datasets into PostGIS via DuckDB
+db-load:
+    duckdb -dark-mode -f sql/load_star_schema.sql
+
+# Full reset and reload of dev database
+db-reset-load: db-schema db-load
+>>>>>>> feat/frontend-development
 
 # Auto-format and auto-fix pipeline code
 format:

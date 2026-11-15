@@ -1,16 +1,24 @@
+<<<<<<< HEAD
 from collections.abc import Iterator
 from datetime import datetime
 
 from sqlalchemy import text
 from sqlmodel import Session, select
+=======
+from sqlmodel import Session, col, select
 
-from model import Hotspots
+from model.StarSchema import FactHotspot, HotspotPublic
+from repositories.pagination import paginate_statement
+from schemas.pagination import PaginatedResponse, PaginationParams
+>>>>>>> feat/frontend-development
+
 
 
 class HotspotRepository:
     def __init__(self, session: Session):
         self.session = session
 
+<<<<<<< HEAD
     def get_hotspots(self, limit: int = 50, offset: int = 0) -> list[Hotspots]:
         statement = select(Hotspots).offset(offset).limit(limit)
         return list(self.session.exec(statement).all())
@@ -67,3 +75,13 @@ class HotspotRepository:
         result = self.session.execute(query, params).mappings()
         for row in result:
             yield dict(row)
+=======
+    def get_hotspots(
+        self, pagination: PaginationParams
+    ) -> PaginatedResponse[HotspotPublic]:
+        statement = select(FactHotspot).order_by(
+            col(FactHotspot.acq_datetime).desc(),
+            col(FactHotspot.id),
+        )
+        return paginate_statement(self.session, statement, pagination, HotspotPublic)
+>>>>>>> feat/frontend-development
