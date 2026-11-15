@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { SunMedium, Moon } from '@lucide/vue'
-import type { FireHotspot } from '@/types/hotspot'
+import type { CountryResponse, HotspotResponse, PlatformResponse } from '@/api'
 
 defineProps<{
-  hotspot: FireHotspot
+  hotspot: HotspotResponse
+  platform?: PlatformResponse
+  country?: CountryResponse
 }>()
 
 const emit = defineEmits<{
-  (e: 'select', hotspot: FireHotspot): void
+  (e: 'select', hotspot: HotspotResponse): void
 }>()
 </script>
 
@@ -15,7 +17,7 @@ const emit = defineEmits<{
   <div class="p-3.5 bg-surface-panel text-ink-primary rounded-lg shadow-xl text-xs min-w-[220px] font-sans border border-border-strong">
     <div class="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-border-subtle">
       <span class="px-2 py-0.5 rounded bg-surface-elevated text-ink-secondary border border-border-subtle font-semibold text-[11px] tracking-wide uppercase">
-        {{ hotspot.instrument }} ({{ hotspot.satellite }})
+        {{ platform ? `${platform.instrument} (${platform.satellite})` : 'Unknown sensor' }}
       </span>
       <span class="inline-flex items-center gap-1 text-[10px] text-ink-muted font-mono">
         <SunMedium v-if="hotspot.daynight === 'D'" aria-hidden="true" class="h-3.5 w-3.5" />
@@ -25,9 +27,13 @@ const emit = defineEmits<{
     </div>
 
     <div class="space-y-1.5 text-ink-secondary">
+      <div v-if="country" class="flex justify-between">
+        <span class="text-ink-muted">Country:</span>
+        <span class="font-medium text-ink-primary">{{ country.name }}</span>
+      </div>
       <div class="flex justify-between">
         <span class="text-ink-muted">Acquisition:</span>
-        <span class="font-mono text-ink-primary">{{ hotspot.acq_datetime }}</span>
+        <span class="font-mono text-ink-primary">{{ hotspot.acq_datetime.replace('T', ' ') }}</span>
       </div>
       <div class="flex justify-between">
         <span class="text-ink-muted">Coordinates:</span>
@@ -37,15 +43,15 @@ const emit = defineEmits<{
       </div>
       <div class="flex justify-between">
         <span class="text-ink-muted">Radiative Power (FRP):</span>
-        <span class="font-mono font-semibold text-accent-bright">{{ hotspot.frp }} MW</span>
+        <span class="font-mono font-semibold text-accent-bright">{{ hotspot.frp ?? '—' }} MW</span>
       </div>
       <div class="flex justify-between">
         <span class="text-ink-muted">Brightness Temp:</span>
-        <span class="font-mono text-ink-secondary">{{ hotspot.bright_mir }} K</span>
+        <span class="font-mono text-ink-secondary">{{ hotspot.bright_mir ?? '—' }} K</span>
       </div>
       <div class="flex justify-between">
         <span class="text-ink-muted">Confidence:</span>
-        <span class="font-mono text-ink-secondary">{{ hotspot.confidence }}% ({{ hotspot.confidence_class }})</span>
+        <span class="font-mono text-ink-secondary">{{ hotspot.confidence ?? '—' }}% ({{ hotspot.confidence_class ?? '—' }})</span>
       </div>
     </div>
 

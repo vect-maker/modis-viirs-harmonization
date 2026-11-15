@@ -2,52 +2,34 @@ import { computed, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
 import { parseDate } from '@internationalized/date'
 import {
+  useCountriesApi,
   useHotspotsApi,
   usePlatformsApi,
+  type CountryResponse,
   type HotspotFiltersRequest,
   type HotspotResponse,
   type PlatformResponse,
 } from '@/api'
 import { aggregateDailyActivity } from '@/utils/hotspotActivity'
 import type { HotspotDateRange } from '@/types/filters'
-import type { FireHotspot } from '@/types/hotspot'
 
-export type SensorFilter = 'ALL' | FireHotspot['instrument']
-
-function mapHotspotToFireHotspot(
-  item: HotspotResponse,
-  platformsById: Map<string, PlatformResponse>,
-): FireHotspot {
-  const platform = platformsById.get(item.platform_id)
-  const instrument: FireHotspot['instrument'] =
-    platform?.instrument === 'VIIRS' ? 'VIIRS' : 'MODIS'
-
-  return {
-    latitude: item.latitude,
-    longitude: item.longitude,
-    acq_datetime: item.acq_datetime.replace('T', ' '),
-    instrument,
-    satellite: platform?.satellite ?? 'Unknown',
-    confidence_class: item.confidence_class ?? '',
-    confidence: item.confidence ?? 0,
-    frp: item.frp ?? 0,
-    bright_mir: item.bright_mir ?? 0,
-    daynight: item.daynight === 'N' ? 'N' : 'D',
-  }
-}
+export type SensorFilter = 'ALL' | 'MODIS' | 'VIIRS'
 
 export const useHotspotsStore = defineStore('hotspots', () => {
-  const hotspots = shallowRef<FireHotspot[]>([])
+  const hotspots = shallowRef<HotspotResponse[]>([])
+  const platformsById = shallowRef<Map<string, PlatformResponse>>(new Map())
+  const countriesById = shallowRef<Map<string, CountryResponse>>(new Map())
   const isLoading = shallowRef(false)
   const error = shallowRef<string | null>(null)
   const selectedSensor = shallowRef<SensorFilter>('ALL')
-  const areaHotspots = shallowRef<FireHotspot[] | null>(null)
+  const areaHotspots = shallowRef<HotspotResponse[] | null>(null)
   const dateRange = shallowRef<HotspotDateRange | null>(null)
   const availableDateList = shallowRef<string[]>([])
   const availableDateBounds = shallowRef<HotspotDateRange | null>(null)
 
   const { getHotspots, getAvailableDates } = useHotspotsApi()
   const { getPlatforms } = usePlatformsApi()
+  const { getCountries } = useCountriesApi()
 
   const availableDateSet = computed(() => new Set(availableDateList.value))
   const latestAvailableDate = computed(() => availableDateBounds.value?.end ?? null)
@@ -60,12 +42,22 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     return start && end ? { start, end } : null
   })
 
+  function getPlatform(platformId: string): PlatformResponse | undefined {
+    return platformsById.value.get(platformId)
+  }
+
+  function getCountry(countryId: string): CountryResponse | undefined {
+    return countriesById.value.get(countryId)
+  }
+
   // This context stays independent of date selection so the timeline never loses its other days.
   const contextHotspots = computed(() => {
     const candidates = areaHotspots.value ?? hotspots.value
     return selectedSensor.value === 'ALL'
       ? candidates
-      : candidates.filter((hotspot) => hotspot.instrument === selectedSensor.value)
+      : candidates.filter(
+          (hotspot) => getPlatform(hotspot.platform_id)?.instrument === selectedSensor.value,
+        )
   })
 
   const dailyActivity = computed(() =>
@@ -84,10 +76,14 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     const visible = filteredHotspots.value
     return {
       total: visible.length,
-      modis: visible.filter((hotspot) => hotspot.instrument === 'MODIS').length,
-      viirs: visible.filter((hotspot) => hotspot.instrument === 'VIIRS').length,
+      modis: visible.filter(
+        (hotspot) => getPlatform(hotspot.platform_id)?.instrument === 'MODIS',
+      ).length,
+      viirs: visible.filter(
+        (hotspot) => getPlatform(hotspot.platform_id)?.instrument === 'VIIRS',
+      ).length,
       avgFrp: visible.length
-        ? (visible.reduce((sum, hotspot) => sum + hotspot.frp, 0) / visible.length).toFixed(1)
+        ? (visible.reduce((sum, hotspot) => sum + (hotspot.frp ?? 0), 0) / visible.length).toFixed(1)
         : '—',
     }
   })
@@ -96,7 +92,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     selectedSensor.value = sensor
   }
 
-  function setAreaHotspots(matches: FireHotspot[] | null) {
+  function setAreaHotspots(matches: HotspotResponse[] | null) {
     areaHotspots.value = matches
   }
 
@@ -136,11 +132,13 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     error.value = null
     try {
       const pageLimit = params?.limit ?? 100
-      const [firstPage, platformsRes] = await Promise.all([
+      const [firstPage, platformsRes, countriesRes] = await Promise.all([
         getHotspots({ ...params, limit: pageLimit, offset: params?.offset ?? 0 }),
         getPlatforms({ limit: 100 }),
+        getCountries({ limit: 100 }),
       ])
-      const platformsById = new Map(platformsRes.data.map((p) => [p.id, p]))
+      platformsById.value = new Map(platformsRes.data.map((p) => [p.id, p]))
+      countriesById.value = new Map(countriesRes.data.map((c) => [c.id, c]))
       const allItems = [...firstPage.data]
 
       // When filtering by date range, fetch up to 5 pages (500 items) for fuller map coverage.
@@ -164,9 +162,7 @@ export const useHotspotsStore = defineStore('hotspots', () => {
         }
       }
 
-      hotspots.value = allItems.map((item) =>
-        mapHotspotToFireHotspot(item, platformsById),
-      )
+      hotspots.value = allItems
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch hotspots'
     } finally {
@@ -176,6 +172,8 @@ export const useHotspotsStore = defineStore('hotspots', () => {
 
   return {
     hotspots,
+    platformsById,
+    countriesById,
     isLoading,
     error,
     selectedSensor,
@@ -188,6 +186,8 @@ export const useHotspotsStore = defineStore('hotspots', () => {
     dailyActivity,
     filteredHotspots,
     stats,
+    getPlatform,
+    getCountry,
     fetchAvailableDates,
     fetchHotspots,
     selectDateRange,

@@ -1,6 +1,6 @@
 import { nextTick, shallowRef } from 'vue'
 import { useObjectUrl } from '@vueuse/core'
-import type { FireHotspot } from '@/types/hotspot'
+import type { CountryResponse, HotspotResponse, PlatformResponse } from '@/api'
 import { hotspotsToCsv } from '@/utils/hotspotCsv'
 
 export function useHotspotCsvDownload() {
@@ -9,12 +9,19 @@ export function useHotspotCsvDownload() {
   const isPreparing = shallowRef(false)
   const error = shallowRef('')
 
-  async function download(hotspots: readonly FireHotspot[], filename: string) {
+  async function download(
+    hotspots: readonly HotspotResponse[],
+    filename: string,
+    platformsById?: ReadonlyMap<string, PlatformResponse>,
+    countriesById?: ReadonlyMap<string, CountryResponse>,
+  ) {
     if (!hotspots.length || isPreparing.value) return false
     isPreparing.value = true
     error.value = ''
     try {
-      file.value = new Blob(['\uFEFF', hotspotsToCsv(hotspots)], { type: 'text/csv;charset=utf-8' })
+      file.value = new Blob(['\uFEFF', hotspotsToCsv(hotspots, platformsById, countriesById)], {
+        type: 'text/csv;charset=utf-8',
+      })
       await nextTick()
       if (!url.value) throw new Error('Download URL unavailable')
       const link = document.createElement('a')
