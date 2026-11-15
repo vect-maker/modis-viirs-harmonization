@@ -1,0 +1,17 @@
+.git
+.venv
+**/.venv
+**/node_modules
+**/__pycache__
+**/.ruff_cache
+**/.pytest_cache
+**/.coverage
+**/*.pyc
+**/*.pyo
+.env
+.env.*
+!.env.example
+apps/frontend
+apps/pipeline/data
+apps/report
+docs

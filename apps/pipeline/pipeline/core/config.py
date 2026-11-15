@@ -2,10 +2,11 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from firms_shared.constants import DEFAULT_FIRMS_BASE_URL
 
 load_dotenv()
 
-BASE_URL = os.getenv("FIRMS_BASE_URL", "https://firms.modaps.eosdis.nasa.gov")
+BASE_URL = os.getenv("FIRMS_BASE_URL", DEFAULT_FIRMS_BASE_URL)
 API_BASE_URL = f"{BASE_URL}/api"
 
 FIRMS_MAP_KEY = os.getenv("FIRMS_MAP_KEY")

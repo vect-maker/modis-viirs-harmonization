@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
-WORKDIR /app
+WORKDIR /workspace/apps/worker
 
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 ENV UV_LINK_MODE=copy

@@ -11,21 +11,22 @@ services:
 
   backend:
     build:
-      context: apps/backend
-      dockerfile: debug.containerfile
+      context: .
+      dockerfile: apps/backend/debug.containerfile
     image: localhost/firms-backend:debug
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}
       NATS_URL: ${NATS_URL:-nats://nats:4222}
       SSE_PRESENCE_TTL_SECONDS: ${SSE_PRESENCE_TTL_SECONDS:-45}
     volumes:
-      - ./apps/backend:/app:Z
+      - ./apps/backend:/workspace/apps/backend:Z
+      - ./shared:/workspace/shared:Z
       - backend_venv:/opt/venv
 
   worker:
     build:
-      context: apps/worker
-      dockerfile: debug.containerfile
+      context: .
+      dockerfile: apps/worker/debug.containerfile
     image: localhost/firms-worker:debug
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}
@@ -36,7 +37,8 @@ services:
       CATCHUP_COOLDOWN_SECONDS: ${CATCHUP_COOLDOWN_SECONDS:-610}
       NRT_POLL_INTERVAL_SECONDS: ${NRT_POLL_INTERVAL_SECONDS:-300}
     volumes:
-      - ./apps/worker:/app:Z
+      - ./apps/worker:/workspace/apps/worker:Z
+      - ./shared:/workspace/shared:Z
       - worker_venv:/opt/venv
 
   caddy:

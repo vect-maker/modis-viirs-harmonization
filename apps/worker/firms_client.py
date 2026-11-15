@@ -8,8 +8,9 @@ from datetime import date
 from typing import Any
 
 import httpx
+from firms_shared.constants import DEFAULT_FIRMS_BASE_URL
 
-FIRMS_BASE_URL = os.getenv("FIRMS_BASE_URL", "https://firms.modaps.eosdis.nasa.gov")
+FIRMS_BASE_URL = os.getenv("FIRMS_BASE_URL", DEFAULT_FIRMS_BASE_URL)
 
 
 class QuotaExhaustedError(RuntimeError):

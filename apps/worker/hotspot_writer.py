@@ -6,74 +6,25 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Any
 
-from pydantic import NaiveDatetime
+from firms_shared.constants import firms_uuid5
+from firms_shared.db import normalize_postgres_url
+from firms_shared.models import DimCountry, DimPlatform, FactHotspot
 from sqlalchemy import Engine, create_engine, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlmodel import Field, Session, SQLModel, col, select
+from sqlmodel import Session, col, select
 
 from country_resolver import (
     CentralAmericaCountryResolver,
     get_default_country_resolver,
 )
 
-FIRMS_NAMESPACE = uuid.UUID("98b00dc4-63e7-5855-bfed-2cdc66170e68")
-
-
-def firms_uuid5(name: str) -> uuid.UUID:
-    return uuid.uuid5(FIRMS_NAMESPACE, name)
-
 
 def build_db_engine(database_url: str | None = None) -> Engine:
     url = (database_url or os.getenv("DATABASE_URL", "")).strip()
     if not url:
         raise RuntimeError("DATABASE_URL is required for worker DB access.")
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+psycopg://", 1)
-    elif url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
-    return create_engine(url, pool_pre_ping=True)
-
-
-class DimCountry(SQLModel, table=True):
-    __tablename__ = "dim_country"  # type: ignore[assignment]
-
-    id: uuid.UUID = Field(primary_key=True)
-    name: str = Field(max_length=100, unique=True)
-
-
-class DimPlatform(SQLModel, table=True):
-    __tablename__ = "dim_platform"  # type: ignore[assignment]
-
-    id: uuid.UUID = Field(primary_key=True)
-    satellite: str = Field(max_length=50)
-    instrument: str = Field(max_length=20)
-
-
-class FactHotspot(SQLModel, table=True):
-    __tablename__ = "fact_hotspots"  # type: ignore[assignment]
-
-    id: uuid.UUID = Field(primary_key=True)
-    country_id: uuid.UUID = Field(foreign_key="dim_country.id")
-    platform_id: uuid.UUID = Field(foreign_key="dim_platform.id")
-    latitude: float
-    longitude: float
-    geom: str | None = Field(default=None)
-    acq_datetime: NaiveDatetime = Field(index=True)
-    bright_mir: float | None = Field(default=None)
-    bright_tir: float | None = Field(default=None)
-    scan: float | None = Field(default=None)
-    track: float | None = Field(default=None)
-    confidence: int | None = Field(default=None)
-    confidence_class: str | None = Field(default=None, max_length=20)
-    frp: float | None = Field(default=None)
-    daynight: str | None = Field(default=None, max_length=5)
-    type: int | None = Field(default=None)
-    version: str | None = Field(default=None, max_length=20)
-    overpass_window: str | None = Field(default=None, max_length=30)
-    harmonization_category: str | None = Field(default=None, max_length=40)
-    harmonized_weight: float | None = Field(default=None)
-    harmonized_frp: float | None = Field(default=None)
+    return create_engine(normalize_postgres_url(url), pool_pre_ping=True)
 
 
 def _float_or_none(val: Any) -> float | None:

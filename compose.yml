@@ -45,8 +45,8 @@ services:
 
   backend:
     build:
-      context: apps/backend
-      dockerfile: prod.containerfile
+      context: .
+      dockerfile: apps/backend/prod.containerfile
     image: localhost/firms-backend:prod
     container_name: firms-backend
     restart: unless-stopped
@@ -63,8 +63,8 @@ services:
 
   worker:
     build:
-      context: apps/worker
-      dockerfile: prod.containerfile
+      context: .
+      dockerfile: apps/worker/prod.containerfile
     image: localhost/firms-worker:prod
     container_name: firms-worker
     restart: unless-stopped

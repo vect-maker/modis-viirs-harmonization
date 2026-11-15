@@ -1,6 +1,7 @@
 import os
 
 from dotenv import find_dotenv, load_dotenv
+from firms_shared.db import normalize_postgres_url
 from sqlalchemy import create_engine
 
 # Cargar variables de entorno desde la raíz del proyecto si existe .env
@@ -9,12 +10,7 @@ load_dotenv(find_dotenv())
 database_url = os.getenv("DATABASE_URL")
 
 if database_url:
-    # Asegurar driver psycopg
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql+psycopg://", 1)
-    elif database_url.startswith("postgresql://") and not database_url.startswith("postgresql+psycopg://"):
-        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
-    connection_string = database_url
+    connection_string = normalize_postgres_url(database_url)
 else:
     server = os.getenv("DB_SERVER", "localhost")
     port = os.getenv("DB_PORT", os.getenv("POSTGRES_PORT", "5433"))

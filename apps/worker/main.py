@@ -7,6 +7,7 @@ import signal
 
 import nats
 from dotenv import load_dotenv
+from firms_shared.constants import CENTRAL_AMERICA_BBOX
 from nats.aio.client import Client as NatsClient
 from nats.js.api import KeyValueConfig
 from nats.js.errors import BucketNotFoundError
@@ -37,7 +38,7 @@ class WorkerRunner:
 
     def __init__(self) -> None:
         self.nats_url = os.getenv("NATS_URL", "nats://localhost:4222").strip()
-        self.bbox = os.getenv("FIRMS_AREA_BBOX", "-92.3,7.2,-77.1,18.5").strip()
+        self.bbox = os.getenv("FIRMS_AREA_BBOX", CENTRAL_AMERICA_BBOX).strip()
         self.country_name = os.getenv("FIRMS_COUNTRY_NAME", "Central_America").strip()
         self.cooldown_seconds = float(os.getenv("CATCHUP_COOLDOWN_SECONDS", "610"))
         self.poll_interval_seconds = float(
