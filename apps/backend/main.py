@@ -34,14 +34,32 @@ from repositories.PlatformRepository import PlatformRepository
 from repositories.spatial_filter import parse_geojson_polygon_to_wkt
 from schemas.health import HealthLiveResponse, HealthReadyResponse, HealthStatus
 from schemas.pagination import PaginatedResponse, PaginationDep
+from schemas.sse import SSEEventEnvelope
+from services.AlertEventSerializer import AlertEventSerializer
+from services.NatsService import nats_service
+from services.SSEManager import sse_manager
 
 SessionDep = Annotated[Session, Depends(get_session)]
+
+
+def _deliver_nats_envelope(envelope: SSEEventEnvelope) -> None:
+    frame = AlertEventSerializer.format_sse_frame(
+        event_id=envelope.event_id,
+        event_type=envelope.event_type,
+        data=envelope.model_dump(mode="json"),
+    )
+    sse_manager.deliver_envelope(envelope, frame)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_db_and_tables()
-    yield
+    if await nats_service.connect():
+        await nats_service.subscribe_sse(_deliver_nats_envelope)
+    try:
+        yield
+    finally:
+        await nats_service.close()
 
 
 app = FastAPI(

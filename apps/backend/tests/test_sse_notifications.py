@@ -26,7 +26,7 @@ def _parse_frame(raw: str) -> dict[str, Any]:
 
 def test_sse_notification_service_emits_arbitrary_envelope():
     manager = SSEManager()
-    client = manager.register()
+    client = manager.register(tenant_id="nicaragua", is_authenticated=True)
     service = SSENotificationService(manager=manager)
 
     envelope, delivered = service.emit_envelope(

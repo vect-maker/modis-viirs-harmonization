@@ -6,6 +6,8 @@ import threading
 from dataclasses import dataclass, field
 from uuid import uuid4
 
+from schemas.sse import SSEEventEnvelope, SSETargetScope
+
 logger = logging.getLogger("firms.sse")
 
 
@@ -16,6 +18,9 @@ class SSEClient:
     client_id: str
     queue: asyncio.Queue[str]
     loop: asyncio.AbstractEventLoop | None = field(default=None)
+    user_id: str | None = field(default=None)
+    tenant_id: str | None = field(default=None)
+    is_authenticated: bool = field(default=False)
 
 
 class SSEManager:
@@ -34,7 +39,14 @@ class SSEManager:
         with self._lock:
             return len(self._clients)
 
-    def register(self, max_queue_size: int | None = None) -> SSEClient:
+    def register(
+        self,
+        max_queue_size: int | None = None,
+        *,
+        user_id: str | None = None,
+        tenant_id: str | None = None,
+        is_authenticated: bool = False,
+    ) -> SSEClient:
         size = max_queue_size or self._default_queue_size
         try:
             loop: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
@@ -45,6 +57,9 @@ class SSEManager:
             client_id=uuid4().hex,
             queue=asyncio.Queue(maxsize=size),
             loop=loop,
+            user_id=user_id,
+            tenant_id=tenant_id,
+            is_authenticated=is_authenticated,
         )
         with self._lock:
             self._clients[client.client_id] = client
@@ -81,7 +96,34 @@ class SSEManager:
         """Difunde un frame SSE a todos los clientes sin bloquear."""
         with self._lock:
             clients = list(self._clients.values())
+        return self._dispatch_to_clients(clients, frame)
 
+    @staticmethod
+    def _matches_envelope(client: SSEClient, envelope: SSEEventEnvelope) -> bool:
+        if envelope.target_scope == SSETargetScope.ALL:
+            return True
+        if envelope.target_scope == SSETargetScope.USER:
+            if not envelope.target_id:
+                return False
+            return (
+                client.user_id == envelope.target_id
+                or client.client_id == envelope.target_id
+            )
+        if envelope.target_scope == SSETargetScope.TENANT:
+            if not envelope.target_id:
+                return False
+            return client.tenant_id == envelope.target_id
+        return False
+
+    def deliver_envelope(self, envelope: SSEEventEnvelope, frame: str) -> int:
+        """Entrega un frame SSE únicamente a los clientes locales que coinciden con el scope."""
+        with self._lock:
+            clients = [
+                c for c in self._clients.values() if self._matches_envelope(c, envelope)
+            ]
+        return self._dispatch_to_clients(clients, frame)
+
+    def _dispatch_to_clients(self, clients: list[SSEClient], frame: str) -> int:
         try:
             running_loop: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
         except RuntimeError:

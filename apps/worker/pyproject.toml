@@ -1,0 +1,28 @@
+[project]
+name = "worker"
+version = "0.1.0"
+description = "Background worker for FIRMS realtime sync and NATS SSE notifications"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx",
+    "nats-py>=2.9.0",
+    "pydantic>=2.0.0",
+    "python-dotenv",
+    "pytest",
+    "ruff",
+    "basedpyright",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["."]
+exclude = [".venv"]
+reportMissingTypeStubs = false

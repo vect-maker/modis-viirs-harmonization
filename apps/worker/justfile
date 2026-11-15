@@ -1,0 +1,32 @@
+set dotenv-load
+set positional-arguments
+
+# List available worker recipes
+default:
+    @just --list
+
+# Create virtual environment with uv and install dependencies
+setup-env:
+    uv venv
+    uv pip install -r requirements.txt
+
+# Run worker locally
+dev:
+    uv run python main.py
+
+# Run worker tests
+test:
+    uv run pytest -q
+
+# Auto-format and auto-fix worker code
+format:
+    uv run ruff format .
+    uv run ruff check --fix .
+
+# Lint worker code with ruff
+lint:
+    uv run ruff check .
+
+# Type-check worker code with basedpyright
+typecheck:
+    uv run basedpyright

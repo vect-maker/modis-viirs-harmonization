@@ -12,18 +12,24 @@ from schemas.sse import (
     SSETargetScope,
 )
 from services.AlertEventSerializer import AlertEventSerializer
+from services.NatsService import NatsService, nats_service
 from services.SSEManager import SSEManager, sse_manager
 
 
 class SSENotificationService:
     """
-    Publicador ligero en memoria para enviar notificaciones y envelopes SSE
-    desde cualquier endpoint FastAPI hacia los clientes conectados.
-    Sirve como capa desacoplada previa a la integración con NATS/worker.
+    Publicador ligero para enviar notificaciones y envelopes SSE desde cualquier
+    endpoint FastAPI hacia los clientes conectados. Cuando NATS está conectado,
+    enruta por NATS + JetStream KV; de lo contrario, difunde localmente.
     """
 
-    def __init__(self, manager: SSEManager = sse_manager) -> None:
+    def __init__(
+        self,
+        manager: SSEManager = sse_manager,
+        nats: NatsService = nats_service,
+    ) -> None:
         self.manager = manager
+        self.nats = nats
 
     def emit_envelope(
         self,
@@ -45,12 +51,15 @@ class SSENotificationService:
             payload=payload,
             timestamp=datetime.now(UTC),
         )
+        if self.nats.publish_envelope_sync(envelope):
+            return envelope, self.manager.active_connections
+
         frame = AlertEventSerializer.format_sse_frame(
             event_id=envelope.event_id,
             event_type=envelope.event_type,
             data=envelope.model_dump(mode="json"),
         )
-        delivered = self.manager.broadcast(frame)
+        delivered = self.manager.deliver_envelope(envelope, frame)
         return envelope, delivered
 
     def send_notification(

@@ -16,9 +16,23 @@ services:
     image: localhost/firms-backend:debug
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-firms}
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      SSE_PRESENCE_TTL_SECONDS: ${SSE_PRESENCE_TTL_SECONDS:-45}
     volumes:
       - ./apps/backend:/app:Z
       - backend_venv:/opt/venv
+
+  worker:
+    build:
+      context: apps/worker
+      dockerfile: debug.containerfile
+    image: localhost/firms-worker:debug
+    environment:
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-300}
+    volumes:
+      - ./apps/worker:/app:Z
+      - worker_venv:/opt/venv
 
   caddy:
     ports: !override
@@ -32,3 +46,5 @@ services:
 volumes:
   backend_venv:
     name: firms_backend_venv
+  worker_venv:
+    name: firms_worker_venv
