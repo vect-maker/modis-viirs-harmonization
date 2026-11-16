@@ -20,7 +20,7 @@ export const useClustersStore = defineStore('clusters', () => {
   const { getClustersGeoJson, queryClustersGeoJson, getClusterDetail } = useClustersApi()
 
   const fireEvents = shallowRef<FireEventFeatureCollection>(EMPTY_COLLECTION)
-  const viewMode = shallowRef<MapViewMode>('events')
+  const viewMode = shallowRef<MapViewMode>('both')
   const selectedCluster = shallowRef<FireEventProperties | null>(null)
   const clusterHotspots = shallowRef<ClusterHotspotItem[]>([])
   const hasFetchedEvents = shallowRef(false)

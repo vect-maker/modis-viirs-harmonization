@@ -175,3 +175,9 @@ As documented in Section 6.3 and Section 7 of the technical report:
 - **Provisional NRT Data**: Detections ingested by the 2026 NRT worker are displayed in the map and calendar but marked as provisional and excluded from historical baselines until processed through the harmonization pipeline.
 - **Observation Opportunities**: Cloud cover and satellite overpass gaps are not yet modeled; missing detections do not guarantee absence of fire.
 - **Historical Calendar**: Currently displays raw detection counts while the statistics panel presents both raw counts and the harmonized index.
+
+---
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE) (`Apache-2.0`), an Open Source Initiative (OSI)-approved open-source license.

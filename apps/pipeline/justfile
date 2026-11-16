@@ -5,10 +5,11 @@ set positional-arguments
 default:
     @just --list
 
-# Create virtual environment with uv and install dependencies
+# Create virtual environment with uv, install dependencies, and install DuckDB extensions
 setup-env:
     uv venv
     uv pip install -r requirements.txt
+    duckdb -dark-mode -c "INSTALL postgres; INSTALL spatial;"
 
 # Refresh metadata
 sync-meta:
@@ -91,7 +92,7 @@ db-schema:
 
 # Ingest Star Schema Parquet datasets into PostGIS via DuckDB
 db-load:
-    duckdb -dark-mode -cmd "LOAD postgres; LOAD spatial; ATTACH '$DATABASE_URL' AS pg (TYPE POSTGRES);" -f sql/load_star_schema.sql
+    duckdb -dark-mode -cmd "INSTALL postgres; INSTALL spatial; LOAD postgres; LOAD spatial; ATTACH '$DATABASE_URL' AS pg (TYPE POSTGRES);" -f sql/load_star_schema.sql
 
 # Group hotspots into spatio-temporal Fire Events using pure DuckDB SQL and bulk-load into PostGIS
 cluster-events:
@@ -101,7 +102,7 @@ cluster-events:
         duckdb -dark-mode -f "$f" || exit 1; \
     done
     rm -rf data/temp/clusters
-    duckdb -dark-mode -cmd "LOAD postgres; LOAD spatial; ATTACH '$DATABASE_URL' AS pg (TYPE POSTGRES);" -f sql/load_clusters.sql
+    duckdb -dark-mode -cmd "INSTALL postgres; INSTALL spatial; LOAD postgres; LOAD spatial; ATTACH '$DATABASE_URL' AS pg (TYPE POSTGRES);" -f sql/load_clusters.sql
 
 # Full reset and reload of dev database
 db-reset-load: db-schema db-load

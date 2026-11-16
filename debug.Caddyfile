@@ -21,7 +21,7 @@
 }
 
 http://localhost, http://127.0.0.1, http:// {
-	import proxy_rules
+	redir https://{host}:8443{uri} 308
 }
 
 https://localhost, https://127.0.0.1, https:// {
