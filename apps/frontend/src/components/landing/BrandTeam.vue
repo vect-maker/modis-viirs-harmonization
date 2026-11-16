@@ -3,21 +3,24 @@ import { ArrowUpRight } from '@lucide/vue'
 
 const pillars = [
   {
-    title: 'Integración y continuidad',
-    text: 'Conectamos MODIS y VIIRS para que sus diferencias no corten el análisis.',
-  },
-  { title: 'Claridad', text: 'Convertimos datos complejos en mapas y calendarios fáciles de leer.' },
-  {
-    title: 'Accesibilidad',
-    text: 'Una experiencia gratuita y amigable, de aficionados a instituciones.',
+    title: 'Integration & continuity',
+    text: 'We bridge MODIS and VIIRS so sensor differences do not break long-term analysis.',
   },
   {
-    title: 'Rigor y transparencia',
-    text: 'Validamos los métodos y decimos de dónde vienen los datos y qué sigue en validación.',
+    title: 'Clarity',
+    text: 'We turn complex satellite archives into readable maps and calendars.',
   },
   {
-    title: 'Utilidad para decidir',
-    text: 'Ayudamos a reconocer patrones, anomalías y temporadas críticas.',
+    title: 'Accessibility',
+    text: 'A free, approachable experience for everyone from curious learners to institutions.',
+  },
+  {
+    title: 'Rigor & transparency',
+    text: 'We validate our methods and clearly document data provenance and ongoing work.',
+  },
+  {
+    title: 'Actionable insight',
+    text: 'We help decision-makers recognize patterns, anomalies, and critical fire seasons.',
   },
 ]
 
@@ -35,35 +38,35 @@ const team = [
   <section id="equipo" class="landing-section landing-team" aria-labelledby="team-title">
     <div class="landing-wrap landing-team-grid">
       <div class="landing-team-challenge">
-        <h2 id="team-title">Un reto de la NASA,<br />trabajado desde Managua.</h2>
+        <h2 id="team-title">A NASA challenge,<br />built from Managua.</h2>
         <p>
-          PyroTrace nace del reto <strong>MODIS and VIIRS hot spots</strong> de NASA Space Apps
-          2026: unir dos generaciones de sensores para que la actividad de fuego se pueda comparar
-          a lo largo del tiempo, y ponerla al alcance de cualquier persona.
+          PyroTrace was created for the <strong>MODIS and VIIRS hot spots</strong> challenge at NASA
+          Space Apps 2026: bridging two generations of sensors so fire activity can be compared
+          consistently over time and explored by anyone.
         </p>
         <a
           href="https://www.spaceappschallenge.org/2026/challenges/modis-and-viirs-hot-spots/?tab=details"
           target="_blank"
           rel="noopener noreferrer"
           class="landing-text-link"
-          >Leer el reto <ArrowUpRight :size="17" aria-hidden="true"
+          >Read the challenge <ArrowUpRight :size="17" aria-hidden="true"
         /></a>
         <a
           href="https://www.spaceappschallenge.org/2026/find-a-team/sdlg/?tab=members"
           target="_blank"
           rel="noopener noreferrer"
           class="landing-text-link"
-          >Ver el equipo en Space Apps <ArrowUpRight :size="17" aria-hidden="true"
+          >View team on Space Apps <ArrowUpRight :size="17" aria-hidden="true"
         /></a>
       </div>
       <div class="landing-team-people">
-        <h3>El equipo</h3>
+        <h3>The Team</h3>
         <ul>
           <li v-for="name in team" :key="name">{{ name }}</li>
         </ul>
       </div>
       <div class="landing-pillars">
-        <h3>Lo que nos guía</h3>
+        <h3>What guides us</h3>
         <dl>
           <div v-for="pillar in pillars" :key="pillar.title">
             <dt>{{ pillar.title }}</dt>
@@ -71,8 +74,8 @@ const team = [
           </div>
         </dl>
         <p class="landing-pillars-partners">
-          Trabajamos con datos abiertos de NASA FIRMS y buscamos aliados: universidades,
-          autoridades ambientales, organizaciones de conservación y socios tecnológicos.
+          We build on open NASA FIRMS data and welcome collaborators across universities,
+          environmental agencies, conservation groups, and technology partners.
         </p>
       </div>
     </div>

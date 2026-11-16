@@ -3,24 +3,24 @@ import { ArrowDown, Layers3, ScanLine } from '@lucide/vue'
 
 const steps = [
   {
-    title: 'Emparejar',
-    text: 'Buscamos detecciones MODIS y VIIRS del mismo fuego: a menos de 2.2 km y con menos de una hora de diferencia.',
+    title: 'Match',
+    text: 'We pair MODIS and VIIRS detections of the same fire: within 2.2 km and less than one hour apart.',
   },
   {
-    title: 'Dar un peso a cada punto',
-    text: 'Cada detección VIIRS se reparte entre los satélites VIIRS activos ese año. Una detección MODIS que VIIRS también vio vale 0, porque ya está contada. Una que VIIRS no vio vale un factor según la hora de paso, calculado para cada país con las coincidencias desde 2012.',
+    title: 'Weight each detection',
+    text: 'Each VIIRS detection is split across the active VIIRS satellites that year. A MODIS detection also seen by VIIRS gets weight 0 to avoid double-counting. A MODIS-only detection receives a time-of-day factor calibrated per country from post-2012 overlaps.',
   },
   {
-    title: 'Sumar',
-    text: 'El índice armonizado es la suma de los pesos, en detecciones equivalentes VIIRS. Así un año de 2005 se puede comparar con uno de 2024.',
+    title: 'Sum',
+    text: 'The harmonized index is the sum of these weights in VIIRS-equivalent detections, making a year like 2005 directly comparable to 2024.',
   },
 ]
 
 const example = [
-  { sensor: 'viirs', label: 'Fuego visto por Suomi-NPP', weight: '0.5' },
-  { sensor: 'viirs', label: 'El mismo fuego visto por NOAA-20', weight: '0.5' },
-  { sensor: 'modis', label: 'El mismo fuego visto por Aqua (MODIS)', weight: '0' },
-  { sensor: 'modis', label: 'Otro fuego, de tarde, solo en MODIS', weight: '6.12' },
+  { sensor: 'viirs', label: 'Fire seen by Suomi-NPP', weight: '0.5' },
+  { sensor: 'viirs', label: 'Same fire seen by NOAA-20', weight: '0.5' },
+  { sensor: 'modis', label: 'Same fire seen by Aqua (MODIS)', weight: '0' },
+  { sensor: 'modis', label: 'Another afternoon fire, MODIS only', weight: '6.12' },
 ]
 </script>
 
@@ -32,10 +32,10 @@ const example = [
   >
     <div class="landing-wrap">
       <div class="landing-section-heading">
-        <h2 id="continuity-title">Dos sensores,<br />una sola serie.</h2>
+        <h2 id="continuity-title">Two sensors,<br />one continuous record.</h2>
         <p>
-          VIIRS detecta muchos fuegos pequeños que MODIS no ve. Si se suman sin más, los años
-          desde 2012 parecen tener mucho más fuego. Armonizar corrige esa diferencia.
+          VIIRS detects many smaller fires that MODIS misses. Adding raw counts directly makes
+          years since 2012 look artificially higher. Harmonization bridges that gap.
         </p>
       </div>
       <div class="landing-sensor-story">
@@ -44,18 +44,18 @@ const example = [
             <span class="landing-sensor-symbol"><Layers3 :size="26" aria-hidden="true" /></span>
             <div>
               <h3>MODIS</h3>
-              <span class="landing-sensor-since">Terra y Aqua, desde 2000</span>
+              <span class="landing-sensor-since">Terra &amp; Aqua, since 2000</span>
             </div>
-            <span class="landing-resolution">píxel de ~1 km</span>
+            <span class="landing-resolution">~1 km pixel</span>
           </div>
           <div
             class="landing-resolution-grid landing-grid-coarse"
             role="img"
-            aria-label="Esquema de una cuadrícula MODIS de aproximadamente un kilómetro"
+            aria-label="Diagram of an approximate 1 km MODIS pixel grid"
           >
             <i v-for="n in 24" :key="n" :class="{ active: [8, 9, 14, 15].includes(n) }" />
           </div>
-          <p>El registro largo: más de dos décadas para ver cómo cambia la actividad de fuego.</p>
+          <p>The long historical record: over two decades to track how fire regimes evolve.</p>
         </article>
         <div class="landing-sensor-join" aria-hidden="true"><span>+</span></div>
         <article class="landing-sensor-column">
@@ -65,14 +65,14 @@ const example = [
             /></span>
             <div>
               <h3>VIIRS</h3>
-              <span class="landing-sensor-since">Suomi-NPP y NOAA-20, desde 2012</span>
+              <span class="landing-sensor-since">Suomi-NPP &amp; NOAA-20, since 2012</span>
             </div>
-            <span class="landing-resolution">píxel de 375 m</span>
+            <span class="landing-resolution">375 m pixel</span>
           </div>
           <div
             class="landing-resolution-grid landing-grid-fine"
             role="img"
-            aria-label="Esquema de una cuadrícula VIIRS de 375 metros, con mayor detalle espacial"
+            aria-label="Diagram of a finer 375 m VIIRS pixel grid"
           >
             <i
               v-for="n in 160"
@@ -84,13 +84,13 @@ const example = [
               }"
             />
           </div>
-          <p>Más detalle y más sensibilidad, por eso cuenta más puntos para el mismo fuego.</p>
+          <p>Higher spatial detail and sensitivity, producing more detections for the same fire.</p>
         </article>
       </div>
 
       <div class="landing-method" aria-labelledby="method-title">
         <div class="landing-method-steps">
-          <h3 id="method-title">Cómo armonizamos</h3>
+          <h3 id="method-title">How we harmonize</h3>
           <ol>
             <li v-for="step in steps" :key="step.title">
               <strong>{{ step.title }}</strong>
@@ -99,15 +99,15 @@ const example = [
           </ol>
         </div>
         <figure class="landing-method-example">
-          <figcaption>Ejemplo de una pasada</figcaption>
+          <figcaption>Sample overpass</figcaption>
           <table>
             <caption class="landing-sr-only">
-              Peso de cada detección en el ejemplo
+              Weight assigned to each detection in the example
             </caption>
             <thead>
               <tr>
-                <th scope="col">Detección</th>
-                <th scope="col">Peso</th>
+                <th scope="col">Detection</th>
+                <th scope="col">Weight</th>
               </tr>
             </thead>
             <tbody>
@@ -121,25 +121,24 @@ const example = [
             </tbody>
             <tfoot>
               <tr>
-                <th scope="row">Índice armonizado</th>
+                <th scope="row">Harmonized index</th>
                 <td>7.12</td>
               </tr>
             </tfoot>
           </table>
           <p>
-            6.12 es el factor de referencia para la tarde; cada país usa el suyo cuando tiene
-            suficientes coincidencias. El método sigue en validación.
+            6.12 is the afternoon reference factor; each country uses its own calibrated factor when
+            enough overlaps exist. Methodology remains under active validation.
           </p>
         </figure>
       </div>
 
       <div class="landing-harmonization-line">
         <p>
-          <strong>El explorador muestra las dos cosas:</strong> el conteo crudo de detecciones y
-          el índice armonizado.
+          <strong>The explorer shows both:</strong> raw detection counts and the harmonized index.
         </p>
         <a href="#datos" class="landing-text-link"
-          >Ver los datos <ArrowDown :size="17" aria-hidden="true"
+          >View the data <ArrowDown :size="17" aria-hidden="true"
         /></a>
       </div>
     </div>

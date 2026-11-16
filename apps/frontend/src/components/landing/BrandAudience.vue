@@ -4,21 +4,21 @@ import { Compass, Microscope, Trees } from '@lucide/vue'
 const audiences = [
   {
     icon: Compass,
-    title: 'La curiosidad es suficiente.',
-    audience: 'Aficionados y estudiantes',
-    body: 'Acércate a la observación satelital y explora la actividad de fuego sin conocimientos geoespaciales avanzados. Las explicaciones te acompañan en cada paso.',
+    title: 'Curiosity is enough.',
+    audience: 'Enthusiasts & students',
+    body: 'Get started with satellite Earth observation and explore fire activity without advanced GIS training. Clear explanations guide you at every step.',
   },
   {
     icon: Microscope,
-    title: 'Más espacio para investigar.',
-    audience: 'Investigación y docencia',
-    body: 'Estudiantes, docentes e investigadores: consulta el histórico, revisa las fuentes y descarga los datos en CSV para tus clases, análisis y proyectos.',
+    title: 'More room to investigate.',
+    audience: 'Research & education',
+    body: 'Students, educators, and researchers: explore the historical record, inspect data sources, and export filtered CSV datasets for classes and studies.',
   },
   {
     icon: Trees,
-    title: 'El territorio, con contexto.',
-    audience: 'Gestión ambiental y prevención',
-    body: 'Analistas ambientales, áreas protegidas, bomberos y equipos de prevención: identifica patrones, anomalías y temporadas críticas para planificar.',
+    title: 'Territory, with context.',
+    audience: 'Environmental & fire management',
+    body: 'Environmental analysts, protected-area teams, firefighters, and emergency planners: spot patterns, anomalies, and critical seasons to guide preparedness.',
   },
 ]
 </script>
@@ -31,10 +31,10 @@ const audiences = [
   >
     <div class="landing-wrap">
       <div class="landing-section-heading">
-        <h2 id="community-title">La ciencia empieza<br /><span>con tu curiosidad.</span></h2>
+        <h2 id="community-title">Science begins<br /><span>with curiosity.</span></h2>
         <p>
-          Hay muchas formas de mirar un territorio. PyroTrace acerca la observación satelital a
-          quienes quieren aprender, investigar y planificar.
+          There are many ways to look at a landscape. PyroTrace brings satellite observation closer
+          to everyone who wants to learn, investigate, and plan.
         </p>
       </div>
       <div class="landing-audiences">
@@ -49,22 +49,21 @@ const audiences = [
       </div>
       <div class="landing-purpose">
         <div>
-          <h3>Misión</h3>
+          <h3>Mission</h3>
           <p>
-            Facilitar el acceso gratuito y la comprensión de datos satelitales sobre la actividad de
-            fuego, integrando y armonizando registros MODIS y VIIRS mediante mapas y calendarios
-            intuitivos que ayuden a aficionados, estudiantes, investigadores y responsables
-            ambientales a identificar patrones, anomalías y periodos críticos para apoyar la
-            planificación preventiva.
+            Provide free access to and clear understanding of satellite fire-activity data by
+            integrating and harmonizing MODIS and VIIRS records through intuitive maps and calendars
+            that help enthusiasts, students, researchers, and environmental managers identify
+            patterns, anomalies, and critical periods for preventive planning.
           </p>
         </div>
         <div>
-          <h3>Visión</h3>
+          <h3>Vision</h3>
           <p>
-            Ser una plataforma de referencia que conecte datos satelitales de distintas generaciones
-            y los transforme en información clara, comparable y accesible, permitiendo a personas y
-            organizaciones comprender la actividad de fuego y fortalecer la investigación, la
-            planificación preventiva y la gestión del territorio.
+            Become a reference platform that bridges multi-generation satellite records and turns
+            them into clear, comparable, and accessible intelligence—empowering people and
+            organizations to understand fire activity and strengthen research, preparedness, and
+            land management.
           </p>
         </div>
       </div>

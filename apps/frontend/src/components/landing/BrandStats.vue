@@ -4,7 +4,7 @@ import { ArrowUpRight } from '@lucide/vue'
 import { useTemporalChartsApi } from '@/api'
 import type { AnnualMetric, AnnualRow } from '@/components/common/AnnualActivityChart.vue'
 
-// ECharts solo se descarga cuando esta sección se monta, no con el resto de la landing.
+// ECharts is only downloaded when this section mounts, keeping initial landing bundle light.
 const AnnualActivityChart = defineAsyncComponent(
   () => import('@/components/common/AnnualActivityChart.vue'),
 )
@@ -19,8 +19,7 @@ async function load() {
   state.value = 'loading'
   try {
     const res = await getAnnualStats({ include_distributions: false })
-    // Solo años completos del archivo armonizado: sin el año parcial inicial ni datos casi en
-    // tiempo real, que todavía no están armonizados.
+    // Complete archive years only (excludes initial partial year and provisional NRT feed).
     rows.value = res.rows.filter((row) => row.complete && row.provisional_months === 0)
     state.value = rows.value.length > 0 ? 'ready' : 'error'
   } catch {
@@ -30,9 +29,9 @@ async function load() {
 
 onMounted(load)
 
-const ratioFormat = new Intl.NumberFormat('es-NI', { maximumFractionDigits: 1 })
+const ratioFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
-/** Cuánto crece la serie al entrar VIIRS (2011 contra 2013), cruda y armonizada. */
+/** How much the series jumps when VIIRS enters (2011 vs 2013), raw and harmonized. */
 const jump = computed(() => {
   const before = rows.value.find((row) => row.year === 2011)
   const after = rows.value.find((row) => row.year === 2013)
@@ -48,8 +47,8 @@ const jump = computed(() => {
 const description = computed(() => {
   const first = rows.value[0]?.year
   const last = rows.value.at(-1)?.year
-  const what = metric.value === 'raw' ? 'detecciones crudas por sensor' : 'índice armonizado'
-  return `Gráfico de barras: ${what} por año en Centroamérica, de ${first} a ${last}.`
+  const what = metric.value === 'raw' ? 'raw detections by sensor' : 'harmonized index'
+  return `Bar chart: ${what} per year in Central America, from ${first} to ${last}.`
 })
 </script>
 
@@ -61,69 +60,68 @@ const description = computed(() => {
   >
     <div class="landing-wrap">
       <div class="landing-section-heading">
-        <h2 id="stats-title">Lo que cambia<br />al armonizar.</h2>
+        <h2 id="stats-title">What changes<br />when you harmonize.</h2>
         <p v-if="jump">
-          Entre 2011 y 2013 las detecciones crudas se multiplican por {{ jump.raw }}, sobre todo
-          porque VIIRS empezó a observar. Con el índice armonizado el salto es de
-          {{ jump.harmonized }}.
+          Between 2011 and 2013 raw detections jump by {{ jump.raw }}×, mostly because VIIRS began
+          observing. With the harmonized index, the shift is {{ jump.harmonized }}×.
         </p>
         <p v-else>
-          Sin armonizar, los años con VIIRS parecen tener mucho más fuego. El índice armonizado
-          permite comparar toda la serie.
+          Without harmonization, years with VIIRS appear to have far more fire. The harmonized index
+          makes the entire record comparable.
         </p>
       </div>
 
       <div class="landing-stats-frame">
         <div class="landing-stats-head">
           <div>
-            <h3>Actividad por año</h3>
-            <span class="landing-calendar-scope">Centroamérica, años completos del archivo</span>
+            <h3>Annual activity</h3>
+            <span class="landing-calendar-scope">Central America, complete archive years</span>
           </div>
-          <div class="landing-sensor-switch" role="group" aria-label="Métrica del gráfico">
+          <div class="landing-sensor-switch" role="group" aria-label="Chart metric">
             <button type="button" :aria-pressed="metric === 'raw'" @click="metric = 'raw'">
-              Detecciones crudas
+              Raw detections
             </button>
             <button
               type="button"
               :aria-pressed="metric === 'harmonized'"
               @click="metric = 'harmonized'"
             >
-              Índice armonizado
+              Harmonized index
             </button>
           </div>
         </div>
 
         <p v-if="state === 'loading'" class="landing-calendar-state" role="status">
-          Cargando las estadísticas anuales…
+          Loading annual statistics…
         </p>
         <div v-else-if="state === 'error'" class="landing-calendar-state" role="alert">
-          <p>No pudimos cargar las estadísticas. Inténtalo de nuevo o abre el explorador.</p>
-          <button type="button" class="landing-text-link" @click="load">Reintentar</button>
+          <p>Could not load statistics. Try again or open the explorer.</p>
+          <button type="button" class="landing-text-link" @click="load">Retry</button>
         </div>
         <AnnualActivityChart
           v-else
           :rows="rows"
           :metric="metric"
           :description="description"
-          lang="es"
+          lang="en"
         />
 
         <p v-if="state === 'ready'" class="landing-stats-note">
           {{
             metric === 'raw'
-              ? 'Gris: MODIS. Naranja: VIIRS. La línea punteada es la mediana de los años.'
-              : 'Detecciones equivalentes VIIRS. La línea punteada es la mediana de los años.'
+              ? 'Gray: MODIS. Orange: VIIRS. The dashed line is the multi-year median.'
+              : 'VIIRS-equivalent detections. The dashed line is the multi-year median.'
           }}
         </p>
       </div>
 
       <div class="landing-harmonization-line">
         <p>
-          <strong>En el explorador hay más:</strong> compara cada mes con su rango histórico,
-          filtra por país o dibuja tu propia área en el mapa.
+          <strong>More in the explorer:</strong> compare each month against its historical range,
+          filter by country, or draw your own area on the map.
         </p>
         <RouterLink :to="{ name: 'dashboard' }" class="landing-text-link"
-          >Abrir estadísticas <ArrowUpRight :size="17" aria-hidden="true"
+          >Open statistics <ArrowUpRight :size="17" aria-hidden="true"
         /></RouterLink>
       </div>
     </div>

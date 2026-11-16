@@ -82,7 +82,7 @@ const activeCountryId = shallowRef<string>(DEFAULT_COUNTRY.id)
 const usedGps = shallowRef(false)
 const sensor = shallowRef<CalendarSensor>('ALL')
 const sensors: { value: CalendarSensor; label: string }[] = [
-  { value: 'ALL', label: 'Ambos sensores' },
+  { value: 'ALL', label: 'Both sensors' },
   { value: 'MODIS', label: 'MODIS' },
   { value: 'VIIRS', label: 'VIIRS' },
 ]
@@ -103,8 +103,8 @@ const mapContainer = useTemplateRef<HTMLDivElement>('mapContainer')
 const mapInstance = shallowRef<maplibregl.Map | null>(null)
 const mapReady = shallowRef(false)
 
-const numberFmt = new Intl.NumberFormat('es-NI')
-const decimalFmt = new Intl.NumberFormat('es-NI', { maximumFractionDigits: 1 })
+const numberFmt = new Intl.NumberFormat('en-US')
+const decimalFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
 function hotspotSensor(h: HotspotResponse): 'MODIS' | 'VIIRS' {
   const inst = (platformInstruments.value.get(h.platform_id) ?? '').toUpperCase()
@@ -407,9 +407,9 @@ onUnmounted(() => {
   <div class="landing-map-frame">
     <div class="landing-map-toolbar">
       <div class="landing-map-title">
-        <img src="/favicon.svg" alt="" width="27" height="27" /><span>Explorador de actividad</span>
+        <img src="/favicon.svg" alt="" width="27" height="27" /><span>Activity Explorer</span>
       </div>
-      <RouterLink :to="{ name: 'dashboard' }" class="landing-icon-link" aria-label="Abrir el mapa completo"
+      <RouterLink :to="{ name: 'dashboard' }" class="landing-icon-link" aria-label="Open full map"
         ><ArrowUpRight :size="19" aria-hidden="true"
       /></RouterLink>
     </div>
@@ -419,30 +419,30 @@ onUnmounted(() => {
         {{ activeCountry.displayName }}{{ usedGps ? ' (GPS)' : '' }}
       </span>
       <span><CalendarDays :size="14" aria-hidden="true" /> {{ windowLabel }}</span>
-      <span class="landing-preview-label">EN VIVO</span>
+      <span class="landing-preview-label">LIVE</span>
     </div>
     <div class="landing-map-canvas">
       <div
         ref="mapContainer"
         class="h-full w-full"
         role="img"
-        :aria-label="`Mapa satelital fijo de ${activeCountry.displayName} con resumen de detecciones MODIS y VIIRS`"
+        :aria-label="`Fixed satellite map of ${activeCountry.displayName} showing MODIS and VIIRS fire detections`"
       />
       <div
         class="landing-map-readout z-10 rounded-lg border border-white/10 bg-[#0b1215]/75 px-3 py-2 backdrop-blur-sm"
         role="status"
         aria-live="polite"
       >
-        <span class="landing-map-readout-label">DETECCIONES EN {{ activeYear }}</span>
+        <span class="landing-map-readout-label">DETECTIONS IN {{ activeYear }}</span>
         <strong>{{ summaryTotal !== null ? numberFmt.format(summaryTotal) : '—' }}</strong>
         <span>
           <i class="landing-status-dot" />
           {{ sensor === 'ALL' ? 'MODIS + VIIRS' : sensor }}
           <template v-if="summaryFrpAvg !== null">
-            · {{ decimalFmt.format(summaryFrpAvg) }} MW prom.
+            · {{ decimalFmt.format(summaryFrpAvg) }} MW avg
           </template>
           <template v-if="summaryDayPct !== null">
-            · {{ summaryDayPct }}% día
+            · {{ summaryDayPct }}% day
           </template>
         </span>
       </div>
@@ -455,7 +455,7 @@ onUnmounted(() => {
         >
       </div>
     </div>
-    <div class="landing-sensor-switch" role="group" aria-label="Sensor de la vista previa">
+    <div class="landing-sensor-switch" role="group" aria-label="Preview sensor filter">
       <button
         v-for="option in sensors"
         :key="option.value"
@@ -467,8 +467,8 @@ onUnmounted(() => {
       </button>
     </div>
     <div class="landing-map-source">
-      <span>NASA FIRMS · últimos 30 días en mapa</span>
-      <span>{{ isLoading ? 'Cargando…' : `${visibleHotspots.length} puntos recientes` }}</span>
+      <span>NASA FIRMS · last 30 days on map</span>
+      <span>{{ isLoading ? 'Loading…' : `${visibleHotspots.length} recent detections` }}</span>
     </div>
   </div>
 </template>

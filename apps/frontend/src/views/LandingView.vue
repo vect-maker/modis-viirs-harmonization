@@ -12,8 +12,8 @@ import '@/assets/landing.css'
 </script>
 
 <template>
-  <div class="pyro-landing" lang="es">
-    <a class="landing-skip" href="#contenido">Saltar al contenido</a>
+  <div class="pyro-landing" lang="en">
+    <a class="landing-skip" href="#contenido">Skip to content</a>
     <BrandHeader />
     <main id="contenido" tabindex="-1">
       <BrandHero />

@@ -20,27 +20,26 @@ onMounted(() => {
 const year = shallowRef(2024)
 const month = shallowRef(5)
 const sensor = shallowRef<CalendarSensor>('ALL')
-const format = new Intl.NumberFormat('es-NI')
-const labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+const format = new Intl.NumberFormat('en-US')
+const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const fullLabels = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ]
 const firstYear = computed(() =>
   archive.value.firstDetection ? Number(archive.value.firstDetection.slice(0, 4)) : 2020,
 )
-// Último año con los 12 meses en el archivo: deja fuera el año en curso, que llega
-// incompleto y desde el feed casi en tiempo real.
+// Latest complete 12-month archive year, excluding partial/NRT current-year data.
 const lastYear = computed(() => {
   const monthsPerYear = new Map<number, number>()
   for (const item of archive.value.months) {
@@ -107,33 +106,33 @@ const peakMonth = computed(() =>
   <section id="datos" class="landing-section landing-data-section" aria-labelledby="calendar-title">
     <div class="landing-wrap">
       <div class="landing-section-heading">
-        <h2 id="calendar-title">El calendario<br />del fuego.</h2>
+        <h2 id="calendar-title">The burning<br />activity calendar.</h2>
         <p>
-          ¿Qué meses concentran más detecciones? Recorre el archivo desde 2000, cambia el mes y el
-          sensor, y encuentra tus propias preguntas.
+          Which months see the highest fire activity? Browse the archive since 2000, switch months
+          and sensors, and explore the patterns yourself.
         </p>
       </div>
       <div class="landing-calendar-layout">
         <div class="landing-calendar-frame">
           <div class="landing-calendar-frame-head">
             <div>
-              <h3>Actividad por mes</h3>
-              <span class="landing-calendar-scope">Centroamérica, los 7 países</span>
+              <h3>Monthly activity</h3>
+              <span class="landing-calendar-scope">Central America, all 7 countries</span>
             </div>
             <span class="landing-source-chip">NASA FIRMS</span>
           </div>
           <p v-if="isLoading && !isReady" class="landing-calendar-state" role="status">
-            Cargando el archivo de detecciones…
+            Loading detection archive…
           </p>
           <div v-else-if="!isReady" class="landing-calendar-state" role="alert">
-            <p>No pudimos cargar el calendario. Revisa la conexión e inténtalo de nuevo.</p>
+            <p>Could not load the calendar. Check your connection and try again.</p>
             <button
               v-if="error"
               type="button"
               class="landing-text-link"
               @click="calendarStore.fetchHistoricalCalendar()"
             >
-              Reintentar
+              Retry
             </button>
           </div>
           <div v-else class="landing-calendar-matrix">
@@ -145,23 +144,23 @@ const peakMonth = computed(() =>
             />
           </div>
           <div v-if="isReady" class="landing-calendar-legend">
-            <span>Menos detecciones</span>
+            <span>Fewer detections</span>
             <div aria-hidden="true">
               <i v-for="color in palette" :key="color" :style="{ backgroundColor: color }" />
             </div>
-            <span>Más detecciones</span>
+            <span>More detections</span>
           </div>
           <div v-if="isReady" class="landing-calendar-controls">
             <div class="landing-year-picker">
               <button
                 type="button"
                 :disabled="year <= firstYear"
-                aria-label="Año anterior"
+                aria-label="Previous year"
                 @click="year--"
               >
                 <ChevronLeft :size="18" aria-hidden="true" /></button
               ><label
-                ><span class="landing-sr-only">Año a consultar</span
+                ><span class="landing-sr-only">Year to inspect</span
                 ><select v-model="year">
                   <option v-for="option in years" :key="option" :value="option">
                     {{ option }}
@@ -170,16 +169,16 @@ const peakMonth = computed(() =>
               ><button
                 type="button"
                 :disabled="year >= lastYear"
-                aria-label="Año siguiente"
+                aria-label="Next year"
                 @click="year++"
               >
                 <ChevronRight :size="18" aria-hidden="true" />
               </button>
             </div>
             <label class="landing-calendar-sensor"
-              ><span class="landing-sr-only">Sensor del calendario</span
+              ><span class="landing-sr-only">Calendar sensor filter</span
               ><select v-model="sensor">
-                <option value="ALL">Ambos sensores</option>
+                <option value="ALL">Both sensors</option>
                 <option value="MODIS">MODIS</option>
                 <option value="VIIRS">VIIRS</option>
               </select></label
@@ -188,13 +187,15 @@ const peakMonth = computed(() =>
           <div
             v-if="isReady"
             class="landing-month-picker"
-            role="group" :aria-label="`Mes de ${year} a consultar`">
+            role="group"
+            :aria-label="`Month in ${year} to inspect`"
+          >
             <button
               v-for="cell in yearCells"
               :key="cell.month"
               type="button"
               :aria-pressed="month === cell.month"
-              :aria-label="`${fullLabels[cell.month - 1]} de ${year}: ${cell.count === null ? 'sin datos disponibles' : format.format(cell.count) + ' detecciones'}`"
+              :aria-label="`${fullLabels[cell.month - 1]} ${year}: ${cell.count === null ? 'no data available' : format.format(cell.count) + ' detections'}`"
               @click="month = cell.month"
             >
               {{ cell.label }}
@@ -205,32 +206,35 @@ const peakMonth = computed(() =>
           <div
             v-if="isReady"
             class="landing-calendar-result"
-            role="status" aria-live="polite" aria-atomic="true">
-            <p class="landing-result-period">{{ fullLabels[month - 1] }} de {{ year }}</p>
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <p class="landing-result-period">{{ fullLabels[month - 1] }} {{ year }}</p>
             <strong>{{ selectedCount === null ? '—' : format.format(selectedCount) }}</strong>
             <p>
               {{
                 selectedCount === null
-                  ? 'Sin datos disponibles para este sensor y periodo.'
-                  : 'detecciones satelitales registradas'
+                  ? 'No data available for this sensor and period.'
+                  : 'satellite detections recorded'
               }}
             </p>
           </div>
           <div v-if="isReady" class="landing-peak-note">
-            <span>Mes con más detecciones en {{ year }}</span
+            <span>Peak month in {{ year }}</span
             ><strong>{{
-              (peakMonth.count ?? 0) > 0 ? fullLabels[peakMonth.month - 1] : 'Sin datos'
+              (peakMonth.count ?? 0) > 0 ? fullLabels[peakMonth.month - 1] : 'No data'
             }}</strong>
           </div>
           <div class="landing-science-note">
             <Info :size="18" aria-hidden="true" />
             <p>
-              Conteos crudos de detecciones, sin armonizar. Una detección es un píxel con calor
-              anómalo, no un incendio individual.
+              Raw, unharmonized detection counts. A detection is a satellite thermal-anomaly pixel,
+              not an individual fire.
             </p>
           </div>
           <RouterLink :to="{ name: 'dashboard' }" class="landing-text-link"
-            >Consultar el explorador <ArrowUpRight :size="17" aria-hidden="true"
+            >Open the Explorer <ArrowUpRight :size="17" aria-hidden="true"
           /></RouterLink>
         </div>
       </div>

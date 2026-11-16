@@ -3,32 +3,32 @@ import { Plus } from '@lucide/vue'
 
 const questions = [
   {
-    title: '¿Qué puedo consultar en el explorador?',
-    text: 'Las detecciones de los siete países de Centroamérica desde noviembre de 2000, en un mapa con filtros por fecha, sensor y área dibujada. El panel de estadísticas compara cada mes con su rango histórico y muestra la actividad por año, en conteo crudo o armonizado.',
+    title: 'What can I explore in the dashboard?',
+    text: 'Fire detections across all seven Central American countries since November 2000, on an interactive map with filters by date, sensor, and drawn area. The statistics panel compares each month against its historical range and shows annual activity as raw counts or harmonized index.',
   },
   {
-    title: '¿Qué significa armonizar MODIS y VIIRS?',
-    text: 'Llevar las detecciones de los dos sensores a una misma unidad, detecciones equivalentes VIIRS, para que un año de 2005 se pueda comparar con uno de 2024. El método está explicado más arriba y sigue en validación.',
+    title: 'What does harmonizing MODIS and VIIRS mean?',
+    text: 'Converting detections from both sensors onto a common scale—VIIRS-equivalent detections—so a year like 2005 can be compared fairly against 2024. The method is outlined above and remains under active validation.',
   },
   {
-    title: '¿Por qué los datos de 2026 se ven distintos?',
-    text: 'Desde 2026 los datos llegan casi en tiempo real y todavía no pasan por la armonización. Por eso el explorador los marca aparte y no los usa en las comparaciones con años anteriores.',
+    title: 'Why do 2026 records look different?',
+    text: 'Near-real-time detections from 2026 have not yet passed through the historical harmonization pipeline. The explorer marks them separately as provisional and excludes them from multi-year baseline comparisons.',
   },
   {
-    title: '¿Una detección es un incendio?',
-    text: 'No. Es un píxel donde el satélite midió calor anómalo. Un incendio grande puede dejar muchas detecciones y uno pequeño puede no aparecer.',
+    title: 'Is every detection a separate fire?',
+    text: 'No. Each detection is a satellite pixel showing anomalous thermal radiation. One large wildfire can produce many detections, while small or cloud-obscured fires may not be captured.',
   },
   {
-    title: '¿Necesito conocimientos técnicos?',
-    text: 'Puedes empezar con curiosidad: selecciona un periodo, observa los patrones y consulta las explicaciones. La plataforma está pensada tanto para aficionados y estudiantes como para investigadores y responsables ambientales.',
+    title: 'Do I need technical expertise?',
+    text: 'Not at all. Start with curiosity: pick a period, inspect the patterns, and read the in-app guides. PyroTrace is built for students and enthusiasts as well as researchers and emergency planners.',
   },
   {
-    title: '¿La plataforma es gratuita?',
-    text: 'Sí. Puedes explorar sin crear una cuenta y descargar en CSV las detecciones que filtres. Usamos datos abiertos de NASA FIRMS y explicamos de dónde vienen y hasta dónde llegan.',
+    title: 'Is the platform free?',
+    text: 'Yes. You can explore without an account and export filtered detections to CSV. We use open NASA FIRMS data and document data provenance and limitations clearly.',
   },
   {
-    title: '¿Cómo se sostiene PyroTrace?',
-    text: 'El acceso seguirá siendo gratuito. Buscamos sostenerlo con donaciones voluntarias, fondos de innovación e investigación ambiental, patrocinios tecnológicos y convenios con universidades y organizaciones.',
+    title: 'How is PyroTrace sustained?',
+    text: 'Core access remains free. Long-term sustainability relies on community donations, environmental research and innovation grants, technology sponsorships, and partnerships with universities and agencies.',
   },
 ]
 </script>
@@ -41,9 +41,10 @@ const questions = [
   >
     <div class="landing-wrap landing-questions-grid">
       <div class="landing-questions-intro">
-        <h2 id="questions-title">Las preguntas<br /><span>también importan.</span></h2>
+        <h2 id="questions-title">Questions<br /><span>matter too.</span></h2>
         <p>
-          La claridad empieza por explicar qué hacemos, qué muestran los datos y hasta dónde llegan.
+          Clarity starts with explaining how the data works, what it shows, and where its limits
+          are.
         </p>
       </div>
       <div class="landing-faq-list">
