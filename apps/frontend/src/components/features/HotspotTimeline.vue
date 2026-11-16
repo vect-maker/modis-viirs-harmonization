@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue'
+import { computed } from 'vue'
 import { parseDate } from '@internationalized/date'
 import { storeToRefs } from 'pinia'
 import { FilterX } from '@lucide/vue'
@@ -8,15 +8,8 @@ import BaseTimelinePanel from '@/components/ui/BaseTimelinePanel.vue'
 import BaseHelpGuidePopover from '@/components/ui/BaseHelpGuidePopover.vue'
 import DashboardGuideDiagram from '@/components/common/DashboardGuideDiagram.vue'
 import DailyActivityChart from '@/components/common/DailyActivityChart.vue'
-import BaseActivityTabs from '@/components/ui/BaseActivityTabs.vue'
-import HistoricalCalendar from './HistoricalCalendar.vue'
-
-const emit = defineEmits<{
-  'compare-year': [year: number]
-}>()
 
 const open = defineModel<boolean>('open', { required: true })
-const view = shallowRef<'daily' | 'history'>('daily')
 const store = useHotspotsStore()
 const { dailyActivity, dateRange, fetchedDateRange, contextHotspots } = storeToRefs(store)
 const totalDetections = computed(() =>
@@ -45,68 +38,54 @@ function selectDay(date: string) {
 </script>
 
 <template>
-  <BaseTimelinePanel
-    v-model:open="open"
-    :summary="view === 'history' ? 'Historical archive' : summary"
-    :large="view === 'history'"
-  >
+  <BaseTimelinePanel v-model:open="open" :summary="summary">
     <template #tools><slot name="tools" /></template>
-    <BaseActivityTabs v-model="view">
-      <template #daily>
-        <div class="space-y-3 px-3 py-4 sm:px-5">
-          <div
-            class="flex flex-wrap items-center justify-between gap-2 pl-12 text-xs text-neutral-400"
+    <div class="space-y-3 px-3 py-4 sm:px-5">
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 pl-12 text-xs text-neutral-400"
+      >
+        <p v-if="periodLabel">{{ periodLabel }} · UTC</p>
+        <div class="ml-auto flex items-center gap-2">
+          <button
+            v-if="dateRange"
+            type="button"
+            class="inline-flex items-center gap-1 rounded text-xs hover:text-white focus-visible:outline-2 focus-visible:outline-red-400"
+            @click="store.setDateRange(null)"
           >
-            <p v-if="periodLabel">{{ periodLabel }} · UTC</p>
-            <div class="ml-auto flex items-center gap-2">
-              <button
-                v-if="dateRange"
-                type="button"
-                class="inline-flex items-center gap-1 rounded text-xs hover:text-white focus-visible:outline-2 focus-visible:outline-red-400"
-                @click="store.setDateRange(null)"
-              >
-                <FilterX aria-hidden="true" class="h-3.5 w-3.5" />Show All Dates
-              </button>
-              <BaseHelpGuidePopover
-                title="Activity Timeline & Archive"
-                summary="Inspect daily detection spikes or jump to any month since 2000."
-                :steps="[
-                  'Click any bar in the daily chart to filter the map to that UTC day.',
-                  'Switch to the Historical tab to browse 2000–2026 monthly counts.',
-                ]"
-                side="top"
-                align="end"
-                aria-label="How the activity timeline works"
-              >
-                <template #graphic>
-                  <DashboardGuideDiagram variant="timeline" />
-                </template>
-              </BaseHelpGuidePopover>
-            </div>
-          </div>
-          <DailyActivityChart
-            :days="dailyActivity"
-            :selected-range="dateRange"
-            @select="selectDay"
-          />
-          <p
-            v-if="!contextHotspots.length"
-            role="status"
-            class="text-center text-xs text-neutral-400"
+            <FilterX aria-hidden="true" class="h-3.5 w-3.5" />Show All Dates
+          </button>
+          <BaseHelpGuidePopover
+            title="Daily Activity Timeline"
+            summary="Inspect daily detection spikes for the active map region and sensor."
+            :steps="[
+              'Click any bar in the daily chart to filter the map to that UTC day.',
+              'Open Statistics to explore the 2001–2026 Historical Archive Heatmap and multi-year trends.',
+            ]"
+            side="top"
+            align="end"
+            aria-label="How the daily activity timeline works"
           >
-            No detections in the available records for this area and sensor.
-          </p>
-          <p class="pl-12 text-[11px] leading-relaxed text-neutral-400">
-            Counts reflect the available records. Daily coverage may be incomplete.
-          </p>
+            <template #graphic>
+              <DashboardGuideDiagram variant="timeline" />
+            </template>
+          </BaseHelpGuidePopover>
         </div>
-      </template>
-      <template #history>
-        <HistoricalCalendar
-          @load-month="view = 'daily'"
-          @compare-year="emit('compare-year', $event)"
-        />
-      </template>
-    </BaseActivityTabs>
+      </div>
+      <DailyActivityChart
+        :days="dailyActivity"
+        :selected-range="dateRange"
+        @select="selectDay"
+      />
+      <p
+        v-if="!contextHotspots.length"
+        role="status"
+        class="text-center text-xs text-neutral-400"
+      >
+        No detections in the available records for this area and sensor.
+      </p>
+      <p class="pl-12 text-[11px] leading-relaxed text-neutral-400">
+        Counts reflect the available records. Daily coverage may be incomplete.
+      </p>
+    </div>
   </BaseTimelinePanel>
 </template>

@@ -16,6 +16,7 @@ import DashboardGuideDiagram from '@/components/common/DashboardGuideDiagram.vue
 import AnnualActivityChart from '@/components/charts/temporal/AnnualActivityChart.vue'
 import AnnualDistributionsChart from '@/components/charts/temporal/AnnualDistributionsChart.vue'
 import FireCalendarStatsChart from '@/components/charts/temporal/FireCalendarStatsChart.vue'
+import HistoricalCalendar from '@/components/features/HistoricalCalendar.vue'
 import MonthlyComparisonChart from '@/components/charts/temporal/MonthlyComparisonChart.vue'
 import WeatherCorrelationChart from '@/components/charts/models/WeatherCorrelationChart.vue'
 
@@ -109,8 +110,14 @@ watch(
 const supportsAreaFilter = computed(() => true)
 
 const showMetricToggle = computed(
-  () => activeSection.value !== 'weather',
+  () => activeSection.value !== 'weather' && activeSection.value !== 'archive',
 )
+const showGlobalFilters = computed(() => activeSection.value !== 'archive')
+
+function onCompareYearFromArchive(year: number) {
+  chartFiltersStore.setSelectedYear(year)
+  activeSection.value = 'seasonal'
+}
 
 const metricHelp = computed(() =>
   metric.value === 'harmonized'
@@ -197,6 +204,7 @@ const triggerClass =
         <div class="min-h-0 flex-1 divide-y divide-border-subtle overflow-y-auto overscroll-contain">
           <div class="flex flex-wrap items-center gap-x-5 gap-y-3 px-5 py-4">
             <BaseSelect
+              v-if="showGlobalFilters"
               v-model="selectedYear"
               :options="YEAR_OPTIONS"
               label="Reference year"
@@ -208,7 +216,7 @@ const triggerClass =
               label="Metric"
             />
             <BaseToggleGroup
-              v-if="selectedPolygon && supportsAreaFilter"
+              v-if="showGlobalFilters && selectedPolygon && supportsAreaFilter"
               v-model="areaScope"
               :options="AREA_OPTIONS"
               label="Area"
@@ -225,6 +233,11 @@ const triggerClass =
 
           <MonthlyComparisonChart v-if="activeSection === 'seasonal'" />
           <AnnualActivityChart v-else-if="activeSection === 'annual'" />
+          <HistoricalCalendar
+            v-else-if="activeSection === 'archive'"
+            @load-month="open = false"
+            @compare-year="onCompareYearFromArchive"
+          />
           <FireCalendarStatsChart v-else-if="activeSection === 'fire-calendar'" />
           <AnnualDistributionsChart v-else-if="activeSection === 'intensity'" />
           <WeatherCorrelationChart v-else-if="activeSection === 'weather'" />

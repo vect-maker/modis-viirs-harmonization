@@ -2,6 +2,7 @@
 export type StatsSectionId =
   | 'seasonal'
   | 'annual'
+  | 'archive'
   | 'fire-calendar'
   | 'intensity'
   | 'weather'
@@ -30,6 +31,14 @@ export const STATS_SECTIONS: readonly StatsSectionItem[] = [
     endpoints: ['/charts/temporal/annual-stats'],
     description:
       'Compare annual fire activity from 2001 to present across harmonized MODIS-VIIRS index and raw detections.',
+  },
+  {
+    id: 'archive',
+    label: 'Historical Archive Calendar',
+    shortLabel: 'Archive Heatmap',
+    endpoints: ['/charts/temporal/historical-calendar'],
+    description:
+      'Browse 2001–2026 monthly archive counts by sensor and jump directly to a month on the map or compare a year.',
   },
   {
     id: 'fire-calendar',

@@ -70,11 +70,6 @@ watch(
   },
 )
 
-function onCompareYear(year: number) {
-  statsYear.value = year
-  statsOpen.value = true
-}
-
 const locationPermission = usePermission('geolocation')
 const {
   coords,
@@ -213,7 +208,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
               class="absolute bottom-3 left-3 right-3 z-20 md:bottom-5 md:left-5"
               :class="panelOpen ? 'md:right-[22.5rem]' : 'md:right-5'"
             >
-              <HotspotTimeline v-model:open="timelineOpen" @compare-year="onCompareYear">
+              <HotspotTimeline v-model:open="timelineOpen">
                 <template #tools>
                   <MapActionBar
                     :has-area="areaKm2 !== null"
