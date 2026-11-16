@@ -99,7 +99,8 @@ const dayPct = computed(() => {
 const summaryText = computed(() => {
   if (!result.value) return ''
   const r = result.value
-  return `In ${r.period.year}, ${r.total_hotspots.toLocaleString()} detections were recorded across the global archive (${dayPct.value}% daytime, ${r.high_confidence_count.toLocaleString()} high confidence) with an average radiative power of ${frpFmt.format(r.frp_average)} MW and peak of ${frpFmt.format(r.max_frp)} MW.`
+  const scopeLabel = activePolygon.value ? 'in the selected area' : 'across the regional archive'
+  return `In ${r.period.year}, ${r.total_hotspots.toLocaleString()} detections were recorded ${scopeLabel} (${dayPct.value}% daytime, ${r.high_confidence_count.toLocaleString()} high confidence) with an average radiative power of ${frpFmt.format(r.frp_average)} MW and peak of ${frpFmt.format(r.max_frp)} MW.`
 })
 
 const chartDescription = computed(

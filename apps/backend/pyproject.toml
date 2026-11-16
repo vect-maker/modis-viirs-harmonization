@@ -11,8 +11,6 @@ dependencies = [
     "numpy",
     "pytest",
     "python-dotenv",
-    "scikit-learn",
-    "scipy",
     "shapely>=2.0.0",
     "sqlmodel",
     "pyjwt[crypto]>=2.9.0",

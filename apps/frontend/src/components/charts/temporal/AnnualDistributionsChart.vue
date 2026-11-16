@@ -7,7 +7,6 @@ import { useChartLifecycle } from '@/composables/useChartLifecycle'
 import { useChartFiltersStore } from '@/stores/chartFilters'
 import BaseChartLoading from '@/components/ui/BaseChartLoading.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
-import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
 import AnnualDistributionsRenderer, {
   VARIABLE_META,
   type DistributionVariable,
@@ -17,23 +16,16 @@ const filtersStore = useChartFiltersStore()
 const { metric, activePolygon } = storeToRefs(filtersStore)
 const { getAnnualStats } = useTemporalChartsApi()
 
-const VARIABLE_OPTIONS = [
-  { value: 'frp', label: 'FRP (MW)' },
-  { value: 'confidence', label: 'Confidence' },
-  { value: 'bright_tir', label: 'TIR (K)' },
-  { value: 'bright_mir', label: 'MIR (K)' },
-] as const satisfies readonly { value: DistributionVariable; label: string }[]
-
 const WINDOW_OPTIONS = [
-  { value: '2021-2025', label: '2021 – 2025' },
-  { value: '2016-2020', label: '2016 – 2020' },
-  { value: '2012-2016', label: '2012 – 2016' },
-  { value: '2001-2005', label: '2001 – 2005' },
+  { value: '2001-2025', label: '2001 – 2025 (Full Archive)' },
+  { value: '2012-2025', label: '2012 – 2025 (MODIS + VIIRS Era)' },
+  { value: '2016-2025', label: '2016 – 2025 (Last 10 Years)' },
+  { value: '2021-2025', label: '2021 – 2025 (Last 5 Years)' },
   { value: '2021-2026', label: '2021 – 2026 (inc. NRT)' },
 ] as const
 
 const selectedVariable = shallowRef<DistributionVariable>('frp')
-const selectedWindow = shallowRef<string>('2021-2025')
+const selectedWindow = shallowRef<string>('2016-2025')
 
 const {
   data: result,
@@ -99,27 +91,21 @@ const chartDescription = computed(
       <div class="max-w-[62ch]">
         <div class="flex flex-wrap items-center gap-2">
           <h2 id="annual-distributions-title" class="text-base font-semibold text-ink-primary">
-            Annual thermal &amp; confidence distributions
+            Fire Radiative Power (FRP) intensity distribution
           </h2>
           <span
             class="rounded border border-border-subtle bg-surface-input px-2 py-0.5 text-[11px] text-ink-muted"
           >
-            Physical sensor values · high_value=90
+            {{ activePolygon ? 'Drawn area' : 'All regions' }} · Megawatts (MW)
           </span>
         </div>
         <p class="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
-          Exact SQL percentiles (<code class="font-mono text-xs text-ink-secondary">PERCENTILE_CONT</code>)
-          for Fire Radiative Power, confidence, and brightness temperatures (TIR/MIR). Respects the
-          exact drawn polygon in PostGIS.
+          Tracks yearly fire intensity across the region using median (P50), interquartile range
+          (P25–P75), and severe-fire 90th percentile (P90) radiative power in megawatts.
         </p>
       </div>
 
       <div class="flex flex-wrap items-center gap-2.5">
-        <BaseToggleGroup
-          v-model="selectedVariable"
-          :options="VARIABLE_OPTIONS"
-          label="Distribution variable"
-        />
         <BaseSelect
           v-model="selectedWindow"
           :options="WINDOW_OPTIONS"

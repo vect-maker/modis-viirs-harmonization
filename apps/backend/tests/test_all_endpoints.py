@@ -26,10 +26,7 @@ from api.clusters import get_cluster, get_clusters
 from api.countries import get_countries
 from api.dashboard import (
     get_annual_stats,
-    get_correlations,
     get_monthly_comparison,
-    get_spatial_anomalies,
-    get_spatial_density,
 )
 from api.environmental_records import get_environmental_records
 from api.fact_hotspots import get_fact_hotspots
@@ -491,58 +488,15 @@ def test_weather_and_fire_analysis_endpoints():
 def test_dashboard_and_fire_calendar_endpoints():
     session = _build_test_session()
 
-    corr_res = _run_coro(
-        get_correlations(
-            high_value=90,
-            start_date=datetime(2024, 1, 1, tzinfo=UTC),
-            end_date=datetime(2025, 12, 31, tzinfo=UTC),
-            session=session,
-        )
-    )
-    assert "data" in corr_res
-
     annual_res = _run_coro(
         get_annual_stats(high_value=85, start_year=2001, end_year=2025, session=session)
     )
     assert len(annual_res["data"]) == 2
 
-    density_res = _run_coro(
-        get_spatial_density(
-            cell_size_deg=0.1,
-            start_date=datetime(2024, 1, 1, tzinfo=UTC),
-            end_date=datetime(2025, 12, 31, tzinfo=UTC),
-            min_lat=None,
-            max_lat=None,
-            min_lon=None,
-            max_lon=None,
-            limit=5000,
-            session=session,
-        )
-    )
-    assert "data" in density_res
-
     monthly_cmp_res = _run_coro(
         get_monthly_comparison(year=2025, start_year=2024, end_year=2025, session=session)
     )
     assert monthly_cmp_res["year"] == 2025
-
-    anom_res = _run_coro(
-        get_spatial_anomalies(
-            n_estimators=50,
-            contamination=0.1,
-            random_state=42,
-            max_rows=500,
-            max_points_returned=100,
-            start_date=datetime(2024, 1, 1, tzinfo=UTC),
-            end_date=datetime(2025, 12, 31, tzinfo=UTC),
-            min_lat=None,
-            max_lat=None,
-            min_lon=None,
-            max_lon=None,
-            session=session,
-        )
-    )
-    assert "summary" in anom_res
 
     cal_res = _run_coro(
         get_fire_calendar(

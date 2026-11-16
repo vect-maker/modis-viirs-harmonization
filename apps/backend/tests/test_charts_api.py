@@ -18,9 +18,6 @@ EXPECTED_CHART_ROUTES = {
     ("GET", "/charts/temporal/fire-calendar"),
     ("GET", "/charts/temporal/annual-stats"),
     ("GET", "/charts/temporal/monthly-comparison"),
-    ("GET", "/charts/diagnostics/correlations"),
-    ("GET", "/charts/diagnostics/spatial-density"),
-    ("GET", "/charts/diagnostics/spatial-anomalies"),
     ("GET", "/charts/models/weather-correlation"),
 }
 
@@ -97,18 +94,8 @@ def test_charts_http_envelope_and_shared_filters():
         assert body["data"]["rows"][0]["year"] == 2024
         assert body["data"]["rows"][0]["harmonized_index"] == 2.0
 
-        corr = client.get(
-            "/charts/diagnostics/correlations?start_date=2024-01-01&end_date=2024-12-31"
-        )
-        assert corr.status_code == 200
-        corr_body = corr.json()
-        assert corr_body["chart"] == "diagnostics.correlations"
-        assert corr_body["meta"]["filters"]["start_date"] == "2024-01-01"
-        assert corr_body["meta"]["filters"]["end_date"] == "2024-12-31"
-        assert isinstance(corr_body["data"], list)
-
         bad_dates = client.get(
-            "/charts/diagnostics/correlations?start_date=2025-01-01&end_date=2024-01-01"
+            "/charts/temporal/fire-calendar?year=2024&start_date=2025-01-01&end_date=2024-01-01"
         )
         assert bad_dates.status_code == 400
     finally:

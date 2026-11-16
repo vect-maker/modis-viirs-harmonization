@@ -100,61 +100,6 @@ export const FireCalendarDataSchema = z.object({
   intervals: z.array(FireCalendarIntervalSchema),
 })
 
-export const CorrelationPairSchema = z.object({
-  x: z.string(),
-  y: z.string(),
-  n: z.number().int().nonnegative(),
-  pearson_r: z.number().nullable(),
-  r2: z.number().nullable(),
-  mean_x: z.number().nullable(),
-  std_x: z.number().nullable().optional(),
-  mean_y: z.number().nullable(),
-  std_y: z.number().nullable().optional(),
-})
-
-export const SpatialDensityDataSchema = z.object({
-  summary: z.object({
-    cell_size_deg: z.number(),
-    total_cells: z.number().int().nonnegative(),
-    total_cells_all: z.number().int().nonnegative().optional(),
-    total_hotspots: z.number().int().nonnegative(),
-    cell_count_stats: DescriptiveStatsSchema,
-  }),
-  cells: z.array(
-    z.object({
-      cell_lat: z.number(),
-      cell_lon: z.number(),
-      count: z.number().int().nonnegative(),
-      sum_frp: z.number(),
-      avg_frp: z.number().nullable(),
-      max_frp: z.number().nullable(),
-    }),
-  ),
-})
-
-export const SpatialAnomaliesDataSchema = z.object({
-  summary: z.object({
-    total_points: z.number().int().nonnegative(),
-    returned_points: z.number().int().nonnegative(),
-    anomaly_count: z.number().int().nonnegative(),
-    normal_count: z.number().int().nonnegative(),
-    anomaly_pct: z.number(),
-    score_stats: DescriptiveStatsSchema,
-  }),
-  points: z.array(
-    z.object({
-      id: z.string(),
-      latitude: z.number(),
-      longitude: z.number(),
-      frp: z.number().nullable(),
-      acq_datetime: z.string().nullable(),
-      score: z.number(),
-      anomaly: z.number(),
-      is_anomaly: z.boolean(),
-    }),
-  ),
-})
-
 export const WeatherCorrelationRecordSchema = z.object({
   date: z.string(),
   is_complete: z.boolean(),
@@ -179,7 +124,4 @@ export const WeatherCorrelationDataSchema = z.object({
 export const AnnualStatsEnvelopeSchema = ChartResponseSchema(AnnualStatsDataSchema)
 export const MonthlyComparisonEnvelopeSchema = ChartResponseSchema(MonthlyComparisonDataSchema)
 export const FireCalendarEnvelopeSchema = ChartResponseSchema(FireCalendarDataSchema)
-export const CorrelationsEnvelopeSchema = ChartResponseSchema(z.array(CorrelationPairSchema))
-export const SpatialDensityEnvelopeSchema = ChartResponseSchema(SpatialDensityDataSchema)
-export const SpatialAnomaliesEnvelopeSchema = ChartResponseSchema(SpatialAnomaliesDataSchema)
 export const WeatherCorrelationEnvelopeSchema = ChartResponseSchema(WeatherCorrelationDataSchema)

@@ -1,11 +1,9 @@
 <script lang="ts">
 export type StatsSectionId =
-  | 'all'
-  | 'overview'
-  | 'distributions'
+  | 'seasonal'
+  | 'annual'
   | 'fire-calendar'
-  | 'spatial'
-  | 'diagnostics'
+  | 'intensity'
   | 'weather'
 
 export interface StatsSectionItem {
@@ -18,53 +16,44 @@ export interface StatsSectionItem {
 
 export const STATS_SECTIONS: readonly StatsSectionItem[] = [
   {
-    id: 'all',
-    label: 'All Statistics & Endpoints',
-    shortLabel: 'All Charts (9)',
-    endpoints: ['/charts/temporal/*', '/charts/diagnostics/*', '/charts/models/weather-correlation', '/weather'],
-    description: 'All temporal, diagnostic, spatial, and NASA POWER weather charts.',
+    id: 'seasonal',
+    label: 'Seasonal Baseline Comparison',
+    shortLabel: 'Seasonal Baseline',
+    endpoints: ['/charts/temporal/monthly-comparison'],
+    description:
+      'Compare monthly burning activity in a selected year against the multi-year historical median and typical range.',
   },
   {
-    id: 'overview',
-    label: 'Monthly & Annual Overview',
-    shortLabel: 'Overview',
-    endpoints: ['/charts/temporal/monthly-comparison', '/charts/temporal/annual-stats'],
-    description: 'Monthly anomaly baseline and multi-year harmonized activity.',
-  },
-  {
-    id: 'distributions',
-    label: 'Annual Distributions',
-    shortLabel: 'Distributions',
-    endpoints: ['/charts/temporal/annual-stats?include_distributions=true'],
-    description: 'Yearly quartiles, median, P90, and IQR for FRP, confidence, and brightness.',
+    id: 'annual',
+    label: 'Multi-Year Burning Activity',
+    shortLabel: 'Multi-Year Activity',
+    endpoints: ['/charts/temporal/annual-stats'],
+    description:
+      'Compare annual fire activity from 2001 to present across harmonized MODIS-VIIRS index and raw detections.',
   },
   {
     id: 'fire-calendar',
-    label: 'Fire Calendar',
+    label: 'Burning Activity Calendar',
     shortLabel: 'Fire Calendar',
     endpoints: ['/charts/temporal/fire-calendar'],
-    description: 'Aggregated hotspots, radiative power (FRP), and day/night split by period.',
+    description:
+      'Inspect monthly, weekly, or daily burning activity, daytime vs. nighttime overpasses, and radiative power.',
   },
   {
-    id: 'spatial',
-    label: 'Spatial Density & Anomalies',
-    shortLabel: 'Spatial',
-    endpoints: ['/charts/diagnostics/spatial-density', '/charts/diagnostics/spatial-anomalies'],
-    description: 'SQL grid cell density and IsolationForest spatial outlier detection.',
-  },
-  {
-    id: 'diagnostics',
-    label: 'Correlations',
-    shortLabel: 'Correlations',
-    endpoints: ['/charts/diagnostics/correlations'],
-    description: 'Pearson r / R² matrix across thermal variables.',
+    id: 'intensity',
+    label: 'Fire Radiative Power (FRP) Intensity',
+    shortLabel: 'Fire Intensity (FRP)',
+    endpoints: ['/charts/temporal/annual-stats?include_distributions=true'],
+    description:
+      'Track annual fire intensity distributions (median, interquartile range, and 90th percentile FRP in megawatts).',
   },
   {
     id: 'weather',
-    label: 'Weather & Wind Alignment',
-    shortLabel: 'Weather',
+    label: 'Fire Weather & Wind Alignment',
+    shortLabel: 'Fire Weather',
     endpoints: ['/charts/models/weather-correlation', '/weather'],
-    description: 'NASA POWER daily meteorology and wind-to-fire vector alignment.',
+    description:
+      'Analyze NASA POWER daily temperature, relative humidity, precipitation, and wind-to-fire spread alignment.',
   },
 ] as const
 </script>

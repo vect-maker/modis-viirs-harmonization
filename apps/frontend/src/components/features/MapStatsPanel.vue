@@ -5,7 +5,6 @@ import { storeToRefs } from 'pinia'
 import { ChartColumn, ChevronDown } from '@lucide/vue'
 import { useChartFiltersStore, type ChartAreaScope, type ChartMetric } from '@/stores/chartFilters'
 import { useHotspotsStore } from '@/stores/hotspots'
-import BaseLazySection from '@/components/ui/BaseLazySection.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseStatsBreadcrumb, {
   STATS_SECTIONS,
@@ -18,9 +17,6 @@ import AnnualActivityChart from '@/components/charts/temporal/AnnualActivityChar
 import AnnualDistributionsChart from '@/components/charts/temporal/AnnualDistributionsChart.vue'
 import FireCalendarStatsChart from '@/components/charts/temporal/FireCalendarStatsChart.vue'
 import MonthlyComparisonChart from '@/components/charts/temporal/MonthlyComparisonChart.vue'
-import CorrelationsChart from '@/components/charts/diagnostics/CorrelationsChart.vue'
-import SpatialAnomaliesChart from '@/components/charts/diagnostics/SpatialAnomaliesChart.vue'
-import SpatialDensityChart from '@/components/charts/diagnostics/SpatialDensityChart.vue'
 import WeatherCorrelationChart from '@/components/charts/models/WeatherCorrelationChart.vue'
 
 defineProps<{
@@ -64,14 +60,10 @@ const AREA_OPTIONS = [
   { value: 'all', label: 'All regions' },
 ] as const satisfies readonly { value: AreaScope; label: string }[]
 
-const activeSection = shallowRef<StatsSectionId>('all')
+const activeSection = shallowRef<StatsSectionId>('seasonal')
 const activeSectionMeta = computed(
   () => STATS_SECTIONS.find((s) => s.id === activeSection.value) ?? STATS_SECTIONS[0]!,
 )
-
-function showSection(section: Exclude<StatsSectionId, 'all'>): boolean {
-  return activeSection.value === 'all' || activeSection.value === section
-}
 
 const { selectedPolygon, dateRange } = storeToRefs(useHotspotsStore())
 const chartFiltersStore = useChartFiltersStore()
@@ -182,11 +174,11 @@ const triggerClass =
           <ChartColumn aria-hidden="true" class="h-4 w-4 text-accent" />
           <span :id="titleId" class="flex-1 text-sm font-semibold">Statistics</span>
           <BaseHelpGuidePopover
-            title="Analytics & Forecasts"
-            summary="Explore multi-year trends, spatial anomalies, weather correlations, and forecasts."
+            title="Burning Activity Analytics"
+            summary="Explore seasonal baselines, multi-year trends, burning calendars, fire intensity, and fire weather."
             :steps="[
-              'Use the section tabs below to switch between Overview, Spatial, Weather, and Forecast.',
-              'Change Reference year or Metric (Detections vs. FRP) to compare periods.',
+              'Use the section tabs below to switch between Seasonal Baseline, Multi-Year Activity, Fire Calendar, Fire Intensity (FRP), and Fire Weather.',
+              'Change Reference year or Metric (Detections vs. Harmonized index) to compare periods.',
             ]"
             side="bottom"
             align="end"
@@ -231,47 +223,11 @@ const triggerClass =
             </p>
           </div>
 
-          <template v-if="showSection('overview')">
-            <MonthlyComparisonChart />
-            <AnnualActivityChart />
-          </template>
-
-          <BaseLazySection
-            v-if="showSection('distributions')"
-            :eager="activeSection === 'distributions'"
-          >
-            <AnnualDistributionsChart />
-          </BaseLazySection>
-
-          <BaseLazySection
-            v-if="showSection('fire-calendar')"
-            :eager="activeSection === 'fire-calendar'"
-          >
-            <FireCalendarStatsChart />
-          </BaseLazySection>
-
-          <template v-if="showSection('spatial')">
-            <BaseLazySection :eager="activeSection === 'spatial'">
-              <SpatialDensityChart />
-            </BaseLazySection>
-            <BaseLazySection :eager="activeSection === 'spatial'">
-              <SpatialAnomaliesChart />
-            </BaseLazySection>
-          </template>
-
-          <BaseLazySection
-            v-if="showSection('diagnostics')"
-            :eager="activeSection === 'diagnostics'"
-          >
-            <CorrelationsChart />
-          </BaseLazySection>
-
-          <BaseLazySection
-            v-if="showSection('weather')"
-            :eager="activeSection === 'weather'"
-          >
-            <WeatherCorrelationChart />
-          </BaseLazySection>
+          <MonthlyComparisonChart v-if="activeSection === 'seasonal'" />
+          <AnnualActivityChart v-else-if="activeSection === 'annual'" />
+          <FireCalendarStatsChart v-else-if="activeSection === 'fire-calendar'" />
+          <AnnualDistributionsChart v-else-if="activeSection === 'intensity'" />
+          <WeatherCorrelationChart v-else-if="activeSection === 'weather'" />
         </div>
       </section>
     </Transition>

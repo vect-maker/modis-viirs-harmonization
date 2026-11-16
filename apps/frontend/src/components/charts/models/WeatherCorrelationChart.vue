@@ -7,6 +7,7 @@ import { useModelChartsApi } from '@/api'
 import { useApiFetch } from '@/api/useApiFetch'
 import { useChartLifecycle } from '@/composables/useChartLifecycle'
 import { useChartFiltersStore } from '@/stores/chartFilters'
+import { useHotspotsStore } from '@/stores/hotspots'
 import BaseChartLoading from '@/components/ui/BaseChartLoading.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseToggleGroup from '@/components/ui/BaseToggleGroup.vue'
@@ -17,7 +18,40 @@ import WeatherCorrelationRenderer, {
 
 const filtersStore = useChartFiltersStore()
 const { activePolygon, selectedYear, activeClusterContext } = storeToRefs(filtersStore)
+const { dateRange } = storeToRefs(useHotspotsStore())
 const { getWeatherCorrelation } = useModelChartsApi()
+
+const MS_PER_DAY = 86_400_000
+
+function resolveWeatherWindow(
+  year: number,
+  range: { start: string; end: string } | null,
+): { startDate: string; endDate: string } {
+  if (range && Number(range.end.slice(0, 4)) === year) {
+    const startMs = Date.parse(`${range.start}T00:00:00Z`)
+    const endMs = Date.parse(`${range.end}T00:00:00Z`)
+    if (!Number.isNaN(startMs) && !Number.isNaN(endMs)) {
+      const yearStartMs = Date.UTC(year, 0, 1)
+      const clampedStart =
+        endMs > startMs
+          ? Math.max(yearStartMs, startMs)
+          : Math.max(yearStartMs, endMs - 14 * MS_PER_DAY)
+      const clampedEnd =
+        endMs > startMs ? Math.min(endMs, clampedStart + 14 * MS_PER_DAY) : endMs
+      const startIso = new Date(clampedStart).toISOString().slice(0, 10)
+      const endIso = new Date(clampedEnd).toISOString().slice(0, 10)
+      return {
+        startDate: `${startIso}T00:00:00`,
+        endDate: `${endIso}T23:59:59`,
+      }
+    }
+  }
+  const mo = year === 2026 ? '05' : '04'
+  return {
+    startDate: `${year}-${mo}-01T00:00:00`,
+    endDate: `${year}-${mo}-15T23:59:59`,
+  }
+}
 
 const RawWeatherResponseSchema = z.object({
   data: z.array(
@@ -80,10 +114,7 @@ const activeTarget = computed(() => {
       clusterId: clusterCtx.fireId,
     }
   }
-  const yr = selectedYear.value
-  const mo = yr === 2026 ? '05' : '04'
-  const startDate = `${yr}-${mo}-01T00:00:00`
-  const endDate = `${yr}-${mo}-15T23:59:59`
+  const { startDate, endDate } = resolveWeatherWindow(selectedYear.value, dateRange.value)
 
   if (activePolygon.value) {
     const ring = activePolygon.value.coordinates[0]
@@ -151,7 +182,15 @@ const {
     }
     return { correlation, weatherRows }
   },
-  watchSources: [presetLocation, fireDirection, sourceMode, selectedYear, activePolygon, activeClusterContext],
+  watchSources: [
+    presetLocation,
+    fireDirection,
+    sourceMode,
+    selectedYear,
+    dateRange,
+    activePolygon,
+    activeClusterContext,
+  ],
 })
 
 const correlationResult = computed(() => bundle.value?.correlation ?? null)
@@ -198,10 +237,9 @@ const summaryText = computed(() => {
           </span>
         </div>
         <p class="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
-          Queries NASA POWER (<code class="font-mono text-xs">/weather</code> &amp;
-          <code class="font-mono text-xs">/charts/models/weather-correlation</code>) for 10 m wind
-          vectors, 2 m temperature, relative humidity, and precipitation, measuring cosine
-          alignment (<code class="font-mono text-xs">cos Δθ</code>) with fire spread direction.
+          Combines NASA POWER daily 10 m wind vectors, 2 m temperature, relative humidity, and
+          precipitation to measure cosine alignment (<code class="font-mono text-xs">cos Δθ</code>)
+          with active fire spread.
         </p>
       </div>
 

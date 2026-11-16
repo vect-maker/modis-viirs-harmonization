@@ -31,7 +31,7 @@ def _clear_global_chart_cache():
 
 def test_resolve_chart_bucket_and_key_canonicalization():
     assert resolve_chart_bucket("/charts/temporal/daily-activity") == "temporal"
-    assert resolve_chart_bucket("/api/charts/diagnostics/correlations") == "diagnostics"
+    assert resolve_chart_bucket("/api/charts/diagnostics/correlations") is None
     assert resolve_chart_bucket("/charts/models/weather-correlation") == "models"
     assert resolve_chart_bucket("/hotspots") is None
 
@@ -106,8 +106,8 @@ def test_chart_cache_hit_miss_and_bypass_on_error():
 
         # Invalid date range (400) must bypass caching.
         invalid = client.get(
-            "/charts/diagnostics/correlations",
-            params={"start_date": "2024-05-01", "end_date": "2024-04-01"},
+            "/charts/temporal/fire-calendar",
+            params={"year": "2024", "start_date": "2024-05-01", "end_date": "2024-04-01"},
         )
         assert invalid.status_code == 400
         assert invalid.headers["x-cache"] == "BYPASS"
@@ -118,7 +118,7 @@ def test_chart_cache_hit_miss_and_bypass_on_error():
 def test_chart_cache_ttl_expiration():
     short_cache = ChartCacheService(
         max_capacity=16,
-        ttls={"temporal": 0.05, "diagnostics": 0.05, "models": 0.05},
+        ttls={"temporal": 0.05, "models": 0.05},
     )
     mini_app = FastAPI()
     mini_app.add_middleware(ChartCacheMiddleware, cache=short_cache)

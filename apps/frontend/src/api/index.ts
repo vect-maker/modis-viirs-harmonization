@@ -32,5 +32,4 @@ export * from "./modules/clusters/useClustersApi";
 export * from "./modules/charts/types.d";
 export * from "./modules/charts/requests";
 export * from "./modules/charts/useTemporalChartsApi";
-export * from "./modules/charts/useDiagnosticChartsApi";
 export * from "./modules/charts/useModelChartsApi";

@@ -28,31 +28,6 @@ export interface FireCalendarQuery extends ChartBaseFilterQuery {
   aggregation?: 'day' | 'week' | 'month'
 }
 
-export interface CorrelationsQuery extends ChartBaseFilterQuery {
-  high_value?: number
-}
-
-export interface SpatialDensityQuery extends ChartBaseFilterQuery {
-  cell_size_deg?: number | string
-  min_lat?: number
-  max_lat?: number
-  min_lon?: number
-  max_lon?: number
-  limit?: number
-}
-
-export interface SpatialAnomaliesQuery extends ChartBaseFilterQuery {
-  n_estimators?: number
-  contamination?: number | string
-  random_state?: number
-  max_rows?: number
-  max_points_returned?: number
-  min_lat?: number
-  max_lat?: number
-  min_lon?: number
-  max_lon?: number
-}
-
 export interface WeatherCorrelationQuery extends ChartBaseFilterQuery {
   latitude: number
   longitude: number

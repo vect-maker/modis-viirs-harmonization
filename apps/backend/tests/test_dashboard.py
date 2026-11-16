@@ -6,13 +6,9 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine
 
-from api.charts.diagnostics import (
-    get_correlations,
-    get_spatial_anomalies,
-    get_spatial_density,
-)
 from api.charts.temporal import get_annual_stats, get_monthly_comparison
 from model import Hotspots
+from repositories.DashboardRepository import DashboardRepository
 from schemas.charts import ChartFilterParams
 
 
@@ -61,26 +57,7 @@ def _seed_session() -> Session:
     return session
 
 
-def test_dashboard_correlations():
-    session = _seed_session()
-    corr_resp = _run_coro(
-        get_correlations(
-            filters=ChartFilterParams(),
-            high_value=90,
-            session=session,
-        )
-    )
-    assert corr_resp.chart == "diagnostics.correlations"
-    assert len(corr_resp.data) == 6
-    frp_tir = next(
-        p for p in corr_resp.data if p["x"] == "frp" and p["y"] == "bright_tir"
-    )
-    assert frp_tir["n"] > 0
-    assert frp_tir["pearson_r"] is not None
-    assert frp_tir["r2"] is not None
-
-
-def test_dashboard_annual_stats_and_spatial_density():
+def test_dashboard_annual_stats():
     session = _seed_session()
     annual_resp = _run_coro(
         get_annual_stats(
@@ -100,26 +77,8 @@ def test_dashboard_annual_stats_and_spatial_density():
     assert annual["rows"][0]["frp"]["iqr"] is not None
     assert annual["rows"][0]["frp"]["p90"] is not None
 
-    density_resp = _run_coro(
-        get_spatial_density(
-            filters=ChartFilterParams(),
-            cell_size_deg=0.1,
-            min_lat=None,
-            max_lat=None,
-            min_lon=None,
-            max_lon=None,
-            limit=5000,
-            session=session,
-        )
-    )
-    assert density_resp.chart == "diagnostics.spatial-density"
-    density = density_resp.data
-    assert density["summary"]["total_cells"] >= 1
-    assert density["summary"]["total_hotspots"] > 0
-    assert density["cells"][0]["count"] >= 1
 
-
-def test_dashboard_monthly_comparison_anomalies_and_forecast():
+def test_dashboard_monthly_comparison():
     session = _seed_session()
     comp_resp = _run_coro(
         get_monthly_comparison(
@@ -134,26 +93,6 @@ def test_dashboard_monthly_comparison_anomalies_and_forecast():
     assert comp["year"] == 2024
     assert len(comp["months"]) == 12
     assert comp["months"][0]["historic"]["mean"] is not None
-
-    anom_resp = _run_coro(
-        get_spatial_anomalies(
-            filters=ChartFilterParams(),
-            n_estimators=100,
-            contamination=None,
-            random_state=42,
-            max_rows=5000,
-            max_points_returned=500,
-            min_lat=None,
-            max_lat=None,
-            min_lon=None,
-            max_lon=None,
-            session=session,
-        )
-    )
-    anom = anom_resp.data
-    assert anom["summary"]["total_points"] > 0
-    assert anom["summary"]["anomaly_count"] >= 1
-    assert "score_stats" in anom["summary"]
 
 
 def _seed_comparison_session() -> Session:
@@ -362,24 +301,22 @@ def test_dashboard_polygon_harmonized_and_pre_limit_totals():
     polygon = (
         '{"type":"Polygon","coordinates":[[[-87,11],[-85,11],[-85,13],[-87,13],[-87,11]]]}'
     )
+    polygon_wkt = ChartFilterParams(polygon=polygon).polygon_wkt
+    repo = DashboardRepository(session)
 
-    density_raw = _run_coro(
-        get_spatial_density(
-            filters=ChartFilterParams(polygon=polygon, metric="raw"),
-            cell_size_deg=0.1,
-            limit=1,
-            session=session,
-        )
-    ).data
-    assert len(density_raw["cells"]) == 1
-    assert density_raw["summary"]["total_hotspots"] == 144
+    cells_raw, _, total_raw = repo.get_spatial_density_with_totals(
+        cell_size_deg=0.1,
+        limit=1,
+        polygon_wkt=polygon_wkt,
+        metric="raw",
+    )
+    assert len(cells_raw) == 1
+    assert total_raw == 144
 
-    density_harm = _run_coro(
-        get_spatial_density(
-            filters=ChartFilterParams(polygon=polygon, metric="harmonized"),
-            cell_size_deg=0.1,
-            limit=1,
-            session=session,
-        )
-    ).data
-    assert density_harm["summary"]["total_hotspots"] == 258
+    _, _, total_harm = repo.get_spatial_density_with_totals(
+        cell_size_deg=0.1,
+        limit=1,
+        polygon_wkt=polygon_wkt,
+        metric="harmonized",
+    )
+    assert total_harm == 258

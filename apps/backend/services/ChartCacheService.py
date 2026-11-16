@@ -8,12 +8,11 @@ from typing import Literal
 
 from moka_py import Moka
 
-ChartBucket = Literal["temporal", "diagnostics", "models"]
+ChartBucket = Literal["temporal", "models"]
 
 DEFAULT_MAX_CAPACITY = 512
 DEFAULT_TTLS: dict[ChartBucket, float] = {
     "temporal": 300.0,
-    "diagnostics": 900.0,
     "models": 900.0,
 }
 
@@ -48,7 +47,7 @@ def resolve_chart_bucket(path: str) -> ChartBucket | None:
         return None
     subpath = path[idx + len(marker) :]
     segment = subpath.split("/", 1)[0]
-    if segment in ("temporal", "diagnostics", "models"):
+    if segment in ("temporal", "models"):
         return segment
     return None
 
@@ -96,10 +95,6 @@ class ChartCacheService:
                 "CHART_CACHE_TEMPORAL_TTL_SECONDS", DEFAULT_TTLS["temporal"]
             )
             or DEFAULT_TTLS["temporal"],
-            "diagnostics": _env_optional_float(
-                "CHART_CACHE_DIAGNOSTICS_TTL_SECONDS", DEFAULT_TTLS["diagnostics"]
-            )
-            or DEFAULT_TTLS["diagnostics"],
             "models": _env_optional_float(
                 "CHART_CACHE_MODELS_TTL_SECONDS", DEFAULT_TTLS["models"]
             )
