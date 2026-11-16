@@ -20,7 +20,7 @@ export const STATS_SECTIONS: readonly StatsSectionItem[] = [
   {
     id: 'all',
     label: 'All Statistics & Endpoints',
-    shortLabel: 'All Charts (10)',
+    shortLabel: 'All Charts (9)',
     endpoints: ['/charts/temporal/*', '/charts/diagnostics/*', '/charts/models/weather-correlation', '/weather'],
     description: 'All temporal, diagnostic, spatial, and NASA POWER weather charts.',
   },
@@ -54,10 +54,10 @@ export const STATS_SECTIONS: readonly StatsSectionItem[] = [
   },
   {
     id: 'diagnostics',
-    label: 'Correlations & Confidence DBSCAN',
-    shortLabel: 'Correlations & DBSCAN',
-    endpoints: ['/charts/diagnostics/correlations', '/charts/diagnostics/confidence-dbscan'],
-    description: 'Pearson r / R² matrix across thermal variables and confidence value clustering.',
+    label: 'Correlations',
+    shortLabel: 'Correlations',
+    endpoints: ['/charts/diagnostics/correlations'],
+    description: 'Pearson r / R² matrix across thermal variables.',
   },
   {
     id: 'weather',
@@ -71,7 +71,6 @@ export const STATS_SECTIONS: readonly StatsSectionItem[] = [
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ChevronRight, Home } from '@lucide/vue'
 
 const props = defineProps<{
   sections?: readonly StatsSectionItem[]
@@ -80,51 +79,17 @@ const props = defineProps<{
 const model = defineModel<StatsSectionId>({ required: true })
 
 const items = computed(() => props.sections ?? STATS_SECTIONS)
-const activeSection = computed(
-  () => items.value.find((item) => item.id === model.value) ?? items.value[0]!,
-)
 </script>
 
 <template>
   <nav
-    aria-label="Statistics breadcrumb and sections"
+    aria-label="Statistics sections"
     class="border-b border-border-subtle bg-surface-base/40 px-5 py-3"
   >
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <ol class="flex flex-wrap items-center gap-1.5 text-xs">
-        <li>
-          <button
-            type="button"
-            class="inline-flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 font-medium text-ink-muted transition-colors hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-focus"
-            @click="model = 'all'"
-          >
-            <Home aria-hidden="true" class="h-3.5 w-3.5 text-accent" />
-            <span>Statistics</span>
-          </button>
-        </li>
-        <li aria-hidden="true" class="text-ink-muted/60">
-          <ChevronRight class="h-3.5 w-3.5" />
-        </li>
-        <li aria-current="page" class="font-semibold text-ink-primary">
-          {{ activeSection.label }}
-        </li>
-      </ol>
-
-      <div class="flex flex-wrap items-center gap-1.5">
-        <code
-          v-for="ep in activeSection.endpoints"
-          :key="ep"
-          class="rounded border border-border-subtle bg-surface-input px-2 py-0.5 font-mono text-[11px] text-ink-secondary"
-        >
-          {{ ep }}
-        </code>
-      </div>
-    </div>
-
     <div
       role="tablist"
       aria-label="Statistics categories"
-      class="mt-2.5 flex flex-wrap gap-1.5"
+      class="flex flex-wrap gap-1.5"
     >
       <button
         v-for="section in items"

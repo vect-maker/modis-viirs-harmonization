@@ -7,7 +7,6 @@ from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine
 
 from api.charts.diagnostics import (
-    get_confidence_dbscan,
     get_correlations,
     get_spatial_anomalies,
     get_spatial_density,
@@ -62,23 +61,8 @@ def _seed_session() -> Session:
     return session
 
 
-def test_dashboard_confidence_dbscan_and_correlations():
+def test_dashboard_correlations():
     session = _seed_session()
-    dbscan_resp = _run_coro(
-        get_confidence_dbscan(
-            filters=ChartFilterParams(),
-            eps=5.0,
-            min_samples=2,
-            high_value=90,
-            session=session,
-        )
-    )
-    assert dbscan_resp.chart == "diagnostics.confidence-dbscan"
-    dbscan_res = dbscan_resp.data
-    assert dbscan_res["summary"]["total_rows"] > 0
-    assert dbscan_res["summary"]["anomaly_rows"] >= 1
-    assert any(p["confidence"] == 5 and p["is_anomaly"] for p in dbscan_res["points"])
-
     corr_resp = _run_coro(
         get_correlations(
             filters=ChartFilterParams(),

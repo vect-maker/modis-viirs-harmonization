@@ -99,56 +99,6 @@ class DashboardRepository:
             params["max_lon"] = max_lon
         return conditions, params
 
-    def get_confidence_value_counts(
-        self,
-        high_value: int = 90,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-        country: str | None = None,
-        polygon_wkt: str | None = None,
-        metric: Literal["raw", "harmonized"] = "raw",
-    ) -> list[tuple[int, int]]:
-        conf_expr = self._confidence_sql(high_value)
-        conditions, params = self._build_filters(start_date=start_date, end_date=end_date)
-        area_conditions, area_params = self._area_conditions(country, polygon_wkt)
-        conditions.extend(area_conditions)
-        params.update(area_params)
-        conditions.append("(confidence IS NOT NULL OR confidence_class IS NOT NULL)")
-        if metric == "harmonized":
-            conditions.append("COALESCE(harmonized_weight, 1.0) > 0")
-        where_sql = " AND ".join(conditions)
-
-        cnt_expr = (
-            "GREATEST(1, CAST(ROUND(COALESCE(SUM(w), 0.0)) AS INTEGER))"
-            if metric == "harmonized" and self.dialect == "postgresql"
-            else (
-                "MAX(1, CAST(ROUND(COALESCE(SUM(w), 0.0)) AS INTEGER))"
-                if metric == "harmonized"
-                else "COUNT(*)"
-            )
-        )
-        weight_col = (
-            ", COALESCE(harmonized_weight, 1.0) AS w"
-            if metric == "harmonized"
-            else ""
-        )
-
-        query = text(
-            f"""
-            SELECT conf_val, {cnt_expr} AS cnt
-            FROM (
-                SELECT {conf_expr} AS conf_val{weight_col}
-                FROM hotspots
-                WHERE {where_sql}
-            ) sub
-            WHERE conf_val IS NOT NULL
-            GROUP BY conf_val
-            ORDER BY conf_val ASC
-            """
-        )
-        rows = self.session.execute(query, params).all()
-        return [(int(r[0]), int(r[1])) for r in rows]
-
     def get_correlations(
         self,
         high_value: int = 90,

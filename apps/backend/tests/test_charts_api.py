@@ -18,7 +18,6 @@ EXPECTED_CHART_ROUTES = {
     ("GET", "/charts/temporal/fire-calendar"),
     ("GET", "/charts/temporal/annual-stats"),
     ("GET", "/charts/temporal/monthly-comparison"),
-    ("GET", "/charts/diagnostics/confidence-dbscan"),
     ("GET", "/charts/diagnostics/correlations"),
     ("GET", "/charts/diagnostics/spatial-density"),
     ("GET", "/charts/diagnostics/spatial-anomalies"),

@@ -28,12 +28,6 @@ export interface FireCalendarQuery extends ChartBaseFilterQuery {
   aggregation?: 'day' | 'week' | 'month'
 }
 
-export interface ConfidenceDbscanQuery extends ChartBaseFilterQuery {
-  eps?: number | string
-  min_samples?: number
-  high_value?: number
-}
-
 export interface CorrelationsQuery extends ChartBaseFilterQuery {
   high_value?: number
 }

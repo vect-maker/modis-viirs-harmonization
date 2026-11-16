@@ -1,38 +1,22 @@
 import { useApiFetch } from '@/api/useApiFetch'
 import {
   buildChartQueryString,
-  type ConfidenceDbscanQuery,
   type CorrelationsQuery,
   type SpatialAnomaliesQuery,
   type SpatialDensityQuery,
 } from './requests'
 import {
-  ConfidenceDbscanEnvelopeSchema,
   CorrelationsEnvelopeSchema,
   SpatialAnomaliesEnvelopeSchema,
   SpatialDensityEnvelopeSchema,
 } from './responses'
 import type {
-  ConfidenceDbscanData,
   CorrelationPair,
   SpatialAnomaliesData,
   SpatialDensityData,
 } from './types'
 
 export function useDiagnosticChartsApi() {
-  async function getConfidenceDbscan(
-    params?: ConfidenceDbscanQuery,
-  ): Promise<ConfidenceDbscanData> {
-    const qs = buildChartQueryString({ ...params }, params?.polygon)
-    const { data, error } = await useApiFetch(`/charts/diagnostics/confidence-dbscan${qs}`)
-      .get()
-      .json()
-    if (error.value || !data.value) {
-      throw error.value ?? new Error('Failed to fetch confidence DBSCAN')
-    }
-    return ConfidenceDbscanEnvelopeSchema.parse(data.value).data
-  }
-
   async function getCorrelations(params?: CorrelationsQuery): Promise<CorrelationPair[]> {
     const qs = buildChartQueryString({ ...params }, params?.polygon)
     const { data, error } = await useApiFetch(`/charts/diagnostics/correlations${qs}`)
@@ -69,7 +53,6 @@ export function useDiagnosticChartsApi() {
   }
 
   return {
-    getConfidenceDbscan,
     getCorrelations,
     getSpatialDensity,
     getSpatialAnomalies,

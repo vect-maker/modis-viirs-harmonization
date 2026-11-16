@@ -6,7 +6,6 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 import numpy as np
-from sklearn.cluster import DBSCAN
 from sklearn.ensemble import IsolationForest
 from sklearn.linear_model import Ridge
 from sklearn.metrics import (
@@ -50,66 +49,6 @@ def compute_descriptive_stats(values: np.ndarray) -> dict[str, float | int | Non
         "p90": round(float(q90), 4),
         "iqr": round(float(q75 - q25), 4),
         "max": round(float(np.max(clean)), 4),
-    }
-
-
-def run_confidence_dbscan(
-    unique_counts: list[tuple[int, int]],
-    eps: float = 5.0,
-    min_samples: int = 2,
-) -> dict[str, Any]:
-    """
-    Aplica DBSCAN únicamente sobre los valores únicos de confianza ya agregados
-    en SQL `(confidence_value, row_count)`, evitando comparar millones de filas.
-    """
-    if not unique_counts:
-        return {
-            "summary": {
-                "total_rows": 0,
-                "unique_values": 0,
-                "clusters_count": 0,
-                "anomaly_rows": 0,
-                "anomaly_pct": 0.0,
-                "eps": eps,
-                "min_samples": min_samples,
-            },
-            "points": [],
-            "anomalies": [],
-        }
-
-    values = np.array([v for v, _ in unique_counts], dtype=np.float64).reshape(-1, 1)
-    counts = [int(c) for _, c in unique_counts]
-    labels = DBSCAN(eps=eps, min_samples=min_samples).fit_predict(values)
-
-    total_rows = sum(counts)
-    anomaly_rows = sum(c for c, lbl in zip(counts, labels) if int(lbl) == -1)
-    unique_clusters = sorted({int(lbl) for lbl in labels if int(lbl) != -1})
-
-    points = [
-        {
-            "confidence": int(val),
-            "count": cnt,
-            "cluster": int(lbl),
-            "is_anomaly": int(lbl) == -1,
-        }
-        for (val, cnt), lbl in zip(unique_counts, labels)
-    ]
-    anomalies = [p for p in points if p["is_anomaly"]]
-
-    return {
-        "summary": {
-            "total_rows": total_rows,
-            "unique_values": len(unique_counts),
-            "clusters_count": len(unique_clusters),
-            "anomaly_rows": anomaly_rows,
-            "anomaly_pct": round((anomaly_rows / total_rows) * 100.0, 4)
-            if total_rows > 0
-            else 0.0,
-            "eps": eps,
-            "min_samples": min_samples,
-        },
-        "points": points,
-        "anomalies": anomalies,
     }
 
 

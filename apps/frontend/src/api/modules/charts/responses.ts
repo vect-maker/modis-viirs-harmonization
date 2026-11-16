@@ -100,26 +100,6 @@ export const FireCalendarDataSchema = z.object({
   intervals: z.array(FireCalendarIntervalSchema),
 })
 
-export const ConfidenceDbscanDataSchema = z.object({
-  summary: z.object({
-    total_rows: z.number().int().nonnegative(),
-    unique_values: z.number().int().nonnegative(),
-    clusters_count: z.number().int().nonnegative(),
-    anomaly_values: z.number().int().nonnegative(),
-    anomaly_rows: z.number().int().nonnegative(),
-    anomaly_pct: z.number(),
-    confidence_stats: DescriptiveStatsSchema,
-  }),
-  points: z.array(
-    z.object({
-      confidence: z.number(),
-      count: z.number().int().nonnegative(),
-      cluster: z.number().int(),
-      is_anomaly: z.boolean(),
-    }),
-  ),
-})
-
 export const CorrelationPairSchema = z.object({
   x: z.string(),
   y: z.string(),
@@ -199,7 +179,6 @@ export const WeatherCorrelationDataSchema = z.object({
 export const AnnualStatsEnvelopeSchema = ChartResponseSchema(AnnualStatsDataSchema)
 export const MonthlyComparisonEnvelopeSchema = ChartResponseSchema(MonthlyComparisonDataSchema)
 export const FireCalendarEnvelopeSchema = ChartResponseSchema(FireCalendarDataSchema)
-export const ConfidenceDbscanEnvelopeSchema = ChartResponseSchema(ConfidenceDbscanDataSchema)
 export const CorrelationsEnvelopeSchema = ChartResponseSchema(z.array(CorrelationPairSchema))
 export const SpatialDensityEnvelopeSchema = ChartResponseSchema(SpatialDensityDataSchema)
 export const SpatialAnomaliesEnvelopeSchema = ChartResponseSchema(SpatialAnomaliesDataSchema)

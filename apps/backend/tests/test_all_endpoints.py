@@ -26,7 +26,6 @@ from api.clusters import get_cluster, get_clusters
 from api.countries import get_countries
 from api.dashboard import (
     get_annual_stats,
-    get_confidence_dbscan,
     get_correlations,
     get_monthly_comparison,
     get_spatial_anomalies,
@@ -492,19 +491,6 @@ def test_weather_and_fire_analysis_endpoints():
 def test_dashboard_and_fire_calendar_endpoints():
     session = _build_test_session()
 
-    dbscan_res = _run_coro(
-        get_confidence_dbscan(
-            eps=5.0,
-            min_samples=2,
-            high_value=90,
-            start_date=datetime(2024, 1, 1, tzinfo=UTC),
-            end_date=datetime(2025, 12, 31, tzinfo=UTC),
-            session=session,
-        )
-    )
-    assert "summary" in dbscan_res
-    assert "points" in dbscan_res
-
     corr_res = _run_coro(
         get_correlations(
             high_value=90,
@@ -730,19 +716,6 @@ def test_exception_handling_and_validation_errors():
     assert exc_sp_fact.value.status_code == 400
 
     # 400 on invalid date/year ranges in dashboard endpoints
-    with pytest.raises(HTTPException) as exc_db_dates:
-        _run_coro(
-            get_confidence_dbscan(
-                eps=5.0,
-                min_samples=2,
-                high_value=90,
-                start_date=datetime(2025, 5, 1, tzinfo=UTC),
-                end_date=datetime(2025, 1, 1, tzinfo=UTC),
-                session=session,
-            )
-        )
-    assert exc_db_dates.value.status_code == 400
-
     with pytest.raises(HTTPException) as exc_cmp_years:
         _run_coro(
             get_monthly_comparison(year=None, start_year=2026, end_year=2024, session=session)

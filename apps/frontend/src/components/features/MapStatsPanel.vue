@@ -18,7 +18,6 @@ import AnnualActivityChart from '@/components/charts/temporal/AnnualActivityChar
 import AnnualDistributionsChart from '@/components/charts/temporal/AnnualDistributionsChart.vue'
 import FireCalendarStatsChart from '@/components/charts/temporal/FireCalendarStatsChart.vue'
 import MonthlyComparisonChart from '@/components/charts/temporal/MonthlyComparisonChart.vue'
-import ConfidenceDbscanChart from '@/components/charts/diagnostics/ConfidenceDbscanChart.vue'
 import CorrelationsChart from '@/components/charts/diagnostics/CorrelationsChart.vue'
 import SpatialAnomaliesChart from '@/components/charts/diagnostics/SpatialAnomaliesChart.vue'
 import SpatialDensityChart from '@/components/charts/diagnostics/SpatialDensityChart.vue'
@@ -260,14 +259,12 @@ const triggerClass =
             </BaseLazySection>
           </template>
 
-          <template v-if="showSection('diagnostics')">
-            <BaseLazySection :eager="activeSection === 'diagnostics'">
-              <CorrelationsChart />
-            </BaseLazySection>
-            <BaseLazySection :eager="activeSection === 'diagnostics'">
-              <ConfidenceDbscanChart />
-            </BaseLazySection>
-          </template>
+          <BaseLazySection
+            v-if="showSection('diagnostics')"
+            :eager="activeSection === 'diagnostics'"
+          >
+            <CorrelationsChart />
+          </BaseLazySection>
 
           <BaseLazySection
             v-if="showSection('weather')"

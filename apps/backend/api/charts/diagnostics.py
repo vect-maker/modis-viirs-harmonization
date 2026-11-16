@@ -8,7 +8,6 @@ from sqlmodel import Session
 
 from analytics.DashboardAnalytics import (
     compute_descriptive_stats,
-    run_confidence_dbscan,
     run_spatial_isolation_forest,
 )
 from database.session import get_session
@@ -16,41 +15,6 @@ from repositories.DashboardRepository import DashboardRepository
 from schemas.charts import ChartFiltersDep, ChartResponse, build_chart_response
 
 router = APIRouter(prefix="/diagnostics", tags=["Charts - Diagnostics"])
-
-
-@router.get(
-    "/confidence-dbscan",
-    response_model=ChartResponse[dict[str, Any]],
-    summary="Detección de anomalías en confidence con DBSCAN sobre valores únicos SQL",
-)
-async def get_confidence_dbscan(
-    filters: ChartFiltersDep,
-    eps: Annotated[float, Query(gt=0.0)] = 5.0,
-    min_samples: Annotated[int, Query(ge=1)] = 2,
-    high_value: Annotated[int, Query(ge=1, le=100)] = 90,
-    session: Session = Depends(get_session),
-) -> ChartResponse[dict[str, Any]]:
-    start_dt, end_dt = filters.to_datetime_bounds()
-    repo = DashboardRepository(session)
-    unique_counts = repo.get_confidence_value_counts(
-        high_value=high_value,
-        start_date=start_dt,
-        end_date=end_dt,
-        country=filters.country,
-        polygon_wkt=filters.polygon_wkt,
-        metric=filters.metric,
-    )
-    payload = run_confidence_dbscan(unique_counts, eps=eps, min_samples=min_samples)
-    return build_chart_response(
-        "diagnostics.confidence-dbscan",
-        payload,
-        filters,
-        extra_filters={
-            "eps": eps,
-            "min_samples": min_samples,
-            "high_value": high_value,
-        },
-    )
 
 
 @router.get(
