@@ -30,19 +30,36 @@ const compactNumber = new Intl.NumberFormat('en-US', {
 
 const chartHeightPx = computed(() => Math.max(240, props.rows.length * 28 + 44))
 
+function isLightHex(hex: string): boolean {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return false
+  const int = parseInt(m[1]!, 16)
+  const r = (int >> 16) & 255
+  const g = (int >> 8) & 255
+  const b = int & 255
+  // Perceived luminance (WCAG relative brightness approximation)
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55
+}
+
 const chartOption = computed(() => {
   const years = props.rows.map((row) => String(row.year))
   const data = props.rows.flatMap((row, yearIdx) =>
     row.cells.map((cell, monthIdx) => {
       const selected =
         props.selectedPeriod?.year === cell.year && props.selectedPeriod?.month === cell.month
+      const bg = calendarColor(cell.count, props.maxCount)
+      const lightBg = isLightHex(bg)
       return {
         value: [monthIdx, yearIdx, cell.count ?? -1] as [number, number, number],
         year: cell.year,
         month: cell.month,
         count: cell.count,
+        label: {
+          color: lightBg ? '#0b0f14' : '#f8fafc',
+          fontWeight: lightBg ? 600 : 500,
+        },
         itemStyle: {
-          color: calendarColor(cell.count, props.maxCount),
+          color: bg,
           borderColor: selected ? '#ffffff' : '#0b0f14',
           borderWidth: selected ? 2 : 1.5,
           borderRadius: 4,

@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, shallowRef } from 'vue'
+import { computed, defineAsyncComponent, onMounted, shallowRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ArrowUpRight, ChevronLeft, ChevronRight, Info } from '@lucide/vue'
 import { useCalendarStore } from '@/stores/calendar'
-import type { CalendarSensor } from '@/types/calendar'
+import type { CalendarCell, CalendarSensor } from '@/types/calendar'
 import { calendarCount } from '@/utils/historicalCalendar'
+import { getThermalPalette } from '@/utils/themeColors'
+
+const BurningCalendar = defineAsyncComponent(
+  () => import('@/components/common/BurningCalendar.vue'),
+)
 
 const calendarStore = useCalendarStore()
 const { archive, isLoading, hasLoaded, error } = storeToRefs(calendarStore)
@@ -65,13 +70,22 @@ const maximum = computed(() =>
 const rows = computed(() =>
   recentYears.value.map((y) => ({
     year: y,
-    cells: labels.map((label, i) => ({
-      label,
-      month: i + 1,
-      count: calendarCount(index.value.get(`${y}-${i + 1}`), sensor.value),
-    })),
+    cells: labels.map((_, i): CalendarCell => {
+      const m = i + 1
+      const item = index.value.get(`${y}-${m}`)
+      return {
+        year: y,
+        month: m,
+        count: calendarCount(item, sensor.value),
+      }
+    }),
   })),
 )
+const palette = computed(() => getThermalPalette())
+function onSelectPeriod(selectedYear: number, selectedMonth: number) {
+  year.value = selectedYear
+  month.value = selectedMonth
+}
 const selected = computed(() => index.value.get(`${year.value}-${month.value}`))
 const selectedCount = computed(() => calendarCount(selected.value, sensor.value))
 const yearCells = computed(() =>
@@ -87,12 +101,6 @@ const peakMonth = computed(() =>
     yearCells.value[0]!,
   ),
 )
-function heat(count: number | null) {
-  if (count === null) return 'var(--landing-heat-empty)'
-  if (count === 0) return 'var(--landing-heat-0)'
-  const step = Math.min(5, Math.floor((Math.log1p(count) / Math.log1p(maximum.value)) * 6))
-  return `var(--landing-heat-${step})`
-}
 </script>
 
 <template>
@@ -128,42 +136,18 @@ function heat(count: number | null) {
               Reintentar
             </button>
           </div>
-          <div
-            v-else
-            class="landing-calendar-matrix"
-            role="img"
-            :aria-label="`Calendario de detecciones en Centroamérica entre ${recentYears[0]} y ${lastYear}. El tono indica la cantidad en escala logarítmica; consulta las cifras con los controles inferiores.`"
-          >
-            <div class="landing-matrix-row landing-matrix-labels">
-              <span>Año</span><span v-for="label in labels" :key="label">{{ label }}</span>
-            </div>
-            <div
-              v-for="row in rows"
-              :key="row.year"
-              class="landing-matrix-row"
-              :class="{ 'is-selected-year': year === row.year }"
-            >
-              <span class="landing-matrix-year">{{ row.year }}</span
-              ><span
-                v-for="cell in row.cells"
-                :key="cell.month"
-                class="landing-heat-cell"
-                :style="{ backgroundColor: heat(cell.count) }"
-                ><span class="landing-sr-only"
-                  >{{ cell.label }}:
-                  {{ cell.count === null ? 'sin datos' : format.format(cell.count) }}</span
-                ></span
-              >
-            </div>
+          <div v-else class="landing-calendar-matrix">
+            <BurningCalendar
+              :rows="rows"
+              :max-count="maximum"
+              :selected-period="{ year, month }"
+              @select="onSelectPeriod"
+            />
           </div>
           <div v-if="isReady" class="landing-calendar-legend">
             <span>Menos detecciones</span>
             <div aria-hidden="true">
-              <i
-                v-for="level in 6"
-                :key="level"
-                :style="{ backgroundColor: `var(--landing-heat-${level - 1})` }"
-              />
+              <i v-for="color in palette" :key="color" :style="{ backgroundColor: color }" />
             </div>
             <span>Más detecciones</span>
           </div>
