@@ -107,7 +107,7 @@ For the monthly comparison, the baseline of each calendar month is the distribut
 
 == Fire Events
 
-To simplify the map, detections are grouped into fire events. Detections in the same 0.02° cell belong to the same event as long as consecutive detections are no more than 24 hours apart. Each event stores its centroid, a footprint built from the convex hull of its detections with a 400 m buffer, its start and end time, its peak and total FRP, and the sum of its harmonized weights.
+To simplify the map and summarize multi-detection burns, the pipeline groups harmonized detections into spatiotemporal fire events using two DuckDB SQL stages (`01_assign_events.sql` and `02_build_clusters.sql`) executed via the DuckDB CLI. Detections falling in the same $0.02 degree$ (about 2.2 km) spatial cell belong to the same event as long as consecutive detections are no more than 24 hours ($86,400$ s) apart, avoiding artificial splits at UTC midnight. Using DuckDB Spatial, each event computes its centroid (`ST_Centroid`), a perimeter built from the convex hull of its detections (`ST_ConvexHull`) with a $0.0036 degree$ (about 400 m) buffer, total and per-instrument detection counts (MODIS and VIIRS), start and end timestamps, peak and total FRP, and the sum of its harmonized weights. The resulting event tables are bulk-loaded into PostGIS alongside the star schema.
 
 == Verification Approach
 

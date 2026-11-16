@@ -25,27 +25,29 @@ PyroTrace is a complete data product, from download to visualization. A batch pi
     arrow,
     node([PostGIS], [Detections, weights, fire events, and geometries]),
     arrow,
-    node([FastAPI], [About 40 REST endpoints and live alerts (SSE)]),
+    node([FastAPI], [About 50 REST endpoints and NRT alerts (SSE)]),
     arrow,
     node([Web app], [Landing page, map, calendar, statistics, CSV export], fill: rgb("#e6f1fb")),
   )),
   caption: [PyroTrace Architecture From Data Source to User],
 ) <fig-architecture>
-#note[A containerized worker queries the FIRMS Area API every five minutes and writes new detections to PostGIS; NATS JetStream stores its progress and distributes live notifications. All services run as Podman containers behind a Caddy reverse proxy on a Microsoft Azure virtual machine.]
+#note[A containerized worker queries the FIRMS Area API every five minutes and writes new detections to PostGIS; NATS JetStream stores its progress and distributes near-real-time notifications. All services run as Podman containers behind a Caddy reverse proxy on a Microsoft Azure virtual machine (`Standard_B2as_v2`, Ubuntu 24.04 LTS, `northcentralus`).]
 
 == Components
 
-*Data pipeline.* Python scripts download the FIRMS country archives as CSV files, track each country, year, and instrument in a SQLite catalog, and convert them to Parquet. All further processing is written in DuckDB SQL, which processes the multi-year archive on a single workstation without loading it into memory. The pipeline fuses MODIS and VIIRS into one table, runs the four harmonization stages described in Section 5, builds a star schema with deterministic identifiers, groups detections into fire events, and loads everything into PostgreSQL with PostGIS.
+*Data pipeline.* NASA FIRMS only consolidates detections into annual country archive CSVs roughly one year in the past, so data ingestion is split into two parts: historical archives and near-real-time Area API updates. For the historical record, Python scripts download the FIRMS country archives, track each country, year, and instrument in a SQLite catalog, and convert them to local Parquet files. All subsequent transformation and loading runs through the DuckDB CLI, which processes the multi-year archive on a single workstation without loading it into memory. The pipeline executes in a strict sequence: (1) fuse MODIS and VIIRS Parquet files into one unified dataset, (2) run the four-stage harmonization SQL (Section 5), (3) normalize the result into a star schema with deterministic identifiers, (4) bulk-load the star schema into PostgreSQL with PostGIS using DuckDB's `postgres` and `spatial` extensions, and (5) group detections into spatiotemporal fire events and load those clusters into PostGIS.
 
-*Near-real-time worker.* A separate service catches up from the end of the archive and then polls the FIRMS Area API for MODIS, Suomi-NPP, NOAA-20, and NOAA-21. It assigns each detection to a country by testing it against country polygons and inserts it without duplicates. These recent records are labeled as provisional because they have not yet passed through the harmonization pipeline.
+*Near-real-time worker.* Because satellite orbital overpasses and data processing introduce inherent latency, true real-time fire monitoring does not exist; PyroTrace therefore operates explicitly in near-real-time (NRT). A separate worker service bridges the gap after the archived years using two Area API fetching strategies: first, a quota-aware catch-up process backfills missing dates in 5-day chunks (selecting Standard Processing `*_SP` or Near-Real-Time `*_NRT` sources according to FIRMS availability); second, an NRT polling loop queries the Area API every five minutes for MODIS, Suomi-NPP, NOAA-20, and NOAA-21. It assigns each detection to a country by testing it against Natural Earth polygons, inserts it into PostGIS without duplicates, and emits notifications through NATS JetStream. These recent records are labeled as provisional until they pass through the batch harmonization pipeline.
 
-*API.* A FastAPI and SQLModel backend exposes about 40 documented endpoints (OpenAPI) for detections, available dates, daily activity, the historical calendar, monthly and annual statistics, spatial density, anomaly detection, correlations, forecasts, fire-event movement, weather context from NASA POWER @nasapower, alerts, and user accounts.
+*API.* A Python backend built with FastAPI and SQLModel—chosen for execution speed, ease of development, and automatic OpenAPI documentation—exposes about 50 documented endpoints for detections, available dates, daily activity, the historical calendar, monthly and annual statistics, spatial density, anomaly detection, correlations, forecasts, fire-event movement, weather context from NASA POWER @nasapower, NRT alerts, and user accounts.
 
-*Web application.* A Vue 3 single-page application presents the data in four places (@fig-map, @fig-calendar, @fig-stats-monthly, and @fig-stats-annual in Section 6):
+*Web application.* A Vue 3 single-page application—chosen to accelerate UI development so the team could focus on the scientific and data-engineering core—queries hotspot points and aggregates directly from the API to filter data, generate statistics, and render four main views (@fig-map, @fig-calendar, @fig-stats-monthly, and @fig-stats-annual in Section 6):
 - an interactive MapLibre map with date, sensor, and drawn-area filters, fire-event footprints, and CSV export;
 - a historical calendar of monthly activity from 2000 to the present;
 - a statistics panel with ten charts, including the comparison of each month with its historical range and the annual series in raw or harmonized units;
 - a public landing page that explains the sensors, the harmonization method, and the limits of the data in plain language.
+
+*Deployment and execution environment.* The demonstration instance runs on a Microsoft Azure virtual machine in the `northcentralus` region (`Standard_B2as_v2` compute profile, Ubuntu 24.04 LTS Server, and a 30 GB `Premium_LRS` managed OS disk). All six runtime services (PostGIS, NATS JetStream, backend, worker, frontend, and Caddy) are orchestrated as Podman Compose containers behind Caddy's automatic HTTPS reverse proxy.
 
 == Relevant Decisions
 

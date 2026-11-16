@@ -107,7 +107,7 @@ Para la comparación mensual, la línea base de cada mes calendario es la distri
 
 == Eventos de Incendio
 
-Para simplificar el mapa, las detecciones se agrupan en eventos de incendio. Las detecciones en la misma celda de 0.02° pertenecen al mismo evento siempre que las detecciones consecutivas no estén separadas por más de 24 horas. Cada evento almacena su centroide, una huella construida a partir de la envolvente convexa de sus detecciones con un buffer de 400 m, su hora de inicio y fin, su FRP pico y total, y la suma de sus pesos armonizados.
+Para simplificar el mapa y resumir quemas con múltiples detecciones, el pipeline agrupa las detecciones armonizadas en eventos de incendio espaciotemporales mediante dos etapas SQL en DuckDB (`01_assign_events.sql` y `02_build_clusters.sql`) ejecutadas con la CLI de DuckDB. Las detecciones en la misma celda espacial de $0.02 degree$ (aproximadamente 2.2 km) pertenecen al mismo evento siempre que las detecciones consecutivas no estén separadas por más de 24 horas ($86,400$ s), evitando cortes artificiales a la medianoche UTC. Mediante DuckDB Spatial, cada evento calcula su centroide (`ST_Centroid`), un perímetro construido a partir de la envolvente convexa de sus detecciones (`ST_ConvexHull`) con un buffer de $0.0036 degree$ (aproximadamente 400 m), el conteo total y por instrumento (MODIS y VIIRS), las marcas de tiempo de inicio y fin, la FRP pico y total, y la suma de sus pesos armonizados. Las tablas de eventos resultantes se cargan masivamente en PostGIS junto con el esquema en estrella.
 
 == Enfoque de Verificación
 

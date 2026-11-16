@@ -10,7 +10,7 @@
     "Geovanny Miranda",
     "Herman Rodríguez",
   ),
-  affiliation: "PyroTrace Team, NASA Space Apps Challenge 2026, Managua Local Event, Nicaragua",
+  affiliation: "Team sdlg, NASA Space Apps Challenge 2026, Managua Local Event, Nicaragua",
   details: (
     "Challenge: MODIS and VIIRS Hot Spots",
     "November 15, 2026",

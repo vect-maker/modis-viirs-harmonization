@@ -2,7 +2,7 @@
 
 **PyroTrace** is an open-source data platform that harmonizes NASA FIRMS active-fire observations from **MODIS** (Terra & Aqua, 1 km, 2000–present) and **VIIRS** (Suomi-NPP, NOAA-20, NOAA-21, 375 m, 2012–present) into a single comparable record for the seven countries of Central America (Belize, Costa Rica, El Salvador, Guatemala, Honduras, Nicaragua, and Panama).
 
-Built by **Team PyroTrace** for the **NASA Space Apps Challenge 2026** (*MODIS and VIIRS Hot Spots* — Managua Local Event, Nicaragua, November 14–15, 2026).
+Built by **Team sdlg** for the **NASA Space Apps Challenge 2026** (*MODIS and VIIRS Hot Spots* — Managua Local Event, Nicaragua, November 14–15, 2026).
 
 - **Live Deployment**: [pyrotrace.northcentralus.cloudapp.azure.com](https://pyrotrace.northcentralus.cloudapp.azure.com/)
 - **Source Code**: [github.com/vect-maker/modis-viirs-harmonization](https://github.com/vect-maker/modis-viirs-harmonization)

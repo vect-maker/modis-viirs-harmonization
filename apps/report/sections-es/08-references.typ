@@ -15,7 +15,7 @@
     [Almacenamiento], [PostgreSQL con PostGIS],
     [Backend], [FastAPI, SQLModel, Pydantic, NATS JetStream],
     [Frontend], [Vue 3, TypeScript, Vite, Pinia, VueUse, MapLibre GL, ECharts, Tailwind CSS],
-    [Operaciones], [Podman Compose, Caddy, just, máquina virtual de Microsoft Azure],
+    [Operaciones], [Podman Compose, Caddy, just, VM de Microsoft Azure (`Standard_B2as_v2`, Ubuntu 24.04 LTS, 30 GB `Premium_LRS`)],
     [Análisis y figuras], [Python, Matplotlib],
     [Documentación], [Typst],
   ),

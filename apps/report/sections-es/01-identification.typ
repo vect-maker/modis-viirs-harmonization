@@ -4,14 +4,14 @@
 
 = 1. Identificación del Proyecto
 
-PyroTrace es la solución desarrollada por el equipo PyroTrace para el NASA Space Apps Challenge 2026 en el Evento Local de Managua, Nicaragua. Responde al desafío oficial _MODIS and VIIRS Hot Spots_ @spaceappschallenge, que invita a los participantes a hacer utilizables las observaciones de incendios activos de ambas generaciones de sensores como un registro consistente. @tbl-identification resume el proyecto.
+PyroTrace es la solución desarrollada por el equipo sdlg para el NASA Space Apps Challenge 2026 en el Evento Local de Managua, Nicaragua. Responde al desafío oficial _MODIS and VIIRS Hot Spots_ @spaceappschallenge, que invita a los participantes a hacer utilizables las observaciones de incendios activos de ambas generaciones de sensores como un registro consistente. @tbl-identification resume el proyecto.
 
 #figure(
   table(
     columns: (30%, 70%),
     table.header([Elemento], [Descripción]),
     [Proyecto], [PyroTrace: datos satelitales para comprender la actividad de incendios],
-    [Equipo], [PyroTrace],
+    [Equipo], [sdlg],
     [Integrantes], [Jose Miranda, Inti Montalvan, Joshua Ordóñez, Fernando Gómez, Geovanny Miranda y Herman Rodríguez],
     [Desafío oficial], [MODIS and VIIRS Hot Spots, NASA Space Apps Challenge 2026 @spaceappschallenge],
     [Evento local], [Managua, Nicaragua, 14 y 15 de noviembre de 2026],
