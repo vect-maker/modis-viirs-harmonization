@@ -1,13 +1,16 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ToggleGroupRoot, ToggleGroupItem } from 'reka-ui'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const props = defineProps<{ modelValue: 'ALL' | 'MODIS' | 'VIIRS' }>()
 const emit = defineEmits<{ 'update:modelValue': [value: 'ALL' | 'MODIS' | 'VIIRS'] }>()
-const options = [
-  { value: 'ALL', label: 'All' },
-  { value: 'MODIS', label: 'MODIS' },
-  { value: 'VIIRS', label: 'VIIRS' },
-] as const
+const options = computed(() => [
+  { value: 'ALL', label: t('common.all') },
+  { value: 'MODIS', label: t('common.modis') },
+  { value: 'VIIRS', label: t('common.viirs') },
+] as const)
 
 function updateValue(value: unknown) {
   if (value === 'ALL' || value === 'MODIS' || value === 'VIIRS') emit('update:modelValue', value)
@@ -19,7 +22,7 @@ function updateValue(value: unknown) {
   <ToggleGroupRoot
     type="single"
     :model-value="modelValue"
-    aria-label="Satellite sensor"
+    :aria-label="t('dashboard.filters.sensorAria')"
     class="flex rounded-lg border border-border-subtle bg-surface-input p-1"
     @update:model-value="updateValue"
   >

@@ -2,8 +2,10 @@
 import { computed, shallowRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RotateCw } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { useTemporalChartsApi } from '@/api'
 import { useChartLifecycle } from '@/composables/useChartLifecycle'
+import { useLocaleFormatters } from '@/i18n'
 import { useChartFiltersStore } from '@/stores/chartFilters'
 import { useHotspotsStore } from '@/stores/hotspots'
 import BaseChartLoading from '@/components/ui/BaseChartLoading.vue'
@@ -13,6 +15,8 @@ import FireCalendarStatsRenderer, {
   type FireCalendarIntervalItem,
 } from '@/components/common/FireCalendarStatsChart.vue'
 
+const { t } = useI18n()
+const { bcp47Locale, formatInt } = useLocaleFormatters()
 const filtersStore = useChartFiltersStore()
 const { metric, activePolygon, selectedYear: storeYear } = storeToRefs(filtersStore)
 const { availableDates } = storeToRefs(useHotspotsStore())
@@ -26,17 +30,23 @@ const selectedYear = computed<number>({
 type Aggregation = 'month' | 'week' | 'day'
 type SensorOption = 'ALL' | 'MODIS' | 'VIIRS'
 
-const AGGREGATION_OPTIONS = [
-  { value: 'month', label: 'Monthly' },
-  { value: 'week', label: 'Weekly' },
-  { value: 'day', label: 'Daily' },
-] as const satisfies readonly { value: Aggregation; label: string }[]
+const AGGREGATION_OPTIONS = computed(
+  () =>
+    [
+      { value: 'month', label: t('charts.fireCalendar.monthly') },
+      { value: 'week', label: t('charts.fireCalendar.weekly') },
+      { value: 'day', label: t('charts.fireCalendar.daily') },
+    ] as const satisfies readonly { value: Aggregation; label: string }[],
+)
 
-const SENSOR_OPTIONS = [
-  { value: 'ALL', label: 'All sensors' },
-  { value: 'MODIS', label: 'MODIS' },
-  { value: 'VIIRS', label: 'VIIRS' },
-] as const satisfies readonly { value: SensorOption; label: string }[]
+const SENSOR_OPTIONS = computed(
+  () =>
+    [
+      { value: 'ALL', label: t('charts.fireCalendar.allSensors') },
+      { value: 'MODIS', label: t('common.modis') },
+      { value: 'VIIRS', label: t('common.viirs') },
+    ] as const satisfies readonly { value: SensorOption; label: string }[],
+)
 
 const YEAR_OPTIONS = Array.from({ length: 26 }, (_, idx) => {
   const year = 2026 - idx
@@ -87,25 +97,38 @@ const intervals = computed<readonly FireCalendarIntervalItem[]>(() =>
 
 const hasMissingGaps = computed(() => intervals.value.some((i) => i.missing))
 const isEmpty = computed(() => result.value !== null && result.value.total_hotspots === 0)
-const frpFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
-const pctFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
+const frpFmt = computed(() => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: 1 }))
+const pctFmt = computed(() => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: 1 }))
 
 const dayPct = computed(() => {
   const tot = result.value?.total_hotspots ?? 0
   if (tot === 0) return '0'
-  return pctFmt.format(((result.value?.daytime_hotspots ?? 0) / tot) * 100)
+  return pctFmt.value.format(((result.value?.daytime_hotspots ?? 0) / tot) * 100)
 })
 
 const summaryText = computed(() => {
   if (!result.value) return ''
   const r = result.value
-  const scopeLabel = activePolygon.value ? 'in the selected area' : 'across the regional archive'
-  return `In ${r.period.year}, ${r.total_hotspots.toLocaleString()} detections were recorded ${scopeLabel} (${dayPct.value}% daytime, ${r.high_confidence_count.toLocaleString()} high confidence) with an average radiative power of ${frpFmt.format(r.frp_average)} MW and peak of ${frpFmt.format(r.max_frp)} MW.`
+  const scope = activePolygon.value
+    ? t('charts.fireCalendar.inSelectedArea')
+    : t('charts.fireCalendar.acrossRegionalArchive')
+  return t('charts.fireCalendar.summary', {
+    year: r.period.year,
+    total: formatInt(r.total_hotspots),
+    scope,
+    dayPct: dayPct.value,
+    highConf: formatInt(r.high_confidence_count),
+    avgFrp: frpFmt.value.format(r.frp_average),
+    maxFrp: frpFmt.value.format(r.max_frp),
+  })
 })
 
-const chartDescription = computed(
-  () =>
-    `Stacked bar and line chart of ${aggregation.value} daytime and nighttime hotspots and average FRP in ${selectedYear.value}. ${summaryText.value}`,
+const chartDescription = computed(() =>
+  t('charts.fireCalendar.chartDesc', {
+    agg: aggregation.value,
+    year: selectedYear.value,
+    summary: summaryText.value,
+  }),
 )
 </script>
 
@@ -117,18 +140,17 @@ const chartDescription = computed(
       <div class="max-w-[62ch]">
         <div class="flex flex-wrap items-center gap-2">
           <h2 id="fire-calendar-stats-title" class="text-base font-semibold text-ink-primary">
-            Fire calendar: diurnal cycle &amp; radiative power
+            {{ t('charts.fireCalendar.title') }}
           </h2>
           <span
             class="rounded border border-border-subtle bg-surface-input px-2 py-0.5 text-[11px] text-ink-muted"
           >
-            {{ activePolygon ? 'Drawn area (Polygon)' : 'All regions' }} ·
-            {{ metric === 'harmonized' ? 'Harmonized index' : 'Raw detections' }}
+            {{ activePolygon ? t('stats.drawnArea') : t('stats.allRegions') }} ·
+            {{ metric === 'harmonized' ? t('stats.harmonizedIndex') : t('stats.detections') }}
           </span>
         </div>
         <p class="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
-          Aggregates detections by day, week, or month, splitting daytime (D) and nighttime (N)
-          overpasses alongside mean and peak Fire Radiative Power (FRP).
+          {{ t('charts.fireCalendar.subtitle') }}
         </p>
       </div>
 
@@ -136,13 +158,17 @@ const chartDescription = computed(
         <BaseToggleGroup
           v-model="aggregation"
           :options="AGGREGATION_OPTIONS"
-          label="Time aggregation"
+          :label="t('charts.fireCalendar.aggregation')"
         />
-        <BaseToggleGroup v-model="instrument" :options="SENSOR_OPTIONS" label="Sensor filter" />
+        <BaseToggleGroup
+          v-model="instrument"
+          :options="SENSOR_OPTIONS"
+          :label="t('charts.fireCalendar.sensor')"
+        />
         <BaseSelect
           v-model="selectedYear"
           :options="YEAR_OPTIONS"
-          label="Calendar year"
+          :label="t('charts.fireCalendar.year')"
           :disabled="isLoading && result === null"
         />
       </div>
@@ -154,28 +180,28 @@ const chartDescription = computed(
         role="alert"
         class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-100"
       >
-        <span>Could not load fire calendar statistics. {{ error }}</span>
+        <span>{{ t('charts.fireCalendar.errorLoad', { error }) }}</span>
         <button
           type="button"
           class="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-red-300/40 px-3 text-xs font-medium hover:bg-red-400/10 focus-visible:outline-2 focus-visible:outline-focus"
           @click="refresh"
         >
           <RotateCw aria-hidden="true" class="h-3.5 w-3.5" />
-          Try again
+          {{ t('common.retry') }}
         </button>
       </div>
 
       <BaseChartLoading
         v-if="result === null && isLoading"
         height-class="h-[21rem]"
-        label="Loading fire calendar…"
+        :label="t('charts.fireCalendar.loading')"
       />
 
       <p
         v-else-if="isEmpty"
         class="rounded-lg border border-dashed border-border-strong px-4 py-10 text-center text-[13px] text-ink-muted"
       >
-        No detections found for {{ selectedYear }} with the current sensor filter.
+        {{ t('charts.fireCalendar.empty') }}
       </p>
 
       <template v-else-if="result !== null">
@@ -187,8 +213,7 @@ const chartDescription = computed(
           v-if="hasMissingGaps"
           class="rounded-lg border border-border-subtle bg-white/[0.03] px-3.5 py-2.5 text-xs text-ink-muted"
         >
-          Unrecorded dates (such as the Jan–Mar 2026 archive gap or future months) are shown as
-          gaps rather than zero fires.
+          {{ t('charts.fireCalendar.missingNote') }}
         </p>
 
         <div

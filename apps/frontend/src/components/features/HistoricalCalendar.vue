@@ -2,6 +2,8 @@
 import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ChartColumn, MapPin } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
+import { useLocaleFormatters } from '@/i18n'
 import { useCalendarStore } from '@/stores/calendar'
 import { useHotspotsStore } from '@/stores/hotspots'
 import BaseSensorFilter from '@/components/ui/BaseSensorFilter.vue'
@@ -13,6 +15,8 @@ const emit = defineEmits<{
   'compare-year': [year: number]
 }>()
 
+const { t } = useI18n()
+const { bcp47Locale, formatInt } = useLocaleFormatters()
 const store = useCalendarStore()
 const hotspotsStore = useHotspotsStore()
 const { archive, sensor, rows, maxCount, total, selectedPeriod, selectedMonth, selectedCount } =
@@ -22,21 +26,24 @@ const { isLoading: isMapLoading, dateRange: mapDateRange } = storeToRefs(hotspot
 onMounted(() => {
   void store.fetchHistoricalCalendar()
 })
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
+const dateFormatter = computed(
+  () =>
+    new Intl.DateTimeFormat(bcp47Locale.value, {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }),
+)
 const selectedLabel = computed(() =>
   selectedPeriod.value
-    ? dateFormatter.format(
+    ? dateFormatter.value.format(
         new Date(Date.UTC(selectedPeriod.value.year, selectedPeriod.value.month - 1, 1)),
       )
     : '',
 )
 const palette = computed(() => getThermalPalette())
 function formatCount(value: number | null | undefined) {
-  return value == null ? 'No records' : value.toLocaleString()
+  return value == null ? t('common.noRecords') : formatInt(value)
 }
 
 const selectedMonthRange = computed(() => {
@@ -73,16 +80,16 @@ function compareSelectedYear() {
 </script>
 
 <template>
-  <section class="space-y-3 p-3 sm:p-5" aria-label="Historical burning activity calendar">
+  <section class="space-y-3 p-3 sm:p-5" :aria-label="t('stats.archive.aria')">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 class="text-sm font-medium">
-          Historical Archive<template v-if="archive.firstDetection && archive.lastDetection">
+          {{ t('stats.archive.title') }}<template v-if="archive.firstDetection && archive.lastDetection">
             · {{ archive.firstDetection.slice(0, 4) }}–{{ archive.lastDetection.slice(0, 4) }}
           </template>
         </h2>
         <p class="mt-1 text-xs text-ink-muted">
-          {{ total.toLocaleString() }} observed detections · full archive
+          {{ t('stats.archive.subtitle', { total: formatInt(total) }) }}
         </p>
       </div>
       <BaseSensorFilter
@@ -92,8 +99,7 @@ function compareSelectedYear() {
       />
     </div>
     <p class="text-[11px] leading-relaxed text-ink-muted">
-      Archive totals. Map area and date filters do not apply here. Counts are not harmonized;
-      observation coverage is unverified.
+      {{ t('stats.archive.disclaimer') }}
     </p>
     <BurningCalendar
       :rows="rows"
@@ -103,20 +109,21 @@ function compareSelectedYear() {
     />
     <div class="flex flex-wrap items-center gap-3 text-[10px] text-ink-muted">
       <span class="inline-flex items-center gap-1.5"
-        ><span class="calendar-unknown h-3 w-4 rounded-sm border border-border-subtle" />No records /
-        coverage unverified</span
+        ><span class="calendar-unknown h-3 w-4 rounded-sm border border-border-subtle" />{{
+          t('stats.archive.noRecordsCoverage')
+        }}</span
       >
       <span class="ml-auto inline-flex items-center gap-1"
-        >Low
+        >{{ t('stats.archive.low') }}
         <span
           v-for="color in palette"
           :key="color"
           class="h-3 w-4 rounded-sm"
           :style="{ backgroundColor: color }"
         />
-        High</span
+        {{ t('stats.archive.high') }}</span
       >
-      <span>Log scale · up to {{ maxCount.toLocaleString() }} / month</span>
+      <span>{{ t('stats.archive.logScale', { max: formatInt(maxCount) }) }}</span>
     </div>
     <div
       v-if="selectedPeriod"
@@ -127,9 +134,11 @@ function compareSelectedYear() {
         <h3 class="text-sm font-medium">{{ selectedLabel }}</h3>
         <p class="font-mono text-sm text-accent-bright">
           {{ formatCount(selectedCount)
-          }}<span v-if="selectedCount !== null" class="ml-1 font-sans text-xs text-ink-muted"
-            >detections · {{ sensor === 'ALL' ? 'all sensors' : sensor }}</span
-          >
+          }}<span v-if="selectedCount !== null" class="ml-1 font-sans text-xs text-ink-muted">{{
+            t('stats.archive.detectionsSensor', {
+              sensor: sensor === 'ALL' ? t('stats.archive.allSensors') : sensor,
+            })
+          }}</span>
         </p>
       </div>
       <p class="text-xs text-ink-secondary">
@@ -137,11 +146,10 @@ function compareSelectedYear() {
         {{ formatCount(selectedMonth?.viirsCount) }}
       </p>
       <p v-if="selectedMonth" class="text-[11px] text-ink-muted">
-        All sensors: records on {{ selectedMonth.observedDays }} days in this month. This does not
-        confirm complete satellite coverage.
+        {{ t('stats.archive.observedDays', { days: selectedMonth.observedDays }) }}
       </p>
       <p v-else class="text-xs text-ink-muted">
-        No records are present for this month. Fire absence cannot be inferred.
+        {{ t('stats.archive.noMonthRecords') }}
       </p>
       <div class="flex flex-wrap items-center gap-2 pt-1">
         <button
@@ -154,10 +162,10 @@ function compareSelectedYear() {
           <MapPin aria-hidden="true" class="h-3.5 w-3.5" />
           {{
             isMapLoading
-              ? 'Loading month...'
+              ? t('stats.archive.loadingMonth')
               : isMonthLoadedOnMap
-                ? 'Reload month on map'
-                : 'Load month on map'
+                ? t('stats.archive.reloadMonth')
+                : t('stats.archive.loadMonth')
           }}
         </button>
         <button
@@ -166,16 +174,15 @@ function compareSelectedYear() {
           @click="compareSelectedYear"
         >
           <ChartColumn aria-hidden="true" class="h-3.5 w-3.5 text-accent" />
-          Compare {{ selectedPeriod.year }} in Statistics
+          {{ t('stats.archive.compareYear', { year: selectedPeriod.year }) }}
         </button>
       </div>
       <p v-if="selectedMonth && exceedsLargeFetchThreshold" class="text-[11px] text-ink-muted">
-        More than 1,000 detections in this month — you will be asked to confirm before downloading
-        all batches.
+        {{ t('stats.archive.largeWarning') }}
       </p>
     </div>
     <p v-else class="text-xs text-ink-muted">
-      Select a month to inspect its totals and sensor sources.
+      {{ t('stats.archive.selectMonthPrompt') }}
     </p>
   </section>
 </template>

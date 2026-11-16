@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { LocateFixed, X } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import {
   DialogClose,
   DialogContent,
@@ -9,6 +10,8 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
+
+const { t } = useI18n()
 
 defineProps<{
   open: boolean
@@ -31,18 +34,20 @@ const emit = defineEmits<{
         <div class="mb-2 flex items-start justify-between gap-3">
           <div class="flex items-center gap-2">
             <LocateFixed aria-hidden="true" class="h-4 w-4 text-accent" />
-            <DialogTitle class="text-sm font-semibold">Enable your location</DialogTitle>
+            <DialogTitle class="text-sm font-semibold">{{
+              t('dashboard.dialogs.locationPrompt.title')
+            }}</DialogTitle>
           </div>
           <DialogClose
             type="button"
-            aria-label="Close dialog"
+            :aria-label="t('dashboard.dialogs.closeAria')"
             class="rounded p-1 text-ink-muted hover:bg-surface-elevated hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-focus"
           >
             <X aria-hidden="true" class="h-4 w-4" />
           </DialogClose>
         </div>
         <DialogDescription class="mb-4 text-xs leading-relaxed text-ink-muted">
-          Sharing your location lets PyroTrace place your position marker on the map and center on nearby fire activity.
+          {{ t('dashboard.dialogs.locationPrompt.description') }}
         </DialogDescription>
 
         <p
@@ -58,7 +63,7 @@ const emit = defineEmits<{
             type="button"
             class="rounded-md px-3 py-2 text-xs font-medium text-ink-muted hover:bg-surface-elevated hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-focus"
           >
-            Not now
+            {{ t('dashboard.dialogs.locationPrompt.notNow') }}
           </DialogClose>
           <button
             type="button"
@@ -66,7 +71,7 @@ const emit = defineEmits<{
             @click="emit('enable')"
           >
             <LocateFixed aria-hidden="true" class="h-3.5 w-3.5" />
-            Enable Location
+            {{ t('dashboard.dialogs.locationPrompt.enable') }}
           </button>
         </div>
       </DialogContent>

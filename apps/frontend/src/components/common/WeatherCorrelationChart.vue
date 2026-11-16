@@ -34,13 +34,18 @@ export function formatNasaDate(raw: string): string {
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { use } from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, MarkLineComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
+import { useLocaleFormatters } from '@/i18n'
 
 use([CanvasRenderer, BarChart, LineChart, GridComponent, MarkLineComponent, TooltipComponent])
+
+const { t } = useI18n()
+const { bcp47Locale } = useLocaleFormatters()
 
 const props = defineProps<{
   correlationRows: readonly WeatherCorrelationRecord[]
@@ -50,7 +55,9 @@ const props = defineProps<{
   description: string
 }>()
 
-const decFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
+const decFmt = computed(
+  () => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: 2 }),
+)
 
 function tooltipHtml(index: number): string {
   const corr = props.correlationRows[index]
@@ -58,21 +65,21 @@ function tooltipHtml(index: number): string {
   const dateStr = formatNasaDate(corr?.date ?? raw?.date ?? '')
   if (props.mode === 'alignment' && corr) {
     return [
-      `<div style="font-weight:600">${dateStr} · Wind vs. Fire (${props.fireDirectionDeg}°)</div>`,
-      `<div style="margin-top:3px;color:#ffe066">Alignment cos(Δθ): ${corr.wind_fire_alignment_cos !== null ? corr.wind_fire_alignment_cos.toFixed(3) : '—'} (Δθ = ${corr.wind_fire_angle_diff_deg !== null ? `${corr.wind_fire_angle_diff_deg.toFixed(1)}°` : '—'})</div>`,
-      `<div style="color:#38bdf8">Wind speed: ${corr.wind_speed !== null ? `${decFmt.format(corr.wind_speed)} m/s` : '—'}</div>`,
-      `<div style="color:#cbd5e1">Wind blows toward: ${corr.wind_direction_to_deg !== null ? `${corr.wind_direction_to_deg.toFixed(0)}°` : '—'} (from ${corr.wind_direction_from_deg !== null ? `${corr.wind_direction_from_deg.toFixed(0)}°` : '—'})</div>`,
-      `<div style="color:#94a3b8">Vector (u, v): (${corr.wind_u?.toFixed(2) ?? '—'}, ${corr.wind_v?.toFixed(2) ?? '—'}) m/s</div>`,
+      `<div style="font-weight:600">${t('charts.weather.tooltipAlignTitle', { date: dateStr, deg: props.fireDirectionDeg })}</div>`,
+      `<div style="margin-top:3px;color:#ffe066">${t('charts.weather.tooltipCos', { cos: corr.wind_fire_alignment_cos !== null ? corr.wind_fire_alignment_cos.toFixed(3) : '—', diff: corr.wind_fire_angle_diff_deg !== null ? `${corr.wind_fire_angle_diff_deg.toFixed(1)}°` : '—' })}</div>`,
+      `<div style="color:#38bdf8">${t('charts.weather.tooltipWindSpeed', { speed: corr.wind_speed !== null ? `${decFmt.value.format(corr.wind_speed)} m/s` : '—' })}</div>`,
+      `<div style="color:#cbd5e1">${t('charts.weather.tooltipWindToward', { to: corr.wind_direction_to_deg !== null ? `${corr.wind_direction_to_deg.toFixed(0)}°` : '—', from: corr.wind_direction_from_deg !== null ? `${corr.wind_direction_from_deg.toFixed(0)}°` : '—' })}</div>`,
+      `<div style="color:#94a3b8">${t('charts.weather.tooltipVector', { u: corr.wind_u?.toFixed(2) ?? '—', v: corr.wind_v?.toFixed(2) ?? '—' })}</div>`,
     ].join('')
   }
   const t2m = raw?.T2M ?? corr?.temperature ?? null
   const rh = raw?.RH2M ?? corr?.humidity ?? null
   const prec = raw?.PRECTOTCORR ?? corr?.precipitation ?? null
   return [
-    `<div style="font-weight:600">${dateStr} · NASA POWER Daily</div>`,
-    `<div style="margin-top:3px;color:#e69f00">Temperature (T2M): ${t2m !== null ? `${decFmt.format(t2m)} °C` : '—'}</div>`,
-    `<div style="color:#38bdf8">Relative Humidity (RH2M): ${rh !== null ? `${decFmt.format(rh)} %` : '—'}</div>`,
-    `<div style="color:#cbd5e1">Precipitation (PRECTOTCORR): ${prec !== null ? `${decFmt.format(prec)} mm` : '—'}</div>`,
+    `<div style="font-weight:600">${t('charts.weather.tooltipMeteoTitle', { date: dateStr })}</div>`,
+    `<div style="margin-top:3px;color:#e69f00">${t('charts.weather.tooltipTemp', { val: t2m !== null ? `${decFmt.value.format(t2m)} °C` : '—' })}</div>`,
+    `<div style="color:#38bdf8">${t('charts.weather.tooltipRh', { val: rh !== null ? `${decFmt.value.format(rh)} %` : '—' })}</div>`,
+    `<div style="color:#cbd5e1">${t('charts.weather.tooltipPrecip', { val: prec !== null ? `${decFmt.value.format(prec)} mm` : '—' })}</div>`,
   ].join('')
 }
 
@@ -108,7 +115,7 @@ const chartOption = computed(() => {
       yAxis: [
         {
           type: 'value',
-          name: 'Wind (m/s)',
+          name: t('charts.weather.windAxis'),
           nameTextStyle: { color: '#38bdf8', fontSize: 10 },
           axisLabel: { color: '#94a3b8', fontSize: 10 },
           splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.06)', type: 'dashed' } },
@@ -117,7 +124,7 @@ const chartOption = computed(() => {
           type: 'value',
           min: -1,
           max: 1,
-          name: 'Alignment cos(Δθ)',
+          name: t('charts.weather.alignAxis'),
           nameTextStyle: { color: '#ffe066', fontSize: 10 },
           axisLabel: { color: '#ffe066', fontSize: 10 },
           splitLine: { show: false },
@@ -125,14 +132,14 @@ const chartOption = computed(() => {
       ],
       series: [
         {
-          name: 'Wind speed (m/s)',
+          name: t('charts.weather.seriesWind'),
           type: 'bar',
           barMaxWidth: 24,
           itemStyle: { color: 'rgba(56, 189, 248, 0.55)', borderRadius: [3, 3, 0, 0] },
           data: speeds,
         },
         {
-          name: 'Wind-Fire alignment cos(Δθ)',
+          name: t('charts.weather.seriesAlign'),
           type: 'line',
           yAxisIndex: 1,
           symbol: 'circle',
@@ -187,7 +194,7 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
-        name: '°C / mm',
+        name: t('charts.weather.tempAxis'),
         nameTextStyle: { color: '#94a3b8', fontSize: 10 },
         axisLabel: { color: '#94a3b8', fontSize: 10 },
         splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.06)', type: 'dashed' } },
@@ -196,7 +203,7 @@ const chartOption = computed(() => {
         type: 'value',
         min: 0,
         max: 100,
-        name: 'Humidity (%)',
+        name: t('charts.weather.rhAxis'),
         nameTextStyle: { color: '#38bdf8', fontSize: 10 },
         axisLabel: { color: '#38bdf8', fontSize: 10 },
         splitLine: { show: false },
@@ -204,14 +211,14 @@ const chartOption = computed(() => {
     ],
     series: [
       {
-        name: 'Precipitation (mm)',
+        name: t('charts.weather.seriesPrecip'),
         type: 'bar',
         barMaxWidth: 24,
         itemStyle: { color: 'rgba(148, 163, 184, 0.45)', borderRadius: [3, 3, 0, 0] },
         data: precip,
       },
       {
-        name: 'Temperature T2M (°C)',
+        name: t('charts.weather.seriesTemp'),
         type: 'line',
         symbol: 'circle',
         symbolSize: 6,
@@ -220,7 +227,7 @@ const chartOption = computed(() => {
         data: temps,
       },
       {
-        name: 'Relative Humidity RH2M (%)',
+        name: t('charts.weather.seriesRh'),
         type: 'line',
         yAxisIndex: 1,
         symbol: 'diamond',

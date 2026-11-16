@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { LogOut, Save } from "@lucide/vue";
 import { computed, ref, watchEffect } from "vue";
+import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import DashboardNavbar from "@/components/features/DashboardNavbar.vue";
+import { useLocaleFormatters } from "@/i18n";
 import { useAuthStore } from "@/stores/auth";
 
+const { t } = useI18n();
+const { bcp47Locale } = useLocaleFormatters();
 const router = useRouter();
 const authStore = useAuthStore();
 
@@ -27,7 +31,7 @@ const initials = computed(() => {
 
 const memberSince = computed(() => {
   if (!authStore.user?.created_at) return "";
-  return new Date(authStore.user.created_at).toLocaleDateString(undefined, {
+  return new Date(authStore.user.created_at).toLocaleDateString(bcp47Locale.value, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -44,7 +48,7 @@ async function handleSave() {
     });
     saveSuccess.value = true;
   } catch (err) {
-    localError.value = err instanceof Error ? err.message : "Failed to update profile";
+    localError.value = err instanceof Error ? err.message : t("auth.profile.updateError");
   }
 }
 
@@ -73,8 +77,11 @@ async function handleLogout() {
                 {{ authStore.user?.username }}
               </h1>
               <p class="text-xs text-ink-muted">
-                Role: <span class="font-medium text-ink-secondary">{{ authStore.user?.role }}</span>
-                <span v-if="memberSince"> • Member since {{ memberSince }}</span>
+                {{ t("auth.profile.role") }}
+                <span class="font-medium text-ink-secondary">{{ authStore.user?.role }}</span>
+                <span v-if="memberSince">
+                  • {{ t("auth.profile.memberSince", { date: memberSince }) }}</span
+                >
               </p>
             </div>
           </div>
@@ -86,7 +93,7 @@ async function handleLogout() {
             @click="handleLogout"
           >
             <LogOut aria-hidden="true" class="h-3.5 w-3.5" />
-            <span>Sign Out</span>
+            <span>{{ t("auth.profile.signOut") }}</span>
           </button>
         </div>
 
@@ -95,7 +102,7 @@ async function handleLogout() {
           role="status"
           class="mt-6 rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-3.5 py-2.5 text-xs text-emerald-200"
         >
-          Profile updated successfully.
+          {{ t("auth.profile.updateSuccess") }}
         </div>
 
         <div
@@ -109,7 +116,7 @@ async function handleLogout() {
         <form class="mt-6 space-y-5" @submit.prevent="handleSave">
           <div>
             <label for="profile-username" class="mb-1.5 block text-xs font-medium text-ink-secondary">
-              Username
+              {{ t("auth.profile.usernameLabel") }}
             </label>
             <input
               id="profile-username"
@@ -125,7 +132,7 @@ async function handleLogout() {
 
           <div>
             <label for="profile-email" class="mb-1.5 block text-xs font-medium text-ink-secondary">
-              Email address
+              {{ t("auth.profile.emailLabel") }}
             </label>
             <input
               id="profile-email"
@@ -143,7 +150,9 @@ async function handleLogout() {
               class="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg bg-accent px-5 py-2 text-xs font-semibold text-surface-base transition hover:bg-accent-bright disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Save aria-hidden="true" class="h-3.5 w-3.5" />
-              <span>{{ authStore.isSubmitting ? "Saving..." : "Save Changes" }}</span>
+              <span>{{
+                authStore.isSubmitting ? t("common.saving") : t("auth.profile.saveChanges")
+              }}</span>
             </button>
           </div>
         </form>

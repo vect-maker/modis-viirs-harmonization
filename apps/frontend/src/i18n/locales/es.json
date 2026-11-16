@@ -1,0 +1,817 @@
+{
+  "meta": {
+    "title": "PyroTrace | Datos satelitales para comprender el fuego",
+    "description": "Explora la actividad de fuego en Centroamérica con mapas y calendarios accesibles. PyroTrace conecta datos abiertos MODIS y VIIRS para aprender, investigar y planificar."
+  },
+  "common": {
+    "all": "Todos",
+    "bothSensors": "Ambos sensores",
+    "modis": "MODIS",
+    "viirs": "VIIRS",
+    "retry": "Reintentar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "save": "Guardar",
+    "saving": "Guardando...",
+    "loading": "Cargando…",
+    "noData": "Sin datos",
+    "noRecords": "Sin registros"
+  },
+  "nav": {
+    "languageLabel": "Idioma",
+    "switchToEnglish": "Cambiar idioma a inglés",
+    "switchToSpanish": "Cambiar idioma a español",
+    "brandHomeAria": "PyroTrace, inicio",
+    "primaryNavAria": "Navegación principal",
+    "mobileNavAria": "Navegación móvil",
+    "dashboardNavAria": "Navegación del panel",
+    "home": "Inicio",
+    "project": "Proyecto",
+    "theProject": "El proyecto",
+    "data": "Datos",
+    "audience": "Comunidad",
+    "community": "Comunidad",
+    "team": "Equipo",
+    "signIn": "Iniciar sesión",
+    "signInTitle": "Iniciar sesión",
+    "openExplorer": "Abrir explorador",
+    "overview": "Resumen",
+    "profileWithUser": "Perfil ({username})",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú",
+    "mobileTagline": "Observación satelital, al alcance."
+  },
+  "landing": {
+    "skipToContent": "Saltar al contenido",
+    "hero": {
+      "titleLine1": "Datos satelitales",
+      "titleLine2": "para comprender",
+      "titleHighlight": "el fuego.",
+      "description": "Explora dónde y cuándo se concentra la actividad de fuego en Centroamérica. Más de 25 años de detecciones MODIS y VIIRS, armonizadas para compararlas en mapas, calendarios y estadísticas.",
+      "aboutProject": "Conocer el proyecto",
+      "continueAria": "Continuar al proyecto",
+      "assuranceFree": "Gratis y sin registro",
+      "assuranceAccessible": "Sin ser experto en mapas",
+      "assuranceCsv": "Datos descargables en CSV",
+      "builtFor": "Desarrollado para NASA Space Apps 2026",
+      "coverage": "Los siete países de Centroamérica, desde 2000"
+    },
+    "mapPreview": {
+      "title": "Explorador de actividad",
+      "openFullMap": "Abrir mapa completo",
+      "live": "EN VIVO",
+      "gpsTag": "{country} (GPS)",
+      "mapAria": "Mapa satelital fijo de {country} con detecciones de fuego MODIS y VIIRS",
+      "detectionsIn": "DETECCIONES EN {year}",
+      "mwAvg": "{value} MW prom.",
+      "dayPct": "{value}% día",
+      "sensorFilterAria": "Filtro de sensor de vista previa",
+      "sourceFooter": "NASA FIRMS · últimos 30 días en mapa",
+      "recentDetections": "{count} detecciones recientes"
+    },
+    "continuity": {
+      "titleLine1": "Dos sensores,",
+      "titleLine2": "un mismo registro.",
+      "subtitle": "VIIRS detecta muchos fuegos pequeños que MODIS no alcanza a ver. Sumar conteos crudos hace que los años desde 2012 parezcan artificialmente más altos. La armonización cierra esa brecha.",
+      "modisSince": "Terra y Aqua, desde 2000",
+      "modisRes": "Píxel ~1 km",
+      "modisAria": "Diagrama de cuadrícula aproximada de 1 km para MODIS",
+      "modisDesc": "El registro histórico largo: más de dos décadas para seguir la evolución de los incendios.",
+      "viirsSince": "Suomi-NPP y NOAA-20, desde 2012",
+      "viirsRes": "Píxel 375 m",
+      "viirsAria": "Diagrama de cuadrícula fina de 375 m para VIIRS",
+      "viirsDesc": "Mayor detalle espacial y sensibilidad, produciendo más detecciones por un mismo incendio.",
+      "howTitle": "Cómo armonizamos",
+      "steps": [
+        {
+          "title": "Emparejar",
+          "text": "Asociamos detecciones MODIS y VIIRS del mismo incendio: dentro de 2.2 km y con menos de una hora de diferencia."
+        },
+        {
+          "title": "Ponderar cada detección",
+          "text": "Cada detección VIIRS se divide entre los satélites VIIRS activos ese año. Una detección MODIS también vista por VIIRS recibe peso 0 para evitar doble conteo. Una detección exclusiva de MODIS recibe un factor por hora del día calibrado por país con traslapes desde 2012."
+        },
+        {
+          "title": "Sumar",
+          "text": "El índice armonizado es la suma de estos pesos en detecciones equivalentes a VIIRS, haciendo comparable un año como 2005 frente a 2024."
+        }
+      ],
+      "sampleCaption": "Pasada de ejemplo",
+      "sampleSrCaption": "Peso asignado a cada detección en el ejemplo",
+      "colDetection": "Detección",
+      "colWeight": "Peso",
+      "exampleRows": [
+        { "sensor": "viirs", "label": "Fuego visto por Suomi-NPP", "weight": "0.5" },
+        { "sensor": "viirs", "label": "Mismo fuego visto por NOAA-20", "weight": "0.5" },
+        { "sensor": "modis", "label": "Mismo fuego visto por Aqua (MODIS)", "weight": "0" },
+        { "sensor": "modis", "label": "Otro fuego vespertino, solo MODIS", "weight": "6.12" }
+      ],
+      "harmonizedIndex": "Índice armonizado",
+      "sampleNote": "6.12 es el factor de referencia vespertino; cada país usa su propio factor calibrado cuando hay suficientes traslapes. La metodología sigue en validación activa.",
+      "linePrefix": "El explorador muestra ambos:",
+      "lineText": "conteos crudos de detecciones y el índice armonizado.",
+      "viewData": "Ver los datos"
+    },
+    "calendar": {
+      "titleLine1": "El calendario",
+      "titleLine2": "del fuego.",
+      "subtitle": "¿Qué meses concentran más detecciones? Recorre el archivo desde 2000, cambia el mes y el sensor, y explora los patrones por tu cuenta.",
+      "monthlyActivity": "Actividad por mes",
+      "scope": "Centroamérica, los 7 países",
+      "loading": "Cargando archivo de detecciones…",
+      "error": "No se pudo cargar el calendario. Revisa tu conexión e intenta de nuevo.",
+      "fewer": "Menos detecciones",
+      "more": "Más detecciones",
+      "prevYear": "Año anterior",
+      "nextYear": "Año siguiente",
+      "yearLabel": "Año a inspeccionar",
+      "sensorLabel": "Filtro de sensor del calendario",
+      "monthGroupAria": "Mes de {year} a inspeccionar",
+      "monthAria": "{month} {year}: {detail}",
+      "monthNoData": "sin datos disponibles",
+      "monthDetections": "{count} detecciones",
+      "noDataForPeriod": "Sin datos disponibles para este sensor y período.",
+      "recorded": "detecciones satelitales registradas",
+      "peakInYear": "Mes con más detecciones en {year}",
+      "scienceNote": "Conteos crudos, sin armonizar. Una detección es un píxel satelital con calor anómalo, no un incendio individual.",
+      "openExplorer": "Consultar el explorador"
+    },
+    "stats": {
+      "titleLine1": "Qué cambia",
+      "titleLine2": "al armonizar.",
+      "jumpText": "Entre 2011 y 2013 las detecciones crudas suben {raw}×, sobre todo porque VIIRS comenzó a observar. Con el índice armonizado, el cambio es {harmonized}×.",
+      "fallbackText": "Sin armonización, los años con VIIRS aparentan tener mucho más fuego. El índice armonizado hace comparable toda la serie.",
+      "annualActivity": "Actividad anual",
+      "scope": "Centroamérica, años completos de archivo",
+      "metricGroupAria": "Métrica del gráfico",
+      "rawDetections": "Detecciones crudas",
+      "harmonizedIndex": "Índice armonizado",
+      "loading": "Cargando estadísticas anuales…",
+      "error": "No se pudieron cargar las estadísticas. Intenta de nuevo o abre el explorador.",
+      "noteRaw": "Gris: MODIS. Naranja: VIIRS. La línea discontinua es la mediana multianual.",
+      "noteHarmonized": "Detecciones equivalentes a VIIRS. La línea discontinua es la mediana multianual.",
+      "chartDesc": "Gráfico de barras: {what} por año en Centroamérica, de {first} a {last}.",
+      "whatRaw": "detecciones crudas por sensor",
+      "whatHarmonized": "índice armonizado",
+      "morePrefix": "Más en el explorador:",
+      "moreText": "compara cada mes contra su rango histórico, filtra por país o dibuja tu propia área en el mapa.",
+      "openStats": "Abrir estadísticas"
+    },
+    "audience": {
+      "titleLine1": "La ciencia empieza",
+      "titleHighlight": "con curiosidad.",
+      "subtitle": "Hay muchas maneras de observar el territorio. PyroTrace acerca la observación satelital a quienes desean aprender, investigar y planificar.",
+      "items": [
+        {
+          "id": "curiosity",
+          "title": "Basta la curiosidad.",
+          "audience": "Entusiastas y estudiantes",
+          "body": "Acércate a la observación satelital de la Tierra y explora la actividad de fuego sin formación avanzada en SIG. Explicaciones claras te guían en cada paso."
+        },
+        {
+          "id": "research",
+          "title": "Más espacio para investigar.",
+          "audience": "Investigación y docencia",
+          "body": "Estudiantes, docentes e investigadores: exploren el registro histórico, revisen las fuentes de datos y exporten conjuntos CSV filtrados para clases y estudios."
+        },
+        {
+          "id": "management",
+          "title": "El territorio, con contexto.",
+          "audience": "Gestión ambiental y del fuego",
+          "body": "Analistas ambientales, equipos de áreas protegidas, bomberos y planificadores de emergencias: identifiquen patrones, anomalías y temporadas críticas para la prevención."
+        }
+      ],
+      "missionTitle": "Misión",
+      "missionBody": "Brindar acceso gratuito y comprensión clara de los datos satelitales de actividad de fuego, integrando y armonizando registros MODIS y VIIRS mediante mapas y calendarios intuitivos que ayuden a entusiastas, estudiantes, investigadores y gestores ambientales a identificar patrones, anomalías y períodos críticos para la planificación preventiva.",
+      "visionTitle": "Visión",
+      "visionBody": "Consolidarse como una plataforma de referencia que conecte registros satelitales de distintas generaciones y los transforme en inteligencia clara, comparable y accesible, impulsando a personas y organizaciones a comprender el fuego y fortalecer la investigación, la preparación y la gestión del territorio."
+    },
+    "team": {
+      "titleLine1": "Un reto de la NASA,",
+      "titleLine2": "construido desde Managua.",
+      "bodyBefore": "PyroTrace nació para el desafío",
+      "bodyStrong": "MODIS and VIIRS hot spots",
+      "bodyAfter": "de NASA Space Apps 2026: conectar dos generaciones de sensores para comparar la actividad de fuego de forma consistente en el tiempo y al alcance de cualquier persona.",
+      "readChallenge": "Leer el desafío",
+      "viewTeam": "Ver equipo en Space Apps",
+      "theTeam": "El equipo",
+      "whatGuidesUs": "Lo que nos guía",
+      "pillars": [
+        {
+          "title": "Integración y continuidad",
+          "text": "Conectamos MODIS y VIIRS para que las diferencias entre sensores no rompan el análisis histórico."
+        },
+        {
+          "title": "Claridad",
+          "text": "Convertimos archivos satelitales complejos en mapas y calendarios legibles."
+        },
+        {
+          "title": "Accesibilidad",
+          "text": "Una experiencia gratuita y cercana tanto para principiantes como para instituciones."
+        },
+        {
+          "title": "Rigor y transparencia",
+          "text": "Validamos nuestros métodos y documentamos con claridad el origen de los datos y el trabajo en curso."
+        },
+        {
+          "title": "Información accionable",
+          "text": "Ayudamos a quienes toman decisiones a reconocer patrones, anomalías y temporadas críticas de fuego."
+        }
+      ],
+      "partners": "Construimos sobre datos abiertos de NASA FIRMS y damos la bienvenida a colaboradores de universidades, agencias ambientales, grupos de conservación y aliados tecnológicos."
+    },
+    "questions": {
+      "titleLine1": "Las preguntas",
+      "titleHighlight": "también importan.",
+      "subtitle": "La claridad comienza por explicar cómo funcionan los datos, qué muestran y cuáles son sus límites.",
+      "items": [
+        {
+          "title": "¿Qué puedo explorar en el panel?",
+          "text": "Detecciones de fuego en los siete países de Centroamérica desde noviembre de 2000, en un mapa interactivo con filtros por fecha, sensor y área dibujada. El panel de estadísticas compara cada mes con su rango histórico y muestra la actividad anual en conteos crudos o índice armonizado."
+        },
+        {
+          "title": "¿Qué significa armonizar MODIS y VIIRS?",
+          "text": "Convertir las detecciones de ambos sensores a una escala común —detecciones equivalentes a VIIRS— para comparar de manera justa un año como 2005 frente a 2024. El método se resume arriba y sigue en validación activa."
+        },
+        {
+          "title": "¿Por qué los registros de 2026 se ven distintos?",
+          "text": "Las detecciones casi en tiempo real de 2026 aún no pasan por la tubería de armonización histórica. El explorador las marca por separado como provisionales y las excluye de las comparaciones multianuales."
+        },
+        {
+          "title": "¿Cada detección es un incendio distinto?",
+          "text": "No. Cada detección es un píxel satelital con radiación térmica anómala. Un incendio grande puede generar muchas detecciones, mientras que fuegos pequeños o cubiertos por nubes pueden no registrarse."
+        },
+        {
+          "title": "¿Necesito experiencia técnica?",
+          "text": "Para nada. Empieza con curiosidad: elige un período, observa los patrones y lee las guías dentro de la aplicación. PyroTrace está pensado tanto para estudiantes y entusiastas como para investigadores y equipos de emergencia."
+        },
+        {
+          "title": "¿La plataforma es gratuita?",
+          "text": "Sí. Puedes explorar sin crear una cuenta y exportar detecciones filtradas a CSV. Usamos datos abiertos de NASA FIRMS y documentamos su procedencia y limitaciones."
+        },
+        {
+          "title": "¿Cómo se sostiene PyroTrace?",
+          "text": "El acceso principal sigue siendo gratuito. La sostenibilidad a largo plazo se apoya en donaciones comunitarias, fondos de investigación ambiental e innovación, patrocinios tecnológicos y alianzas con universidades y agencias."
+        }
+      ]
+    },
+    "footer": {
+      "backToTop": "Volver arriba",
+      "calloutLine1": "Una vista más clara.",
+      "calloutHighlight": "Empieza en el mapa.",
+      "calloutSub1": "Conecta con los datos.",
+      "calloutSub2": "Comprende lo que observas.",
+      "brandLine1": "Conectando registros satelitales",
+      "brandLine2": "para decisiones más claras.",
+      "copyright": "PyroTrace, NASA Space Apps Challenge 2026",
+      "sourcesAria": "Fuentes del proyecto",
+      "nasaFirms": "Datos NASA FIRMS",
+      "naturalEarth": "Mapas base Natural Earth",
+      "theChallenge": "El desafío",
+      "teamSpaceApps": "Equipo en Space Apps"
+    }
+  },
+  "auth": {
+    "backToDashboard": "Volver al panel",
+    "login": {
+      "title": "Iniciar sesión en PyroTrace",
+      "subtitle": "Accede a tu perfil de analista y envía validación en campo sobre focos satelitales.",
+      "registeredSuccess": "Cuenta creada con éxito. Inicia sesión con tus credenciales para continuar.",
+      "errorFallback": "No se pudo iniciar sesión",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "analista{'@'}ejemplo.org",
+      "passwordLabel": "Contraseña",
+      "submitting": "Iniciando sesión...",
+      "submit": "Iniciar sesión",
+      "noAccount": "¿Necesitas una cuenta?",
+      "createOne": "Crea una"
+    },
+    "register": {
+      "title": "Crear una cuenta",
+      "subtitle": "Únete a PyroTrace para reportar y verificar focos de calor activos en campo.",
+      "passwordMismatch": "Las contraseñas no coinciden",
+      "errorFallback": "No se pudo completar el registro",
+      "usernameLabel": "Nombre de usuario",
+      "usernamePlaceholder": "analista_fuego",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "analista{'@'}ejemplo.org",
+      "passwordLabel": "Contraseña (mín. 8 caracteres)",
+      "confirmPasswordLabel": "Confirmar contraseña",
+      "submitting": "Creando cuenta...",
+      "submit": "Crear cuenta",
+      "haveAccount": "¿Ya tienes una cuenta?",
+      "signIn": "Inicia sesión"
+    },
+    "profile": {
+      "role": "Rol:",
+      "memberSince": "Miembro desde {date}",
+      "signOut": "Cerrar sesión",
+      "updateSuccess": "Perfil actualizado con éxito.",
+      "updateError": "No se pudo actualizar el perfil",
+      "usernameLabel": "Nombre de usuario",
+      "emailLabel": "Correo electrónico",
+      "saveChanges": "Guardar cambios"
+    }
+  },
+  "explorer": {
+    "mapAria": "Mapa de focos de calor de PyroTrace",
+    "srHeading": "PyroTrace — Actividad de fuego",
+    "asideAria": "Filtros y resultados del mapa",
+    "locationBlocked": "El permiso de ubicación está bloqueado. Permite el acceso en la configuración de tu navegador e intenta de nuevo.",
+    "locationUnavailable": "No se pudo obtener tu ubicación actual."
+  },
+  "dashboard": {
+    "controls": {
+      "title": "Actividad de fuego",
+      "selectedArea": "Área seleccionada",
+      "allRegions": "Todas las regiones",
+      "guideTitle": "Filtros y selección de área",
+      "guideSummary": "Acota las detecciones por región, fechas UTC y sensor satelital.",
+      "guideStep1": "Haz clic en Dibujar área en la barra inferior para trazar un polígono.",
+      "guideStep2": "Elige fecha de inicio/fin o sensor (MODIS / VIIRS) para actualizar mapa y métricas.",
+      "guideStep3": "Exporta los registros filtrados en cualquier momento con Descargar CSV.",
+      "guideAria": "Cómo funcionan los controles de área y filtro",
+      "metricsAria": "Métricas de fuego filtradas",
+      "events": "Eventos",
+      "hotspots": "Focos",
+      "avgFrp": "FRP prom."
+    },
+    "filters": {
+      "ariaLabel": "Filtros de focos de calor",
+      "dateFilter": "Filtro de fecha",
+      "reset": "Restablecer",
+      "startDate": "Fecha inicial",
+      "endDate": "Fecha final",
+      "sensor": "Sensor",
+      "sensorAria": "Sensor satelital",
+      "selectDate": "Elegir fecha",
+      "prevMonth": "Mes anterior",
+      "nextMonth": "Mes siguiente",
+      "prevYear": "Año anterior",
+      "nextYear": "Año siguiente",
+      "prev12Years": "12 años anteriores",
+      "next12Years": "12 años siguientes"
+    },
+    "csv": {
+      "ready": "CSV listo: {count} detecciones.",
+      "preparing": "Preparando CSV…",
+      "download": "Descargar CSV",
+      "downloadAria": "Descargar {count} focos filtrados como CSV"
+    },
+    "timeline": {
+      "summary": "{count} detecciones · {days} días",
+      "showAllDates": "Mostrar todas las fechas",
+      "guideTitle": "Línea de tiempo diaria",
+      "guideSummary": "Inspecciona picos diarios de detección para la región y el sensor activos.",
+      "guideStep1": "Haz clic en cualquier barra del gráfico diario para filtrar el mapa a ese día UTC.",
+      "guideStep2": "Abre Estadísticas para explorar el mapa de calor histórico 2001–2026 y tendencias.",
+      "guideAria": "Cómo funciona la línea de tiempo diaria",
+      "empty": "No hay detecciones en los registros disponibles para esta área y sensor.",
+      "coverageNote": "Los conteos reflejan los registros disponibles. La cobertura diaria puede ser incompleta.",
+      "tooltipDetections": "{count} detecciones"
+    },
+    "loading": {
+      "aria": "Cargando datos de detección de fuego",
+      "title": "Cargando detecciones de fuego…",
+      "progress": "{loaded} de {total} registros ({percent}%)",
+      "fetching": "Obteniendo datos por lotes para el rango seleccionado…"
+    },
+    "guide": {
+      "openAria": "Abrir guía visual del panel",
+      "button": "Guía",
+      "title": "Cómo usar PyroTrace",
+      "subtitle": "Explora fuegos activos en el mapa e inspecciona patrones temporales, espaciales y climáticos.",
+      "cards": [
+        {
+          "title": "1. Capas del mapa",
+          "description": "Activa Eventos de fuego para perímetros agrupados o Focos para detecciones crudas."
+        },
+        {
+          "title": "2. Área y filtros",
+          "description": "Dibuja un área en el mapa o elige fechas y sensores para actualizar métricas y CSV."
+        },
+        {
+          "title": "3. Línea de tiempo",
+          "description": "Haz clic en una barra diaria para filtrar por día UTC, o abre Estadísticas para 2001–2026."
+        },
+        {
+          "title": "4. Estadísticas",
+          "description": "Abre Estadísticas para distribuciones anuales, mapa histórico y clima de incendios."
+        }
+      ]
+    },
+    "dialogs": {
+      "closeAria": "Cerrar diálogo",
+      "datePrompt": {
+        "title": "Sin reporte para hoy",
+        "descriptionBefore": "No se encontraron detecciones de focos para",
+        "descriptionAfter": "(UTC). Elige una fecha disponible para cargar desde el servidor.",
+        "loadLatest": "Cargar última disponible ({date})"
+      },
+      "largeFetch": {
+        "title": "Conjunto de datos grande",
+        "descriptionBefore": "La consulta seleccionada coincide con",
+        "descriptionAfter": "detecciones de fuego. Descargar todos los lotes puede tardar y usar más memoria en tu navegador.",
+        "keepFirst": "Mantener primeros {count}",
+        "downloadAll": "Descargar todos ({count})"
+      },
+      "locationPrompt": {
+        "title": "Activar tu ubicación",
+        "description": "Compartir tu ubicación permite a PyroTrace mostrar tu marcador en el mapa y centrar en la actividad cercana.",
+        "notNow": "Ahora no",
+        "enable": "Activar ubicación"
+      }
+    }
+  },
+  "map": {
+    "layers": {
+      "aria": "Capas del mapa",
+      "title": "Capas",
+      "toggleEventsAria": "Alternar capa de Eventos de fuego",
+      "fireEvents": "Eventos de fuego",
+      "eventPerimeters": "Perímetros de eventos",
+      "toggleHotspotsAria": "Alternar capa de Focos de calor",
+      "hotspots": "Focos de calor",
+      "modisViirsPoints": "Puntos MODIS y VIIRS"
+    },
+    "actions": {
+      "toolsAria": "Herramientas del mapa",
+      "confirmArea": "Confirmar área dibujada",
+      "confirm": "Confirmar",
+      "cancelDraw": "Cancelar dibujo",
+      "clearArea": "Limpiar área seleccionada",
+      "clearShort": "Limpiar",
+      "clearFull": "Limpiar área",
+      "drawArea": "Dibujar un área para filtrar focos",
+      "drawShort": "Dibujar",
+      "drawFull": "Dibujar área",
+      "locate": "Centrar en mi ubicación",
+      "locateAria": "Centrar el mapa en mi ubicación actual",
+      "myLocation": "Mi ubicación",
+      "globe": "Ver globo satelital",
+      "globeAria": "Mostrar el globo satelital",
+      "globeShort": "Globo"
+    },
+    "legend": {
+      "aria": "Leyenda de iconos del mapa",
+      "howLayers": "Cómo agrupan las capas",
+      "fireEvents": "Eventos de fuego",
+      "eventPerimeter": "Perímetro y centroide del evento",
+      "eventGrouping": "Detecciones agrupadas (2+ focos, ≤ 24 h)",
+      "hotspotConfidence": "Confianza del foco",
+      "high": "Confianza alta",
+      "highDesc": "Anomalía térmica fuerte",
+      "nominal": "Confianza nominal",
+      "nominalDesc": "Detección estándar de fuego activo",
+      "low": "Confianza baja",
+      "lowDesc": "Señal térmica débil o marginal",
+      "unclassified": "Sin clasificar",
+      "unclassifiedDesc": "Sin clase de confianza reportada",
+      "positionMarker": "Marcador de posición",
+      "yourLocation": "Tu ubicación",
+      "gpsPosition": "Posición GPS / navegador actual"
+    },
+    "popup": {
+      "unknownSensor": "Sensor desconocido",
+      "day": "Día",
+      "night": "Noche",
+      "radiativePower": "Potencia radiativa",
+      "brightness": "Brillo",
+      "confidence": "Confianza",
+      "country": "País",
+      "acquired": "Adquirido",
+      "coords": "Coords.",
+      "unverified": "Sin verificar",
+      "feedback": "Reportar",
+      "high": "Alta",
+      "nominal": "Nominal",
+      "low": "Baja",
+      "unclassified": "Sin clasificar"
+    },
+    "eventPopup": {
+      "title": "Evento de fuego #{id}",
+      "detections": "{total} detecciones ({modis} MODIS · {viirs} VIIRS)",
+      "active": "ACTIVO",
+      "isolated": "AISLADO",
+      "ended": "FINALIZADO",
+      "footprint": "Huella",
+      "duration": "Duración",
+      "maxFrp": "FRP máx.",
+      "harmIndex": "Índice arm.",
+      "window": "Ventana: {window} UTC",
+      "unknownWindow": "Desconocida",
+      "loadingHotspots": "Cargando focos…",
+      "showingHotspots": "Mostrando {count} focos integrantes",
+      "inspectHotspots": "Inspeccionar focos integrantes"
+    }
+  },
+  "stats": {
+    "title": "Estadísticas",
+    "expandAria": "Expandir estadísticas",
+    "collapseAria": "Contraer estadísticas",
+    "escToClose": "Esc para cerrar",
+    "referenceYear": "Año de referencia",
+    "metric": "Métrica",
+    "area": "Área",
+    "detections": "Detecciones",
+    "harmonizedIndex": "Índice armonizado",
+    "drawnArea": "Área dibujada",
+    "allRegions": "Todas las regiones",
+    "metricHelpHarmonized": "El índice armonizado pondera las detecciones MODIS para comparar años antes y después del lanzamiento de VIIRS en 2012 en una misma escala. Índice experimental, no un conteo de incendios.",
+    "metricHelpRaw": "Detecciones crudas MODIS y VIIRS. VIIRS añade muchos fuegos pequeños desde 2012, por lo que años anteriores se ven más bajos en esta escala.",
+    "areaHelp": "Mostrando todas las regiones. Para comparar un lugar específico, contrae este panel y dibuja un área en el mapa.",
+    "guideTitle": "Analítica de actividad de fuego",
+    "guideSummary": "Explora líneas base estacionales, tendencias multianuales, calendarios, intensidad y clima de incendios.",
+    "guideStep1": "Usa las pestañas de abajo para cambiar entre Línea base estacional, Actividad multianual, Mapa de calor histórico, Calendario de fuego, Intensidad (FRP) y Clima de fuego.",
+    "guideStep2": "Cambia el Año de referencia o la Métrica (Detecciones vs. Índice armonizado) para comparar períodos.",
+    "guideAria": "Cómo funciona el panel de estadísticas",
+    "sectionsAria": "Secciones de estadísticas",
+    "categoriesAria": "Categorías de estadísticas",
+    "sections": {
+      "seasonal": {
+        "shortLabel": "Línea base estacional",
+        "description": "Compara la actividad mensual de un año seleccionado frente a la mediana histórica multianual y su rango típico."
+      },
+      "annual": {
+        "shortLabel": "Actividad multianual",
+        "description": "Compara la actividad anual de fuego desde 2001 hasta la actualidad en índice armonizado MODIS-VIIRS y detecciones crudas."
+      },
+      "archive": {
+        "shortLabel": "Mapa histórico",
+        "description": "Explora conteos mensuales de archivo 2001–2026 por sensor y salta directamente a un mes en el mapa o compara un año."
+      },
+      "fireCalendar": {
+        "shortLabel": "Calendario de fuego",
+        "description": "Inspecciona la actividad mensual, semanal o diaria, pasadas diurnas vs. nocturnas y potencia radiativa."
+      },
+      "intensity": {
+        "shortLabel": "Intensidad (FRP)",
+        "description": "Sigue las distribuciones anuales de intensidad de fuego (mediana, rango intercuartil y percentil 90 de FRP en megavatios)."
+      },
+      "weather": {
+        "shortLabel": "Clima de fuego",
+        "description": "Analiza temperatura diaria, humedad relativa, precipitación y alineación viento-propagación de NASA POWER."
+      }
+    },
+    "archive": {
+      "aria": "Calendario histórico de actividad de fuego",
+      "title": "Archivo histórico",
+      "subtitle": "{total} detecciones observadas · archivo completo",
+      "disclaimer": "Totales de archivo. No aplican filtros de área del mapa ni fechas. Los conteos no están armonizados; la cobertura de observación no está verificada.",
+      "noRecordsCoverage": "Sin registros / cobertura no verificada",
+      "low": "Bajo",
+      "high": "Alto",
+      "logScale": "Escala log. · hasta {max} / mes",
+      "detectionsSensor": "detecciones · {sensor}",
+      "allSensors": "todos los sensores",
+      "observedDays": "Todos los sensores: registros en {days} días este mes. Esto no confirma cobertura satelital completa.",
+      "noMonthRecords": "No hay registros para este mes. No se puede inferir ausencia de fuego.",
+      "loadingMonth": "Cargando mes...",
+      "reloadMonth": "Recargar mes en mapa",
+      "loadMonth": "Cargar mes en mapa",
+      "compareYear": "Comparar {year} en Estadísticas",
+      "largeWarning": "Más de 1,000 detecciones en este mes — se te pedirá confirmación antes de descargar todos los lotes.",
+      "selectMonthPrompt": "Selecciona un mes para inspeccionar sus totales y fuentes de sensores."
+    }
+  },
+  "charts": {
+    "burningCalendar": {
+      "aria": "Mapa de calor histórico de detecciones mensuales. Haz clic en una celda para inspeccionar los totales.",
+      "seriesName": "Detecciones mensuales",
+      "noRecordsCoverage": "Sin registros · cobertura no verificada",
+      "observedDetections": "{count} detecciones observadas"
+    },
+    "annual": {
+      "title": "Actividad de fuego por año",
+      "subtitle": "Actividad total de cada año en el archivo. La línea discontinua es la mediana de los años completos, para distinguir años por encima o por debajo de lo típico.",
+      "errorLoad": "No se pudieron cargar los totales anuales. {error}",
+      "loading": "Cargando actividad anual…",
+      "empty": "Aún no hay registros de focos cargados para esta selección.",
+      "noCompleteYear": "El archivo aún no tiene años completos para comparar.",
+      "anIndexOf": "un índice de {value}",
+      "detectionsCount": "{value} detecciones",
+      "vsMedianPct": ", {pct}% sobre el año mediano",
+      "busiestSummary": "El año con mayor actividad fue {busiest} con {detail}{vsMedian}. El más bajo fue {quietest}.",
+      "provisionalNote": "Las barras con contorno discontinuo ({years}) incluyen meses del flujo casi en tiempo real. Esos datos aún no están armonizados y añaden un satélite VIIRS más, por lo que se leen más altos.",
+      "partialNote": "Las barras tenues son años incompletos en el archivo: {list}. Se excluyen de la mediana.",
+      "monthsOf12": "{year} ({months} de 12 meses completos)",
+      "rangeText": "{start} a {end}",
+      "chartDesc": "Gráfico de barras de {what} por año, {range}. {summary}",
+      "whatHarmonized": "el índice armonizado",
+      "whatSensors": "detecciones por sensor",
+      "harmonizedMissing": "La base de datos tiene detecciones pero aún sin pesos armonizados. Carga la salida de armonización o cambia a Detecciones.",
+      "legendAria": "Leyenda del gráfico",
+      "harmonizedIndex": "Índice armonizado",
+      "incompleteYear": "Año incompleto",
+      "nearRealTime": "Casi tiempo real",
+      "medianYear": "Año mediano",
+      "viirsStarts": "Inicio de VIIRS (2012)",
+      "showTable": "Mostrar valores anuales",
+      "hideTable": "Ocultar valores anuales",
+      "tableCaption": "Detecciones por año por sensor e índice armonizado",
+      "colYear": "Año",
+      "colTotal": "Total",
+      "colHarmonized": "Índice armonizado",
+      "colVsMedian": "vs. año mediano",
+      "colCoverage": "Cobertura del archivo",
+      "fullYear": "Año completo",
+      "monthsCount": "{months} de 12 meses"
+    },
+    "monthly": {
+      "title": "Este año frente al rango típico",
+      "subtitle": "Cada mes comparado contra la mediana de los demás años del archivo. La banda sombreada muestra el 50% central (percentil 25 al 75); las barras por encima indican un mes inusualmente activo.",
+      "year": "Año",
+      "errorLoad": "No se pudo cargar la comparación mensual. {error}",
+      "loading": "Cargando comparación mensual…",
+      "empty": "Aún no hay registros de focos cargados.",
+      "baselineNone": "No hay otros años en el archivo para comparar.",
+      "baseline": "Línea base: {count} {unit} de {first} a {last}.",
+      "yearSingular": "año adicional",
+      "yearPlural": "años adicionales",
+      "tooFewBaseline": "Hay menos de {min} años adicionales en el archivo, así que {year} no tiene un rango típico para comparar.",
+      "noMonthData": "Ningún mes de {year} tiene datos para comparar aún.",
+      "summaryAbove": "{above} de {comparable} {unit} en {year} superaron el rango típico.",
+      "summaryAboveAndBelow": "{above} de {comparable} {unit} en {year} superaron el rango típico y {below} quedaron por debajo.",
+      "monthSingular": "mes",
+      "monthPlural": "meses",
+      "harmonizedMissing": "La base de datos tiene detecciones para esta área, pero aún sin pesos armonizados. Carga la salida de armonización o cambia a Detecciones.",
+      "chartDescEmpty": "Gráfico de comparación mensual",
+      "chartDesc": "Gráfico de barras de {label} mensual en {year} frente a la mediana y rango típico de otros años. {summary}",
+      "gapNote": "El archivo no tiene datos para {months} de {year}. Esos meses son vacíos de registro, no ausencia de fuego.",
+      "partialNote": "{months} solo cubren parte del mes, por lo que aparecen tenues y no se comparan.",
+      "nrtHarmonizedNote": "Los meses con contorno discontinuo provienen del flujo casi en tiempo real, aún sin armonizar, por lo que no se comparan en esta escala.",
+      "nrtRawNote": "Los meses con contorno discontinuo provienen del flujo casi en tiempo real: aún sin armonizar y con un satélite VIIRS adicional, por lo que se leen más altos que años anteriores.",
+      "aboveRange": "Sobre el rango",
+      "typical": "Típico",
+      "belowRange": "Bajo el rango",
+      "partialMonth": "Mes parcial",
+      "nearRealTime": "Casi tiempo real",
+      "median": "Mediana",
+      "typicalRange": "Rango típico (percentil 25 a 75)",
+      "showTable": "Mostrar tabla mensual",
+      "hideTable": "Ocultar tabla mensual",
+      "tableCaption": "{label} mensual en {year} comparado con la línea base histórica",
+      "colMonth": "Mes",
+      "colMedian": "Mediana",
+      "colTypicalRange": "Rango típico",
+      "colVsMedian": "vs. mediana",
+      "colStatus": "Estado",
+      "rangeTo": "{low} a {high}",
+      "tooltip": {
+        "above": "Por encima",
+        "partialDays": "Datos solo del día {first} al {last}",
+        "nrtFeed": "Flujo casi en tiempo real, aún sin armonizar",
+        "median": "Mediana: {value}",
+        "typicalRange": "Rango típico: {low} a {high}",
+        "baseline": "Línea base: {count} {unit}"
+      },
+      "status": {
+        "above": "Por encima del rango típico",
+        "typical": "Dentro del rango típico",
+        "below": "Por debajo del rango típico",
+        "partial": "Mes parcial, no comparado",
+        "unharmonized": "Aún sin armonizar, no comparado en esta escala",
+        "insufficient": "Faltan años base para comparar",
+        "missing": "Sin datos en el archivo para este mes",
+        "aboveShort": "Sobre rango",
+        "typicalShort": "Típico",
+        "belowShort": "Bajo rango",
+        "partialShort": "Mes parcial",
+        "unharmonizedShort": "Sin armonizar",
+        "insufficientShort": "Base corta",
+        "missingShort": "Sin datos",
+        "nearRealTimeSuffix": ", casi tiempo real"
+      }
+    },
+    "distributions": {
+      "title": "Distribución de intensidad de Potencia Radiativa (FRP)",
+      "subtitle": "Sigue la intensidad anual del fuego en la región usando mediana (P50), rango intercuartil (P25–P75) y percentil 90 de incendios severos (P90) en megavatios.",
+      "unitMw": "Megavatios (MW)",
+      "yearWindow": "Ventana de años",
+      "windows": {
+        "full": "2001 – 2025 (Archivo completo)",
+        "era": "2012 – 2025 (Era MODIS + VIIRS)",
+        "ten": "2016 – 2025 (Últimos 10 años)",
+        "five": "2021 – 2025 (Últimos 5 años)",
+        "nrt": "2021 – 2026 (inc. tiempo real)"
+      },
+      "noObs": "No hay observaciones disponibles para esta variable y período.",
+      "summary": "La mediana más alta de {label} en esta ventana ocurrió en {year} con {median} {unit} (RIC {p25}–{p75} {unit}, P90 {p90} {unit}).",
+      "chartDesc": "Gráfico anual de distribución para {label}. {summary}",
+      "errorLoad": "No se pudieron cargar las distribuciones anuales. {error}",
+      "loading": "Cargando distribuciones…",
+      "empty": "No hay registros de distribución disponibles para esta ventana.",
+      "noObservations": "Sin observaciones",
+      "median": "Mediana: {val}",
+      "mean": "Media: {val} (DE: {sd})",
+      "iqr": "RIC (P25–P75): {p25} – {p75}",
+      "p90Max": "P90: {p90} · Máx.: {max}",
+      "observations": "Observaciones: {count}",
+      "legendIqr": "RIC (P25–P75)",
+      "legendMedian": "Mediana (P50)",
+      "legendMean": "Media",
+      "legendP90": "Percentil 90 (P90)",
+      "showTable": "Mostrar tabla de estadísticas anuales",
+      "hideTable": "Ocultar tabla de estadísticas anuales",
+      "colYear": "Año",
+      "colObs": "Obs.",
+      "colMedian": "Mediana",
+      "colIqr": "RIC (P25–P75)",
+      "colP90": "P90",
+      "colMean": "Media",
+      "colMax": "Máx.",
+      "vars": {
+        "frp": "Potencia Radiativa del Fuego (FRP)",
+        "confidence": "Confianza de detección",
+        "bright_tir": "Brillo infrarrojo térmico (TIR)",
+        "bright_mir": "Brillo infrarrojo medio (MIR)"
+      }
+    },
+    "fireCalendar": {
+      "title": "Calendario de fuego: ciclo diurno y potencia radiativa",
+      "subtitle": "Inspecciona las detecciones divididas entre pasadas diurnas y nocturnas junto con la potencia radiativa promedio (MW).",
+      "aggregation": "Agregación",
+      "monthly": "Mensual",
+      "weekly": "Semanal",
+      "daily": "Diaria",
+      "sensor": "Sensor",
+      "allSensors": "Todos los sensores",
+      "year": "Año",
+      "errorLoad": "No se pudo cargar el calendario de fuego. {error}",
+      "loading": "Cargando calendario de fuego…",
+      "empty": "No hay detecciones de calendario de fuego para esta selección.",
+      "inSelectedArea": "en el área seleccionada",
+      "acrossRegionalArchive": "en el archivo regional",
+      "summary": "En {year}, se registraron {total} detecciones {scope} ({dayPct}% diurnas, {highConf} de alta confianza) con una potencia radiativa promedio de {avgFrp} MW y pico de {maxFrp} MW.",
+      "chartDesc": "Gráfico apilado de barras y línea de focos diurnos y nocturnos ({agg}) y FRP promedio en {year}. {summary}",
+      "missingNote": "Los intervalos faltantes indican períodos sin registros satelitales en el archivo (vacío de datos, no ausencia de fuego).",
+      "yAxisHotspots": "Focos",
+      "yAxisAvgFrp": "FRP prom. (MW)",
+      "seriesDay": "Diurno (D)",
+      "seriesNight": "Nocturno (N)",
+      "seriesAvgFrp": "FRP prom. (MW)",
+      "tooltipMissing": "Sin datos en el archivo para este período (vacío de datos, no cero fuegos)",
+      "tooltipHotspots": "{total} focos ({high} conf. alta)",
+      "tooltipDay": "Diurno (D): {count}",
+      "tooltipNight": "Nocturno (N): {count}",
+      "tooltipAvgMax": "FRP prom.: {avg} MW · Máx.: {max} MW",
+      "tooltipTotalFrp": "FRP total: {total} MW"
+    },
+    "weather": {
+      "title": "Clima de fuego y alineación viento-propagación",
+      "subtitle": "Compara meteorología diaria de NASA POWER (temperatura, humedad, precipitación) y alineación del viento a 10 m con la dirección de propagación.",
+      "source": "Fuente",
+      "activeCluster": "Cúmulo de fuego activo",
+      "referenceLocation": "Ubicación de referencia",
+      "view": "Vista",
+      "alignmentView": "Alineación viento-fuego",
+      "meteoView": "NASA POWER diario (T2M / RH2M)",
+      "location": "Ubicación",
+      "fireHeading": "Rumbo del fuego",
+      "directions": {
+        "west": "Oeste (270°)",
+        "nw": "NO (315°)",
+        "north": "Norte (0°)",
+        "east": "Este (90°)"
+      },
+      "errorLoad": "No se pudo cargar la correlación climática. {error}",
+      "loading": "Cargando clima de fuego…",
+      "empty": "No hay observaciones climáticas disponibles para esta ventana.",
+      "windAxis": "Viento (m/s)",
+      "alignAxis": "Alineación cos(Δθ)",
+      "tempAxis": "Temp (°C) / Precip (mm)",
+      "rhAxis": "HR (%)",
+      "seriesWind": "Velocidad del viento (m/s)",
+      "seriesAlign": "Alineación cos(Δθ)",
+      "seriesTemp": "Temp. T2M (°C)",
+      "seriesRh": "Humedad RH2M (%)",
+      "seriesPrecip": "Precipitación (mm)",
+      "tooltipAlignTitle": "{date} · Viento vs. Fuego ({deg}°)",
+      "tooltipCos": "Alineación cos(Δθ): {cos} (Δθ = {diff})",
+      "tooltipWindSpeed": "Velocidad del viento: {speed}",
+      "tooltipWindToward": "Viento sopla hacia: {to} (desde {from})",
+      "tooltipVector": "Vector (u, v): ({u}, {v}) m/s",
+      "tooltipMeteoTitle": "{date} · NASA POWER diario",
+      "tooltipTemp": "Temperatura (T2M): {val}",
+      "tooltipRh": "Humedad relativa (RH2M): {val}",
+      "tooltipPrecip": "Precipitación (PRECTOTCORR): {val}"
+    }
+  },
+  "feedback": {
+    "classifications": {
+      "confirmed_wildfire": "Incendio forestal confirmado",
+      "agricultural_burn": "Quema agrícola",
+      "industrial_or_flare": "Industrial / Antorcha",
+      "false_positive": "Falso positivo",
+      "uncertain": "Incierto"
+    },
+    "severities": {
+      "unspecified": "Sin especificar",
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta",
+      "critical": "Crítica"
+    }
+  }
+}

@@ -78,13 +78,18 @@ export const PROVISIONAL_OUTLINE = '#f3f4f6'
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { use } from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
+import { useLocaleFormatters } from '@/i18n'
 
 use([CanvasRenderer, BarChart, LineChart, GridComponent, TooltipComponent])
+
+const { t } = useI18n()
+const { bcp47Locale } = useLocaleFormatters()
 
 const props = defineProps<{
   months: readonly ComparisonMonth[]
@@ -95,31 +100,31 @@ const props = defineProps<{
   description: string
 }>()
 
-const valueFormat = computed(
-  () => new Intl.NumberFormat('en-US', { maximumFractionDigits: props.fractionDigits }),
+const monthFormatter = computed(
+  () => new Intl.DateTimeFormat(bcp47Locale.value, { month: 'short', timeZone: 'UTC' }),
 )
-const pctFormat = new Intl.NumberFormat('en-US', {
-  maximumFractionDigits: 0,
-  signDisplay: 'exceptZero',
-})
+const localizedMonths = computed(() =>
+  Array.from({ length: 12 }, (_, i) => monthFormatter.value.format(new Date(Date.UTC(2024, i, 1)))),
+)
+
+const valueFormat = computed(
+  () => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: props.fractionDigits }),
+)
+const pctFormat = computed(
+  () =>
+    new Intl.NumberFormat(bcp47Locale.value, {
+      maximumFractionDigits: 0,
+      signDisplay: 'exceptZero',
+    }),
+)
 
 function formatValue(value: number | null): string {
-  return value === null ? 'No data' : valueFormat.value.format(value)
+  return value === null ? t('common.noData') : valueFormat.value.format(value)
 }
 
 function anomalyLabel(month: ComparisonMonth): string {
-  if (month.anomaly_pct_median === null) return 'Above'
-  return `${pctFormat.format(month.anomaly_pct_median)}%`
-}
-
-const STATUS_TEXT: Record<MonthStatus, string> = {
-  above: 'Above the typical range',
-  typical: 'Within the typical range',
-  below: 'Below the typical range',
-  partial: 'Partial month, not compared',
-  unharmonized: 'Not harmonized yet, not compared on this scale',
-  insufficient: 'Not enough baseline years to compare',
-  missing: 'No data in the archive for this month',
+  if (month.anomaly_pct_median === null) return t('charts.monthly.tooltip.above')
+  return `${pctFormat.value.format(month.anomaly_pct_median)}%`
 }
 
 function tooltipHtml(index: number): string {
@@ -128,26 +133,26 @@ function tooltipHtml(index: number): string {
   const status = monthStatus(month, props.metric)
   const { median, p25, p75, count } = month.historic
   const rows = [
-    `<div style="font-weight:600">${MONTH_LABELS[index]} ${props.year}</div>`,
+    `<div style="font-weight:600">${localizedMonths.value[index]} ${props.year}</div>`,
     `<div style="margin-top:2px;color:${status === 'missing' ? '#94a3b8' : '#ffe066'}">${formatValue(month.year_count)} ${status === 'missing' ? '' : props.valueLabel}</div>`,
   ]
   if (status === 'partial' && month.days_with_data) {
     const [first, last] = month.days_with_data
-    rows.push(`<div style="color:#94a3b8">Data only from day ${first} to ${last}</div>`)
+    rows.push(
+      `<div style="color:#94a3b8">${t('charts.monthly.tooltip.partialDays', { first, last })}</div>`,
+    )
   }
   if (month.provisional) {
-    rows.push(
-      '<div style="color:#94a3b8">Near-real-time feed, not harmonized yet</div>',
-    )
+    rows.push(`<div style="color:#94a3b8">${t('charts.monthly.tooltip.nrtFeed')}</div>`)
   }
   if (median !== null) {
     rows.push(
-      `<div style="margin-top:6px;color:#cbd5e1">Median: ${formatValue(median)}</div>`,
-      `<div style="color:#cbd5e1">Typical range: ${formatValue(p25)} to ${formatValue(p75)}</div>`,
-      `<div style="color:#94a3b8">Baseline: ${count} ${count === 1 ? 'year' : 'years'}</div>`,
+      `<div style="margin-top:6px;color:#cbd5e1">${t('charts.monthly.tooltip.median', { value: formatValue(median) })}</div>`,
+      `<div style="color:#cbd5e1">${t('charts.monthly.tooltip.typicalRange', { low: formatValue(p25), high: formatValue(p75) })}</div>`,
+      `<div style="color:#94a3b8">${t('charts.monthly.tooltip.baseline', { count, unit: count === 1 ? t('charts.monthly.yearSingular') : t('charts.monthly.yearPlural') })}</div>`,
     )
   }
-  rows.push(`<div style="margin-top:6px;color:#f3f4f6">${STATUS_TEXT[status]}</div>`)
+  rows.push(`<div style="margin-top:6px;color:#f3f4f6">${t(`charts.monthly.status.${status}`)}</div>`)
   return rows.join('')
 }
 
@@ -205,7 +210,7 @@ const chartOption = computed(() => {
     },
     xAxis: {
       type: 'category',
-      data: [...MONTH_LABELS],
+      data: localizedMonths.value,
       axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.12)' } },
       axisTick: { show: false },
       axisLabel: { color: '#94a3b8', fontSize: 11 },
@@ -216,7 +221,7 @@ const chartOption = computed(() => {
         color: '#94a3b8',
         fontSize: 10,
         formatter: (value: number) =>
-          new Intl.NumberFormat('en-US', { notation: 'compact' }).format(value),
+          new Intl.NumberFormat(bcp47Locale.value, { notation: 'compact' }).format(value),
       },
       splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.06)', type: 'dashed' } },
     },

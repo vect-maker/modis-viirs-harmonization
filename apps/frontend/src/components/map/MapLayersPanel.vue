@@ -3,9 +3,13 @@ import { computed, shallowRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { Check, ChevronDown, Flame, Hexagon, Layers } from '@lucide/vue'
 import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
+import { useI18n } from 'vue-i18n'
+import { useLocaleFormatters } from '@/i18n'
 import { useClustersStore } from '@/stores/clusters'
 import { useHotspotsStore } from '@/stores/hotspots'
 
+const { t } = useI18n()
+const { formatInt } = useLocaleFormatters()
 const clustersStore = useClustersStore()
 const hotspotsStore = useHotspotsStore()
 const { fireEvents, showEvents, showHotspots } = storeToRefs(clustersStore)
@@ -18,7 +22,7 @@ const activeCount = computed(() => (showEvents.value ? 1 : 0) + (showHotspots.va
 
 <template>
   <section
-    aria-label="Map layers"
+    :aria-label="t('map.layers.aria')"
     class="w-64 overflow-hidden rounded-xl border border-border-strong bg-surface-panel/92 shadow-[0_8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md"
   >
     <button
@@ -30,7 +34,7 @@ const activeCount = computed(() => (showEvents.value ? 1 : 0) + (showHotspots.va
     >
       <span class="flex items-center gap-2">
         <Layers aria-hidden="true" class="size-3.5 text-accent-bright" />
-        <span>Layers</span>
+        <span>{{ t('map.layers.title') }}</span>
         <span
           class="rounded-full border border-border-subtle bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] font-medium tabular-nums text-ink-secondary"
         >
@@ -54,7 +58,7 @@ const activeCount = computed(() => (showEvents.value ? 1 : 0) + (showHotspots.va
       >
         <CheckboxRoot
           :model-value="showEvents"
-          aria-label="Toggle Fire Events layer"
+          :aria-label="t('map.layers.toggleEventsAria')"
           class="flex size-4 shrink-0 items-center justify-center rounded border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           :class="
             showEvents
@@ -76,14 +80,18 @@ const activeCount = computed(() => (showEvents.value ? 1 : 0) + (showHotspots.va
         </span>
 
         <span class="min-w-0 flex-1">
-          <span class="block text-xs font-medium leading-tight text-ink-primary">Fire Events</span>
-          <span class="block truncate text-[10px] text-ink-muted">Event perimeters</span>
+          <span class="block text-xs font-medium leading-tight text-ink-primary">{{
+            t('map.layers.fireEvents')
+          }}</span>
+          <span class="block truncate text-[10px] text-ink-muted">{{
+            t('map.layers.eventPerimeters')
+          }}</span>
         </span>
 
         <span
           class="shrink-0 font-mono text-[11px] font-medium tabular-nums text-ink-secondary"
         >
-          {{ fireEvents.features.length.toLocaleString() }}
+          {{ formatInt(fireEvents.features.length) }}
         </span>
       </label>
 
@@ -92,7 +100,7 @@ const activeCount = computed(() => (showEvents.value ? 1 : 0) + (showHotspots.va
       >
         <CheckboxRoot
           :model-value="showHotspots"
-          aria-label="Toggle Hotspots layer"
+          :aria-label="t('map.layers.toggleHotspotsAria')"
           class="flex size-4 shrink-0 items-center justify-center rounded border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           :class="
             showHotspots
@@ -114,14 +122,18 @@ const activeCount = computed(() => (showEvents.value ? 1 : 0) + (showHotspots.va
         </span>
 
         <span class="min-w-0 flex-1">
-          <span class="block text-xs font-medium leading-tight text-ink-primary">Hotspots</span>
-          <span class="block truncate text-[10px] text-ink-muted">MODIS &amp; VIIRS points</span>
+          <span class="block text-xs font-medium leading-tight text-ink-primary">{{
+            t('map.layers.hotspots')
+          }}</span>
+          <span class="block truncate text-[10px] text-ink-muted">{{
+            t('map.layers.modisViirsPoints')
+          }}</span>
         </span>
 
         <span
           class="shrink-0 font-mono text-[11px] font-medium tabular-nums text-ink-secondary"
         >
-          {{ filteredHotspots.length.toLocaleString() }}
+          {{ formatInt(filteredHotspots.length) }}
         </span>
       </label>
     </div>

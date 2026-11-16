@@ -2,8 +2,10 @@
 import { computed, shallowRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RotateCw } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { useTemporalChartsApi } from '@/api'
 import { useChartLifecycle } from '@/composables/useChartLifecycle'
+import { useLocaleFormatters } from '@/i18n'
 import { useChartFiltersStore } from '@/stores/chartFilters'
 import BaseChartLoading from '@/components/ui/BaseChartLoading.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
@@ -12,17 +14,22 @@ import AnnualDistributionsRenderer, {
   type DistributionVariable,
 } from '@/components/common/AnnualDistributionsChart.vue'
 
+const { t } = useI18n()
+const { bcp47Locale, formatInt } = useLocaleFormatters()
 const filtersStore = useChartFiltersStore()
 const { metric, activePolygon } = storeToRefs(filtersStore)
 const { getAnnualStats } = useTemporalChartsApi()
 
-const WINDOW_OPTIONS = [
-  { value: '2001-2025', label: '2001 – 2025 (Full Archive)' },
-  { value: '2012-2025', label: '2012 – 2025 (MODIS + VIIRS Era)' },
-  { value: '2016-2025', label: '2016 – 2025 (Last 10 Years)' },
-  { value: '2021-2025', label: '2021 – 2025 (Last 5 Years)' },
-  { value: '2021-2026', label: '2021 – 2026 (inc. NRT)' },
-] as const
+const WINDOW_OPTIONS = computed(
+  () =>
+    [
+      { value: '2001-2025', label: t('charts.distributions.windows.full') },
+      { value: '2012-2025', label: t('charts.distributions.windows.era') },
+      { value: '2016-2025', label: t('charts.distributions.windows.ten') },
+      { value: '2021-2025', label: t('charts.distributions.windows.five') },
+      { value: '2021-2026', label: t('charts.distributions.windows.nrt') },
+    ] as const,
+)
 
 const selectedVariable = shallowRef<DistributionVariable>('frp')
 const selectedWindow = shallowRef<string>('2016-2025')
@@ -60,8 +67,9 @@ const isEmpty = computed(
   () => result.value !== null && rows.value.every((r) => r.total_hotspots === 0),
 )
 const meta = computed(() => VARIABLE_META[selectedVariable.value])
+const varLabel = computed(() => t(`charts.distributions.vars.${selectedVariable.value}`))
 const numFmt = computed(
-  () => new Intl.NumberFormat('en-US', { maximumFractionDigits: meta.value.digits }),
+  () => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: meta.value.digits }),
 )
 
 function fmt(val: number | null | undefined): string {
@@ -70,16 +78,24 @@ function fmt(val: number | null | undefined): string {
 
 const summaryText = computed(() => {
   const valid = rows.value.filter((r) => (r[selectedVariable.value]?.count ?? 0) > 0)
-  if (valid.length === 0) return 'No observations available for this variable and period.'
+  if (valid.length === 0) return t('charts.distributions.noObs')
   const peak = [...valid].sort(
     (a, b) => (b[selectedVariable.value]?.median ?? 0) - (a[selectedVariable.value]?.median ?? 0),
   )[0]!
   const stat = peak[selectedVariable.value]!
-  return `Highest median ${meta.value.label} in this window occurred in ${peak.year} at ${fmt(stat.median)} ${meta.value.unit} (IQR ${fmt(stat.p25)}–${fmt(stat.p75)} ${meta.value.unit}, P90 ${fmt(stat.p90)} ${meta.value.unit}).`
+  return t('charts.distributions.summary', {
+    label: varLabel.value,
+    year: peak.year,
+    median: fmt(stat.median),
+    unit: meta.value.unit,
+    p25: fmt(stat.p25),
+    p75: fmt(stat.p75),
+    p90: fmt(stat.p90),
+  })
 })
 
-const chartDescription = computed(
-  () => `Yearly distribution chart for ${meta.value.label}. ${summaryText.value}`,
+const chartDescription = computed(() =>
+  t('charts.distributions.chartDesc', { label: varLabel.value, summary: summaryText.value }),
 )
 </script>
 
@@ -91,17 +107,17 @@ const chartDescription = computed(
       <div class="max-w-[62ch]">
         <div class="flex flex-wrap items-center gap-2">
           <h2 id="annual-distributions-title" class="text-base font-semibold text-ink-primary">
-            Fire Radiative Power (FRP) intensity distribution
+            {{ t('charts.distributions.title') }}
           </h2>
           <span
             class="rounded border border-border-subtle bg-surface-input px-2 py-0.5 text-[11px] text-ink-muted"
           >
-            {{ activePolygon ? 'Drawn area' : 'All regions' }} · Megawatts (MW)
+            {{ activePolygon ? t('stats.drawnArea') : t('stats.allRegions') }} ·
+            {{ t('charts.distributions.unitMw') }}
           </span>
         </div>
         <p class="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
-          Tracks yearly fire intensity across the region using median (P50), interquartile range
-          (P25–P75), and severe-fire 90th percentile (P90) radiative power in megawatts.
+          {{ t('charts.distributions.subtitle') }}
         </p>
       </div>
 
@@ -109,7 +125,7 @@ const chartDescription = computed(
         <BaseSelect
           v-model="selectedWindow"
           :options="WINDOW_OPTIONS"
-          label="Year window"
+          :label="t('charts.distributions.yearWindow')"
           :disabled="isLoading && result === null"
         />
       </div>
@@ -121,28 +137,28 @@ const chartDescription = computed(
         role="alert"
         class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-100"
       >
-        <span>Could not load annual distributions. {{ error }}</span>
+        <span>{{ t('charts.distributions.errorLoad', { error }) }}</span>
         <button
           type="button"
           class="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-red-300/40 px-3 text-xs font-medium hover:bg-red-400/10 focus-visible:outline-2 focus-visible:outline-focus"
           @click="refresh"
         >
           <RotateCw aria-hidden="true" class="h-3.5 w-3.5" />
-          Try again
+          {{ t('common.retry') }}
         </button>
       </div>
 
       <BaseChartLoading
         v-if="result === null && isLoading"
         height-class="h-[21rem]"
-        label="Loading annual distributions…"
+        :label="t('charts.distributions.loading')"
       />
 
       <p
         v-else-if="isEmpty"
         class="rounded-lg border border-dashed border-border-strong px-4 py-10 text-center text-[13px] text-ink-muted"
       >
-        No hotspot records are loaded for this selection yet.
+        {{ t('charts.distributions.empty') }}
       </p>
 
       <template v-else-if="result !== null">
@@ -166,23 +182,23 @@ const chartDescription = computed(
 
         <ul
           class="flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-secondary"
-          aria-label="Chart legend"
+          :aria-label="t('charts.annual.legendAria')"
         >
           <li class="inline-flex items-center gap-2">
             <span class="h-3 w-3 rounded-sm bg-accent" />
-            Median (P50)
+            {{ t('charts.distributions.legendMedian') }}
           </li>
           <li class="inline-flex items-center gap-2">
             <span class="w-5 border-t-2 border-dashed border-telemetry" />
-            Mean
+            {{ t('charts.distributions.legendMean') }}
           </li>
           <li class="inline-flex items-center gap-2">
             <span class="h-3 w-4 rounded-sm bg-accent/25" />
-            IQR (P25–P75)
+            {{ t('charts.distributions.legendIqr') }}
           </li>
           <li class="inline-flex items-center gap-2">
             <span class="w-4 border-t border-dotted border-amber-300" />
-            90th percentile (P90)
+            {{ t('charts.distributions.legendP90') }}
           </li>
         </ul>
 
@@ -190,28 +206,28 @@ const chartDescription = computed(
           <summary
             class="cursor-pointer list-none rounded-lg px-4 py-3 text-xs font-medium text-ink-secondary hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-focus"
           >
-            <span class="group-open:hidden">Show yearly percentile table</span>
-            <span class="hidden group-open:inline">Hide yearly percentile table</span>
+            <span class="group-open:hidden">{{ t('charts.distributions.showTable') }}</span>
+            <span class="hidden group-open:inline">{{ t('charts.distributions.hideTable') }}</span>
           </summary>
           <div class="overflow-x-auto border-t border-border-subtle px-4 pb-3">
             <table class="w-full min-w-[34rem] text-left text-xs">
               <thead class="border-b border-border-subtle text-ink-muted">
                 <tr>
-                  <th class="py-2 pr-3 font-medium">Year</th>
-                  <th class="px-2 py-2 text-right font-medium">Count</th>
+                  <th class="py-2 pr-3 font-medium">{{ t('charts.distributions.colYear') }}</th>
+                  <th class="px-2 py-2 text-right font-medium">{{ t('charts.distributions.colObs') }}</th>
                   <th class="px-2 py-2 text-right font-medium">P25</th>
-                  <th class="px-2 py-2 text-right font-medium">Median</th>
-                  <th class="px-2 py-2 text-right font-medium">Mean</th>
+                  <th class="px-2 py-2 text-right font-medium">{{ t('charts.distributions.colMedian') }}</th>
+                  <th class="px-2 py-2 text-right font-medium">{{ t('charts.distributions.colMean') }}</th>
                   <th class="px-2 py-2 text-right font-medium">P75</th>
-                  <th class="px-2 py-2 text-right font-medium">P90</th>
-                  <th class="pl-2 py-2 text-right font-medium">IQR</th>
+                  <th class="px-2 py-2 text-right font-medium">{{ t('charts.distributions.colP90') }}</th>
+                  <th class="pl-2 py-2 text-right font-medium">{{ t('charts.distributions.colIqr') }}</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-border-subtle text-ink-secondary">
                 <tr v-for="row in rows" :key="row.year">
                   <td class="py-1.5 pr-3 font-medium text-ink-primary">{{ row.year }}</td>
                   <td class="px-2 py-1.5 text-right tabular-nums">
-                    {{ (row[selectedVariable]?.count ?? 0).toLocaleString() }}
+                    {{ formatInt(row[selectedVariable]?.count ?? 0) }}
                   </td>
                   <td class="px-2 py-1.5 text-right tabular-nums">{{ fmt(row[selectedVariable]?.p25) }}</td>
                   <td class="px-2 py-1.5 text-right tabular-nums">{{ fmt(row[selectedVariable]?.median) }}</td>

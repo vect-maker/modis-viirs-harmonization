@@ -69,6 +69,9 @@ export const STATS_SECTIONS: readonly StatsSectionItem[] = [
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   sections?: readonly StatsSectionItem[]
@@ -76,17 +79,31 @@ const props = defineProps<{
 
 const model = defineModel<StatsSectionId>({ required: true })
 
-const items = computed(() => props.sections ?? STATS_SECTIONS)
+const SECTION_KEY_MAP: Record<StatsSectionId, string> = {
+  seasonal: 'seasonal',
+  annual: 'annual',
+  archive: 'archive',
+  'fire-calendar': 'fireCalendar',
+  intensity: 'intensity',
+  weather: 'weather',
+}
+
+const items = computed(() =>
+  (props.sections ?? STATS_SECTIONS).map((section) => ({
+    ...section,
+    localizedShortLabel: t(`stats.sections.${SECTION_KEY_MAP[section.id]}.shortLabel`),
+  })),
+)
 </script>
 
 <template>
   <nav
-    aria-label="Statistics sections"
+    :aria-label="t('stats.sectionsAria')"
     class="border-b border-border-subtle bg-surface-base/40 px-5 py-3"
   >
     <div
       role="tablist"
-      aria-label="Statistics categories"
+      :aria-label="t('stats.categoriesAria')"
       class="flex flex-wrap gap-1.5"
     >
       <button
@@ -103,7 +120,7 @@ const items = computed(() => props.sections ?? STATS_SECTIONS)
         "
         @click="model = section.id"
       >
-        {{ section.shortLabel }}
+        {{ section.localizedShortLabel }}
       </button>
     </div>
   </nav>

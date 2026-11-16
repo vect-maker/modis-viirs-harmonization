@@ -39,13 +39,18 @@ export const VARIABLE_META: Record<
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { use } from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
+import { useLocaleFormatters } from '@/i18n'
 
 use([CanvasRenderer, BarChart, LineChart, GridComponent, TooltipComponent])
+
+const { t } = useI18n()
+const { bcp47Locale } = useLocaleFormatters()
 
 const props = defineProps<{
   rows: readonly AnnualDistributionRow[]
@@ -54,10 +59,13 @@ const props = defineProps<{
 }>()
 
 const meta = computed(() => VARIABLE_META[props.variable])
+const varLabel = computed(() => t(`charts.distributions.vars.${props.variable}`))
 const fmt = computed(
-  () => new Intl.NumberFormat('en-US', { maximumFractionDigits: meta.value.digits }),
+  () => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: meta.value.digits }),
 )
-const intFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
+const intFmt = computed(
+  () => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: 0 }),
+)
 
 function formatVal(val: number | null | undefined): string {
   if (val === null || val === undefined) return '—'
@@ -69,15 +77,15 @@ function tooltipHtml(index: number): string {
   if (!row) return ''
   const stat = row[props.variable]
   if (!stat || stat.count === 0) {
-    return `<div style="font-weight:600">${row.year}</div><div style="color:#94a3b8">No observations</div>`
+    return `<div style="font-weight:600">${row.year}</div><div style="color:#94a3b8">${t('charts.distributions.noObservations')}</div>`
   }
   return [
-    `<div style="font-weight:600">${row.year} · ${meta.value.label}</div>`,
-    `<div style="margin-top:4px;color:#ffe066">Median: ${formatVal(stat.median)}</div>`,
-    `<div style="color:#38bdf8">Mean: ${formatVal(stat.mean)} (SD: ${formatVal(stat.std)})</div>`,
-    `<div style="color:#cbd5e1">IQR (P25–P75): ${formatVal(stat.p25)} – ${formatVal(stat.p75)}</div>`,
-    `<div style="color:#e69f00">P90: ${formatVal(stat.p90)} · Max: ${formatVal(stat.max)}</div>`,
-    `<div style="margin-top:4px;color:#94a3b8">Observations: ${intFmt.format(stat.count)}</div>`,
+    `<div style="font-weight:600">${row.year} · ${varLabel.value}</div>`,
+    `<div style="margin-top:4px;color:#ffe066">${t('charts.distributions.median', { val: formatVal(stat.median) })}</div>`,
+    `<div style="color:#38bdf8">${t('charts.distributions.mean', { val: formatVal(stat.mean), sd: formatVal(stat.std) })}</div>`,
+    `<div style="color:#cbd5e1">${t('charts.distributions.iqr', { p25: formatVal(stat.p25), p75: formatVal(stat.p75) })}</div>`,
+    `<div style="color:#e69f00">${t('charts.distributions.p90Max', { p90: formatVal(stat.p90), max: formatVal(stat.max) })}</div>`,
+    `<div style="margin-top:4px;color:#94a3b8">${t('charts.distributions.observations', { count: intFmt.value.format(stat.count) })}</div>`,
   ].join('')
 }
 

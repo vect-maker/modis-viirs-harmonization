@@ -1,27 +1,24 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ArrowDown, Layers3, ScanLine } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
-const steps = [
-  {
-    title: 'Match',
-    text: 'We pair MODIS and VIIRS detections of the same fire: within 2.2 km and less than one hour apart.',
-  },
-  {
-    title: 'Weight each detection',
-    text: 'Each VIIRS detection is split across the active VIIRS satellites that year. A MODIS detection also seen by VIIRS gets weight 0 to avoid double-counting. A MODIS-only detection receives a time-of-day factor calibrated per country from post-2012 overlaps.',
-  },
-  {
-    title: 'Sum',
-    text: 'The harmonized index is the sum of these weights in VIIRS-equivalent detections, making a year like 2005 directly comparable to 2024.',
-  },
-]
+const { t } = useI18n()
 
-const example = [
-  { sensor: 'viirs', label: 'Fire seen by Suomi-NPP', weight: '0.5' },
-  { sensor: 'viirs', label: 'Same fire seen by NOAA-20', weight: '0.5' },
-  { sensor: 'modis', label: 'Same fire seen by Aqua (MODIS)', weight: '0' },
-  { sensor: 'modis', label: 'Another afternoon fire, MODIS only', weight: '6.12' },
-]
+const steps = computed(() =>
+  [0, 1, 2].map((i) => ({
+    title: t(`landing.continuity.steps.${i}.title`),
+    text: t(`landing.continuity.steps.${i}.text`),
+  })),
+)
+
+const example = computed(() =>
+  [0, 1, 2, 3].map((i) => ({
+    sensor: t(`landing.continuity.exampleRows.${i}.sensor`),
+    label: t(`landing.continuity.exampleRows.${i}.label`),
+    weight: t(`landing.continuity.exampleRows.${i}.weight`),
+  })),
+)
 </script>
 
 <template>
@@ -32,10 +29,11 @@ const example = [
   >
     <div class="landing-wrap">
       <div class="landing-section-heading">
-        <h2 id="continuity-title">Two sensors,<br />one continuous record.</h2>
+        <h2 id="continuity-title">
+          {{ t('landing.continuity.titleLine1') }}<br />{{ t('landing.continuity.titleLine2') }}
+        </h2>
         <p>
-          VIIRS detects many smaller fires that MODIS misses. Adding raw counts directly makes
-          years since 2012 look artificially higher. Harmonization bridges that gap.
+          {{ t('landing.continuity.subtitle') }}
         </p>
       </div>
       <div class="landing-sensor-story">
@@ -43,19 +41,19 @@ const example = [
           <div class="landing-sensor-name">
             <span class="landing-sensor-symbol"><Layers3 :size="26" aria-hidden="true" /></span>
             <div>
-              <h3>MODIS</h3>
-              <span class="landing-sensor-since">Terra &amp; Aqua, since 2000</span>
+              <h3>{{ t('common.modis') }}</h3>
+              <span class="landing-sensor-since">{{ t('landing.continuity.modisSince') }}</span>
             </div>
-            <span class="landing-resolution">~1 km pixel</span>
+            <span class="landing-resolution">{{ t('landing.continuity.modisRes') }}</span>
           </div>
           <div
             class="landing-resolution-grid landing-grid-coarse"
             role="img"
-            aria-label="Diagram of an approximate 1 km MODIS pixel grid"
+            :aria-label="t('landing.continuity.modisAria')"
           >
             <i v-for="n in 24" :key="n" :class="{ active: [8, 9, 14, 15].includes(n) }" />
           </div>
-          <p>The long historical record: over two decades to track how fire regimes evolve.</p>
+          <p>{{ t('landing.continuity.modisDesc') }}</p>
         </article>
         <div class="landing-sensor-join" aria-hidden="true"><span>+</span></div>
         <article class="landing-sensor-column">
@@ -64,15 +62,15 @@ const example = [
               ><ScanLine :size="26" aria-hidden="true"
             /></span>
             <div>
-              <h3>VIIRS</h3>
-              <span class="landing-sensor-since">Suomi-NPP &amp; NOAA-20, since 2012</span>
+              <h3>{{ t('common.viirs') }}</h3>
+              <span class="landing-sensor-since">{{ t('landing.continuity.viirsSince') }}</span>
             </div>
-            <span class="landing-resolution">375 m pixel</span>
+            <span class="landing-resolution">{{ t('landing.continuity.viirsRes') }}</span>
           </div>
           <div
             class="landing-resolution-grid landing-grid-fine"
             role="img"
-            aria-label="Diagram of a finer 375 m VIIRS pixel grid"
+            :aria-label="t('landing.continuity.viirsAria')"
           >
             <i
               v-for="n in 160"
@@ -84,13 +82,13 @@ const example = [
               }"
             />
           </div>
-          <p>Higher spatial detail and sensitivity, producing more detections for the same fire.</p>
+          <p>{{ t('landing.continuity.viirsDesc') }}</p>
         </article>
       </div>
 
       <div class="landing-method" aria-labelledby="method-title">
         <div class="landing-method-steps">
-          <h3 id="method-title">How we harmonize</h3>
+          <h3 id="method-title">{{ t('landing.continuity.howTitle') }}</h3>
           <ol>
             <li v-for="step in steps" :key="step.title">
               <strong>{{ step.title }}</strong>
@@ -99,15 +97,15 @@ const example = [
           </ol>
         </div>
         <figure class="landing-method-example">
-          <figcaption>Sample overpass</figcaption>
+          <figcaption>{{ t('landing.continuity.sampleCaption') }}</figcaption>
           <table>
             <caption class="landing-sr-only">
-              Weight assigned to each detection in the example
+              {{ t('landing.continuity.sampleSrCaption') }}
             </caption>
             <thead>
               <tr>
-                <th scope="col">Detection</th>
-                <th scope="col">Weight</th>
+                <th scope="col">{{ t('landing.continuity.colDetection') }}</th>
+                <th scope="col">{{ t('landing.continuity.colWeight') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -121,24 +119,24 @@ const example = [
             </tbody>
             <tfoot>
               <tr>
-                <th scope="row">Harmonized index</th>
+                <th scope="row">{{ t('landing.continuity.harmonizedIndex') }}</th>
                 <td>7.12</td>
               </tr>
             </tfoot>
           </table>
           <p>
-            6.12 is the afternoon reference factor; each country uses its own calibrated factor when
-            enough overlaps exist. Methodology remains under active validation.
+            {{ t('landing.continuity.sampleNote') }}
           </p>
         </figure>
       </div>
 
       <div class="landing-harmonization-line">
         <p>
-          <strong>The explorer shows both:</strong> raw detection counts and the harmonized index.
+          <strong>{{ t('landing.continuity.linePrefix') }}</strong>
+          {{ t('landing.continuity.lineText') }}
         </p>
         <a href="#datos" class="landing-text-link"
-          >View the data <ArrowDown :size="17" aria-hidden="true"
+          >{{ t('landing.continuity.viewData') }} <ArrowDown :size="17" aria-hidden="true"
         /></a>
       </div>
     </div>

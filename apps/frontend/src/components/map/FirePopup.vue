@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Flame, MapPin, MessageSquarePlus, Moon, SunMedium } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type {
   CountryResponse,
   HotspotFeedbackSummary,
@@ -20,31 +21,33 @@ const emit = defineEmits<{
   (e: 'open-feedback', hotspot: HotspotResponse): void
 }>()
 
+const { t } = useI18n()
+
 const consensusMeta = computed(() => {
   const cls = props.feedbackSummary?.consensus
   return cls ? CLASSIFICATION_META_MAP[cls] : null
 })
 
-const CONFIDENCE_BADGE: Record<string, { label: string; badgeClass: string }> = {
+const CONFIDENCE_BADGE = computed<Record<string, { label: string; badgeClass: string }>>(() => ({
   high: {
-    label: 'High',
+    label: t('map.popup.high'),
     badgeClass: 'border-red-400/40 bg-red-500/15 text-red-300',
   },
   nominal: {
-    label: 'Nominal',
+    label: t('map.popup.nominal'),
     badgeClass: 'border-orange-400/40 bg-orange-500/15 text-orange-300',
   },
   low: {
-    label: 'Low',
+    label: t('map.popup.low'),
     badgeClass: 'border-yellow-400/40 bg-yellow-500/15 text-yellow-200',
   },
-}
+}))
 
 const confidenceMeta = computed(() => {
   const key = (props.hotspot.confidence_class ?? '').toLowerCase()
   return (
-    CONFIDENCE_BADGE[key] ?? {
-      label: 'Unclassified',
+    CONFIDENCE_BADGE.value[key] ?? {
+      label: t('map.popup.unclassified'),
       badgeClass: 'border-border-strong bg-surface-elevated text-ink-muted',
     }
   )
@@ -75,21 +78,21 @@ const formattedConfidence = computed(() => {
       <span
         class="rounded-md border border-border-subtle bg-surface-elevated px-2 py-0.5 text-[11px] font-semibold tracking-wide text-ink-secondary uppercase"
       >
-        {{ platform ? `${platform.instrument} (${platform.satellite})` : 'Unknown sensor' }}
+        {{ platform ? `${platform.instrument} (${platform.satellite})` : t('map.popup.unknownSensor') }}
       </span>
       <span
         class="inline-flex shrink-0 items-center gap-1 rounded-full border border-border-subtle bg-surface-elevated/70 px-2 py-0.5 font-mono text-[10px] text-ink-secondary"
       >
         <SunMedium v-if="hotspot.daynight === 'D'" aria-hidden="true" class="size-3 text-amber-300" />
         <Moon v-else aria-hidden="true" class="size-3 text-sky-300" />
-        {{ hotspot.daynight === 'D' ? 'Day' : 'Night' }}
+        {{ hotspot.daynight === 'D' ? t('map.popup.day') : t('map.popup.night') }}
       </span>
     </div>
 
     <div class="mb-3 grid grid-cols-2 gap-2">
       <div class="rounded-lg border border-border-subtle bg-surface-elevated/60 px-2.5 py-2">
         <div class="text-[10px] font-medium tracking-wide text-ink-muted uppercase">
-          Radiative Power
+          {{ t('map.popup.radiativePower') }}
         </div>
         <div class="mt-0.5 font-mono text-sm font-semibold text-accent-bright tabular-nums">
           {{ hotspot.frp !== null && hotspot.frp !== undefined ? `${hotspot.frp} MW` : '—' }}
@@ -98,7 +101,7 @@ const formattedConfidence = computed(() => {
 
       <div class="rounded-lg border border-border-subtle bg-surface-elevated/60 px-2.5 py-2">
         <div class="text-[10px] font-medium tracking-wide text-ink-muted uppercase">
-          Brightness
+          {{ t('map.popup.brightness') }}
         </div>
         <div class="mt-0.5 font-mono text-sm font-semibold text-ink-primary tabular-nums">
           {{
@@ -112,7 +115,7 @@ const formattedConfidence = computed(() => {
 
     <dl class="space-y-2 text-[11px]">
       <div class="flex items-center justify-between gap-4">
-        <dt class="shrink-0 text-ink-muted">Confidence</dt>
+        <dt class="shrink-0 text-ink-muted">{{ t('map.popup.confidence') }}</dt>
         <dd>
           <span
             :class="[
@@ -127,12 +130,12 @@ const formattedConfidence = computed(() => {
       </div>
 
       <div v-if="formattedCountry" class="flex items-center justify-between gap-4">
-        <dt class="shrink-0 text-ink-muted">Country</dt>
+        <dt class="shrink-0 text-ink-muted">{{ t('map.popup.country') }}</dt>
         <dd class="truncate font-medium text-ink-primary">{{ formattedCountry }}</dd>
       </div>
 
       <div class="flex items-center justify-between gap-4">
-        <dt class="shrink-0 text-ink-muted">Acquired</dt>
+        <dt class="shrink-0 text-ink-muted">{{ t('map.popup.acquired') }}</dt>
         <dd class="whitespace-nowrap font-mono text-ink-primary tabular-nums">
           {{ formattedAcquiredAt }}
         </dd>
@@ -141,7 +144,7 @@ const formattedConfidence = computed(() => {
       <div class="flex items-center justify-between gap-4">
         <dt class="inline-flex shrink-0 items-center gap-1 text-ink-muted">
           <MapPin class="size-3" aria-hidden="true" />
-          Coords
+          {{ t('map.popup.coords') }}
         </dt>
         <dd class="whitespace-nowrap font-mono text-ink-secondary tabular-nums">
           {{ hotspot.latitude.toFixed(4) }}, {{ hotspot.longitude.toFixed(4) }}
@@ -164,7 +167,7 @@ const formattedConfidence = computed(() => {
           v-else
           class="rounded-full border border-border-subtle bg-surface-elevated px-2 py-0.5 text-[10px] font-medium text-ink-muted"
         >
-          Unverified
+          {{ t('map.popup.unverified') }}
         </span>
         <span
           v-if="feedbackSummary && feedbackSummary.total_reports > 0"
@@ -180,7 +183,7 @@ const formattedConfidence = computed(() => {
         @click="emit('open-feedback', hotspot)"
       >
         <MessageSquarePlus class="size-3" aria-hidden="true" />
-        Feedback
+        {{ t('map.popup.feedback') }}
       </button>
     </div>
   </div>

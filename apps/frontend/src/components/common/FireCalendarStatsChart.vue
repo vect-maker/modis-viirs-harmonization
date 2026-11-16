@@ -17,13 +17,18 @@ export interface FireCalendarIntervalItem {
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { use } from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
+import { useLocaleFormatters } from '@/i18n'
 
 use([CanvasRenderer, BarChart, LineChart, GridComponent, TooltipComponent])
+
+const { t } = useI18n()
+const { bcp47Locale } = useLocaleFormatters()
 
 const props = defineProps<{
   intervals: readonly FireCalendarIntervalItem[]
@@ -31,8 +36,12 @@ const props = defineProps<{
   description: string
 }>()
 
-const intFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
-const frpFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
+const intFmt = computed(
+  () => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: 0 }),
+)
+const frpFmt = computed(
+  () => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: 1 }),
+)
 
 function tooltipHtml(index: number): string {
   const item = props.intervals[index]
@@ -40,16 +49,16 @@ function tooltipHtml(index: number): string {
   if (item.missing) {
     return [
       `<div style="font-weight:600">${item.date}</div>`,
-      `<div style="margin-top:3px;color:#94a3b8">No data in the archive for this period (data gap, not zero fires)</div>`,
+      `<div style="margin-top:3px;color:#94a3b8">${t('charts.fireCalendar.tooltipMissing')}</div>`,
     ].join('')
   }
   return [
     `<div style="font-weight:600">${item.date}</div>`,
-    `<div style="margin-top:3px;color:#ffe066">${intFmt.format(item.hotspot_count)} hotspots (${intFmt.format(item.high_confidence_count)} high conf.)</div>`,
-    `<div style="color:#e69f00">Daytime (D): ${intFmt.format(item.daytime_hotspots)}</div>`,
-    `<div style="color:#38bdf8">Nighttime (N): ${intFmt.format(item.nighttime_hotspots)}</div>`,
-    `<div style="margin-top:4px;color:#cbd5e1">Avg FRP: ${frpFmt.format(item.frp_average)} MW · Max: ${frpFmt.format(item.max_frp)} MW</div>`,
-    `<div style="color:#94a3b8">Total FRP: ${frpFmt.format(item.frp_total)} MW</div>`,
+    `<div style="margin-top:3px;color:#ffe066">${t('charts.fireCalendar.tooltipHotspots', { total: intFmt.value.format(item.hotspot_count), high: intFmt.value.format(item.high_confidence_count) })}</div>`,
+    `<div style="color:#e69f00">${t('charts.fireCalendar.tooltipDay', { count: intFmt.value.format(item.daytime_hotspots) })}</div>`,
+    `<div style="color:#38bdf8">${t('charts.fireCalendar.tooltipNight', { count: intFmt.value.format(item.nighttime_hotspots) })}</div>`,
+    `<div style="margin-top:4px;color:#cbd5e1">${t('charts.fireCalendar.tooltipAvgMax', { avg: frpFmt.value.format(item.frp_average), max: frpFmt.value.format(item.max_frp) })}</div>`,
+    `<div style="color:#94a3b8">${t('charts.fireCalendar.tooltipTotalFrp', { total: frpFmt.value.format(item.frp_total) })}</div>`,
   ].join('')
 }
 
@@ -89,31 +98,31 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
-        name: 'Hotspots',
+        name: t('charts.fireCalendar.yAxisHotspots'),
         nameTextStyle: { color: '#94a3b8', fontSize: 10 },
         axisLabel: {
           color: '#94a3b8',
           fontSize: 10,
           formatter: (v: number) =>
-            new Intl.NumberFormat('en-US', { notation: 'compact' }).format(v),
+            new Intl.NumberFormat(bcp47Locale.value, { notation: 'compact' }).format(v),
         },
         splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.06)', type: 'dashed' } },
       },
       {
         type: 'value',
-        name: 'Avg FRP (MW)',
+        name: t('charts.fireCalendar.yAxisAvgFrp'),
         nameTextStyle: { color: '#ffe066', fontSize: 10 },
         axisLabel: {
           color: '#ffe066',
           fontSize: 10,
-          formatter: (v: number) => `${frpFmt.format(v)}`,
+          formatter: (v: number) => `${frpFmt.value.format(v)}`,
         },
         splitLine: { show: false },
       },
     ],
     series: [
       {
-        name: 'Daytime (D)',
+        name: t('charts.fireCalendar.seriesDay'),
         type: 'bar',
         stack: 'daynight',
         barMaxWidth: 28,
@@ -121,7 +130,7 @@ const chartOption = computed(() => {
         data: dayData,
       },
       {
-        name: 'Nighttime (N)',
+        name: t('charts.fireCalendar.seriesNight'),
         type: 'bar',
         stack: 'daynight',
         barMaxWidth: 28,
@@ -129,7 +138,7 @@ const chartOption = computed(() => {
         data: nightData,
       },
       {
-        name: 'Avg FRP (MW)',
+        name: t('charts.fireCalendar.seriesAvgFrp'),
         type: 'line',
         yAxisIndex: 1,
         symbol: 'circle',

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowUpRight, Check } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import BrandMap from './BrandMap.vue'
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -8,33 +11,35 @@ import BrandMap from './BrandMap.vue'
     <div class="landing-wrap landing-hero-grid">
       <div class="landing-hero-copy">
         <h1 id="landing-title" class="landing-entrance">
-          Satellite data<br />to understand<br /><span>fire activity.</span>
+          {{ t('landing.hero.titleLine1') }}<br />{{ t('landing.hero.titleLine2') }}<br /><span>{{
+            t('landing.hero.titleHighlight')
+          }}</span>
         </h1>
         <p class="landing-hero-description landing-entrance landing-delay-2">
-          Explore where and when burning activity concentrates across Central America. Over 25 years
-          of MODIS and VIIRS detections, harmonized for comparison across maps, calendars, and
-          statistics.
+          {{ t('landing.hero.description') }}
         </p>
         <div class="landing-hero-actions landing-entrance landing-delay-3">
           <RouterLink :to="{ name: 'dashboard' }" class="landing-button"
-            >Open Explorer <ArrowUpRight :size="19" aria-hidden="true"
+            >{{ t('nav.openExplorer') }} <ArrowUpRight :size="19" aria-hidden="true"
           /></RouterLink>
           <a href="#proyecto" class="landing-text-link"
-            >About the project <ArrowDown :size="17" aria-hidden="true"
+            >{{ t('landing.hero.aboutProject') }} <ArrowDown :size="17" aria-hidden="true"
           /></a>
         </div>
         <div class="landing-hero-assurance landing-entrance landing-delay-3">
-          <span><Check :size="15" aria-hidden="true" /> Free, no sign-up required</span
-          ><span><Check :size="15" aria-hidden="true" /> Built for everyone, not just GIS experts</span
-          ><span><Check :size="15" aria-hidden="true" /> Exportable CSV data</span>
+          <span><Check :size="15" aria-hidden="true" /> {{ t('landing.hero.assuranceFree') }}</span
+          ><span
+            ><Check :size="15" aria-hidden="true" />
+            {{ t('landing.hero.assuranceAccessible') }}</span
+          ><span><Check :size="15" aria-hidden="true" /> {{ t('landing.hero.assuranceCsv') }}</span>
         </div>
       </div>
       <div class="landing-hero-visual landing-entrance landing-delay-2"><BrandMap /></div>
       <div class="landing-hero-bottom">
-        <span>Built for NASA Space Apps 2026</span
-        ><a href="#proyecto" aria-label="Continue to the project"
+        <span>{{ t('landing.hero.builtFor') }}</span
+        ><a href="#proyecto" :aria-label="t('landing.hero.continueAria')"
           ><ArrowDown :size="18" aria-hidden="true" /></a
-        ><span>All seven Central American countries, since 2000</span>
+        ><span>{{ t('landing.hero.coverage') }}</span>
       </div>
     </div>
   </section>

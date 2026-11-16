@@ -3,34 +3,43 @@ import { computed } from 'vue'
 import { parseDate } from '@internationalized/date'
 import { storeToRefs } from 'pinia'
 import { FilterX } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
+import { useLocaleFormatters } from '@/i18n'
 import { useHotspotsStore } from '@/stores/hotspots'
 import BaseTimelinePanel from '@/components/ui/BaseTimelinePanel.vue'
 import BaseHelpGuidePopover from '@/components/ui/BaseHelpGuidePopover.vue'
 import DashboardGuideDiagram from '@/components/common/DashboardGuideDiagram.vue'
 import DailyActivityChart from '@/components/common/DailyActivityChart.vue'
 
+const { t } = useI18n()
+const { bcp47Locale, formatInt } = useLocaleFormatters()
 const open = defineModel<boolean>('open', { required: true })
 const store = useHotspotsStore()
 const { dailyActivity, dateRange, fetchedDateRange, contextHotspots } = storeToRefs(store)
 const totalDetections = computed(() =>
   dailyActivity.value.reduce((sum, day) => sum + day.count, 0),
 )
-const summary = computed(
-  () =>
-    `${totalDetections.value.toLocaleString()} detections · ${dailyActivity.value.length} days`,
+const summary = computed(() =>
+  t('dashboard.timeline.summary', {
+    count: formatInt(totalDetections.value),
+    days: dailyActivity.value.length,
+  }),
 )
-const formatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
+const formatter = computed(
+  () =>
+    new Intl.DateTimeFormat(bcp47Locale.value, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }),
+)
 const periodLabel = computed(() => {
   const start = fetchedDateRange.value?.start ?? dailyActivity.value[0]?.date
   const end =
     fetchedDateRange.value?.end ?? dailyActivity.value[dailyActivity.value.length - 1]?.date
   if (!start || !end) return ''
-  return formatter.formatRange(parseDate(start).toDate('UTC'), parseDate(end).toDate('UTC'))
+  return formatter.value.formatRange(parseDate(start).toDate('UTC'), parseDate(end).toDate('UTC'))
 })
 function selectDay(date: string) {
   store.setDateRange({ start: date, end: date })
@@ -52,18 +61,20 @@ function selectDay(date: string) {
             class="inline-flex items-center gap-1 rounded text-xs hover:text-white focus-visible:outline-2 focus-visible:outline-red-400"
             @click="store.setDateRange(null)"
           >
-            <FilterX aria-hidden="true" class="h-3.5 w-3.5" />Show All Dates
+            <FilterX aria-hidden="true" class="h-3.5 w-3.5" />{{
+              t('dashboard.timeline.showAllDates')
+            }}
           </button>
           <BaseHelpGuidePopover
-            title="Daily Activity Timeline"
-            summary="Inspect daily detection spikes for the active map region and sensor."
+            :title="t('dashboard.timeline.guideTitle')"
+            :summary="t('dashboard.timeline.guideSummary')"
             :steps="[
-              'Click any bar in the daily chart to filter the map to that UTC day.',
-              'Open Statistics to explore the 2001–2026 Historical Archive Heatmap and multi-year trends.',
+              t('dashboard.timeline.guideStep1'),
+              t('dashboard.timeline.guideStep2'),
             ]"
             side="top"
             align="end"
-            aria-label="How the daily activity timeline works"
+            :aria-label="t('dashboard.timeline.guideAria')"
           >
             <template #graphic>
               <DashboardGuideDiagram variant="timeline" />
@@ -81,10 +92,10 @@ function selectDay(date: string) {
         role="status"
         class="text-center text-xs text-neutral-400"
       >
-        No detections in the available records for this area and sensor.
+        {{ t('dashboard.timeline.empty') }}
       </p>
       <p class="pl-12 text-[11px] leading-relaxed text-neutral-400">
-        Counts reflect the available records. Daily coverage may be incomplete.
+        {{ t('dashboard.timeline.coverageNote') }}
       </p>
     </div>
   </BaseTimelinePanel>

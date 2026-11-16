@@ -1,36 +1,22 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { BookOpen } from '@lucide/vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
+import { useI18n } from 'vue-i18n'
 import DashboardGuideDiagram, {
   type GuideDiagramVariant,
 } from '@/components/common/DashboardGuideDiagram.vue'
 
-const GUIDE_CARDS: ReadonlyArray<{
-  variant: GuideDiagramVariant
-  title: string
-  description: string
-}> = [
-  {
-    variant: 'layers',
-    title: '1. Map Layers',
-    description: 'Check Fire Events for clustered perimeters or Hotspots for raw detections.',
-  },
-  {
-    variant: 'aoi',
-    title: '2. Area & Filters',
-    description: 'Draw an area on the map or pick dates and sensors to update metrics and CSV.',
-  },
-  {
-    variant: 'timeline',
-    title: '3. Activity Timeline',
-    description: 'Click any daily bar to filter by UTC day, or switch to Historical for 2000–2026.',
-  },
-  {
-    variant: 'stats',
-    title: '4. Statistics',
-    description: 'Open Statistics for annual distributions, weather correlations, and forecasts.',
-  },
-]
+const { t } = useI18n()
+
+const variants: GuideDiagramVariant[] = ['layers', 'aoi', 'timeline', 'stats']
+const GUIDE_CARDS = computed(() =>
+  variants.map((variant, i) => ({
+    variant,
+    title: t(`dashboard.guide.cards.${i}.title`),
+    description: t(`dashboard.guide.cards.${i}.description`),
+  })),
+)
 </script>
 
 <template>
@@ -38,11 +24,11 @@ const GUIDE_CARDS: ReadonlyArray<{
     <PopoverTrigger as-child>
       <button
         type="button"
-        aria-label="Open dashboard visual guide"
+        :aria-label="t('dashboard.guide.openAria')"
         class="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-border-subtle bg-surface-raised px-3 py-2 text-[13px] font-medium text-ink-secondary transition hover:border-border-strong hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         <BookOpen aria-hidden="true" class="h-3.5 w-3.5 text-accent-bright" />
-        <span class="hidden sm:inline">Guide</span>
+        <span class="hidden sm:inline">{{ t('dashboard.guide.button') }}</span>
       </button>
     </PopoverTrigger>
 
@@ -56,9 +42,9 @@ const GUIDE_CARDS: ReadonlyArray<{
       >
         <div class="mb-3 flex items-center justify-between gap-2">
           <div>
-            <h2 class="text-sm font-semibold text-ink-primary">How to use PyroTrace</h2>
+            <h2 class="text-sm font-semibold text-ink-primary">{{ t('dashboard.guide.title') }}</h2>
             <p class="text-[11px] text-ink-muted">
-              Explore active fires on the map and inspect temporal, spatial, and weather patterns.
+              {{ t('dashboard.guide.subtitle') }}
             </p>
           </div>
         </div>

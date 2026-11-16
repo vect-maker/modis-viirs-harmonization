@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
 import { CalendarDays, ChevronLeft, ChevronRight } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { CalendarDate, parseDate } from '@internationalized/date'
 import type { DateValue } from 'reka-ui'
+import { useLocaleFormatters } from '@/i18n'
 import {
   DatePickerCalendar,
   DatePickerCell,
@@ -33,12 +35,18 @@ const emit = defineEmits<{
   'update:modelValue': [value: string | null]
 }>()
 
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
+const { t } = useI18n()
+const { bcp47Locale } = useLocaleFormatters()
+
+const dateFormatter = computed(
+  () =>
+    new Intl.DateTimeFormat(bcp47Locale.value, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }),
+)
 
 const parsedValue = computed<DateValue | undefined>(() =>
   props.modelValue ? parseDate(props.modelValue) : undefined,
@@ -46,7 +54,7 @@ const parsedValue = computed<DateValue | undefined>(() =>
 const formattedValue = computed(() => {
   const date = parsedValue.value
   if (!date) return ''
-  return dateFormatter.format(new Date(Date.UTC(date.year, date.month - 1, date.day)))
+  return dateFormatter.value.format(new Date(Date.UTC(date.year, date.month - 1, date.day)))
 })
 const minValue = computed(() => parseDate(props.minDate))
 const maxValue = computed(() => parseDate(props.maxDate))
@@ -62,20 +70,12 @@ watch(
   },
 )
 
-const monthLabels = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-]
+const monthFormatter = computed(
+  () => new Intl.DateTimeFormat(bcp47Locale.value, { month: 'short', timeZone: 'UTC' }),
+)
+const monthLabels = computed(() =>
+  Array.from({ length: 12 }, (_, i) => monthFormatter.value.format(new Date(Date.UTC(2024, i, 1)))),
+)
 
 const yearGrid = computed(() =>
   Array.from({ length: 12 }, (_, index) => yearRangeStart.value + index),
@@ -155,18 +155,18 @@ function onUpdate(value: DateValue | undefined) {
       :min-value="minValue"
       :max-value="maxValue"
       :is-date-unavailable="isDateUnavailable"
-      locale="en-US"
+      :locale="bcp47Locale"
       granularity="day"
       @update:model-value="onUpdate"
       @update:open="onOpenChange"
     >
       <DatePickerTrigger
         type="button"
-        :aria-label="`${label}: ${formattedValue || 'Select date'}`"
+        :aria-label="`${label}: ${formattedValue || t('dashboard.filters.selectDate')}`"
         class="flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border border-border-strong bg-surface-elevated px-3 py-2 text-left text-xs text-ink-primary transition hover:border-accent/50 focus-visible:outline-2 focus-visible:outline-focus"
       >
         <span :class="formattedValue ? 'tabular-nums text-ink-primary' : 'text-ink-muted'">
-          {{ formattedValue || 'Select date' }}
+          {{ formattedValue || t('dashboard.filters.selectDate') }}
         </span>
         <CalendarDays aria-hidden="true" class="h-4 w-4 shrink-0 text-ink-muted" />
       </DatePickerTrigger>
@@ -181,7 +181,7 @@ function onUpdate(value: DateValue | undefined) {
           <DatePickerHeader class="mb-3 flex items-center justify-between">
             <DatePickerPrev
               type="button"
-              aria-label="Previous month"
+              :aria-label="t('dashboard.filters.prevMonth')"
               class="rounded p-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-30"
             >
               <ChevronLeft aria-hidden="true" class="h-4 w-4" />
@@ -195,7 +195,7 @@ function onUpdate(value: DateValue | undefined) {
             </button>
             <DatePickerNext
               type="button"
-              aria-label="Next month"
+              :aria-label="t('dashboard.filters.nextMonth')"
               class="rounded p-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-30"
             >
               <ChevronRight aria-hidden="true" class="h-4 w-4" />
@@ -241,7 +241,7 @@ function onUpdate(value: DateValue | undefined) {
           <div class="mb-3 flex items-center justify-between">
             <button
               type="button"
-              aria-label="Previous year"
+              :aria-label="t('dashboard.filters.prevYear')"
               :disabled="placeholder.year <= minValue.year"
               class="rounded p-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus disabled:pointer-events-none disabled:opacity-30"
               @click="shiftPlaceholderYear(-1)"
@@ -257,7 +257,7 @@ function onUpdate(value: DateValue | undefined) {
             </button>
             <button
               type="button"
-              aria-label="Next year"
+              :aria-label="t('dashboard.filters.nextYear')"
               :disabled="placeholder.year >= maxValue.year"
               class="rounded p-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus disabled:pointer-events-none disabled:opacity-30"
               @click="shiftPlaceholderYear(1)"
@@ -288,7 +288,7 @@ function onUpdate(value: DateValue | undefined) {
           <div class="mb-3 flex items-center justify-between">
             <button
               type="button"
-              aria-label="Previous 12 years"
+              :aria-label="t('dashboard.filters.prev12Years')"
               :disabled="yearRangeStart <= minValue.year"
               class="rounded p-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus disabled:pointer-events-none disabled:opacity-30"
               @click="yearRangeStart -= 12"
@@ -300,7 +300,7 @@ function onUpdate(value: DateValue | undefined) {
             </span>
             <button
               type="button"
-              aria-label="Next 12 years"
+              :aria-label="t('dashboard.filters.next12Years')"
               :disabled="yearRangeStart + 11 >= maxValue.year"
               class="rounded p-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus disabled:pointer-events-none disabled:opacity-30"
               @click="yearRangeStart += 12"

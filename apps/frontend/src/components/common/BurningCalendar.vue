@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { use } from 'echarts/core'
 import { HeatmapChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECElementEvent } from 'echarts/core'
 import VChart from 'vue-echarts'
+import { useLocaleFormatters } from '@/i18n'
 import type { CalendarCell } from '@/types/calendar'
 import { calendarColor } from '@/utils/historicalCalendar'
 
@@ -19,14 +21,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{ select: [year: number, month: number] }>()
 
-const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' })
-const months = Array.from({ length: 12 }, (_, i) =>
-  monthFormatter.format(new Date(Date.UTC(2024, i, 1))),
+const { t } = useI18n()
+const { bcp47Locale, formatInt, formatCompact } = useLocaleFormatters()
+
+const monthFormatter = computed(
+  () => new Intl.DateTimeFormat(bcp47Locale.value, { month: 'short', timeZone: 'UTC' }),
 )
-const compactNumber = new Intl.NumberFormat('en-US', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
-})
+const months = computed(() =>
+  Array.from({ length: 12 }, (_, i) => monthFormatter.value.format(new Date(Date.UTC(2024, i, 1)))),
+)
 
 const chartHeightPx = computed(() => Math.max(240, props.rows.length * 28 + 44))
 
@@ -91,18 +94,18 @@ const chartOption = computed(() => {
         const month = item.data?.month
         const count = item.data?.count
         if (!year || !month) return ''
-        const label = `${months[month - 1]} ${year}`
+        const label = `${months.value[month - 1]} ${year}`
         const detail =
           count === null || count === undefined
-            ? 'No records · coverage unverified'
-            : `${count.toLocaleString()} observed detections`
+            ? t('charts.burningCalendar.noRecordsCoverage')
+            : t('charts.burningCalendar.observedDetections', { count: formatInt(count) })
         return `<div class="font-medium">${label}</div><div class="mt-0.5 text-amber-400 font-mono">${detail}</div>`
       },
     },
     xAxis: {
       type: 'category',
       position: 'top',
-      data: months,
+      data: months.value,
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
@@ -131,7 +134,7 @@ const chartOption = computed(() => {
     },
     series: [
       {
-        name: 'Monthly Detections',
+        name: t('charts.burningCalendar.seriesName'),
         type: 'heatmap',
         data,
         label: {
@@ -141,7 +144,7 @@ const chartOption = computed(() => {
           formatter(params: unknown) {
             const item = params as { data?: { count?: number | null } }
             const count = item.data?.count
-            return count === null || count === undefined ? '—' : compactNumber.format(count)
+            return count === null || count === undefined ? '—' : formatCompact(count)
           },
         },
         emphasis: {
@@ -168,7 +171,7 @@ function onChartClick(params: ECElementEvent) {
     class="max-h-72 overflow-y-auto rounded-lg border border-white/10 p-1"
     tabindex="0"
     role="region"
-    aria-label="Historical monthly detections heatmap. Click a month cell to inspect totals."
+    :aria-label="t('charts.burningCalendar.aria')"
   >
     <div class="w-full" :style="{ height: `${chartHeightPx}px` }">
       <VChart

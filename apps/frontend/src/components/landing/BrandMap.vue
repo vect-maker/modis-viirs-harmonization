@@ -2,12 +2,14 @@
 import { computed, h, onMounted, onUnmounted, render, shallowRef, useTemplateRef, watch } from 'vue'
 import { usePermission } from '@vueuse/core'
 import { ArrowUpRight, CalendarDays, Flame, MapPin } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import * as maplibregl from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { GeoJSONPolygon } from 'zod-geojson'
 import { useHotspotsApi, usePlatformsApi, useTemporalChartsApi, type HotspotResponse } from '@/api'
 import geography from '@/data/landing-countries.json'
+import { useLocaleFormatters } from '@/i18n'
 import type { CalendarSensor } from '@/types/calendar'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
@@ -78,14 +80,16 @@ const geoPermission = usePermission('geolocation')
 
 const platformInstruments = shallowRef<Map<string, string>>(new Map())
 
+const { t } = useI18n()
+const { formatInt, formatDecimal } = useLocaleFormatters()
 const activeCountryId = shallowRef<string>(DEFAULT_COUNTRY.id)
 const usedGps = shallowRef(false)
 const sensor = shallowRef<CalendarSensor>('ALL')
-const sensors: { value: CalendarSensor; label: string }[] = [
-  { value: 'ALL', label: 'Both sensors' },
-  { value: 'MODIS', label: 'MODIS' },
-  { value: 'VIIRS', label: 'VIIRS' },
-]
+const sensors = computed<{ value: CalendarSensor; label: string }[]>(() => [
+  { value: 'ALL', label: t('common.bothSensors') },
+  { value: 'MODIS', label: t('common.modis') },
+  { value: 'VIIRS', label: t('common.viirs') },
+])
 
 const activeCountry = computed(
   () => COUNTRIES.find((c) => c.id === activeCountryId.value) ?? DEFAULT_COUNTRY,
@@ -102,9 +106,6 @@ const isLoading = shallowRef(true)
 const mapContainer = useTemplateRef<HTMLDivElement>('mapContainer')
 const mapInstance = shallowRef<maplibregl.Map | null>(null)
 const mapReady = shallowRef(false)
-
-const numberFmt = new Intl.NumberFormat('en-US')
-const decimalFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
 function hotspotSensor(h: HotspotResponse): 'MODIS' | 'VIIRS' {
   const inst = (platformInstruments.value.get(h.platform_id) ?? '').toUpperCase()
@@ -407,55 +408,72 @@ onUnmounted(() => {
   <div class="landing-map-frame">
     <div class="landing-map-toolbar">
       <div class="landing-map-title">
-        <img src="/favicon.svg" alt="" width="27" height="27" /><span>Activity Explorer</span>
+        <img src="/favicon.svg" alt="" width="27" height="27" /><span>{{
+          t('landing.mapPreview.title')
+        }}</span>
       </div>
-      <RouterLink :to="{ name: 'dashboard' }" class="landing-icon-link" aria-label="Open full map"
+      <RouterLink
+        :to="{ name: 'dashboard' }"
+        class="landing-icon-link"
+        :aria-label="t('landing.mapPreview.openFullMap')"
         ><ArrowUpRight :size="19" aria-hidden="true"
       /></RouterLink>
     </div>
     <div class="landing-map-filters">
       <span>
         <MapPin :size="14" aria-hidden="true" />
-        {{ activeCountry.displayName }}{{ usedGps ? ' (GPS)' : '' }}
+        {{
+          usedGps
+            ? t('landing.mapPreview.gpsTag', { country: activeCountry.displayName })
+            : activeCountry.displayName
+        }}
       </span>
       <span><CalendarDays :size="14" aria-hidden="true" /> {{ windowLabel }}</span>
-      <span class="landing-preview-label">LIVE</span>
+      <span class="landing-preview-label">{{ t('landing.mapPreview.live') }}</span>
     </div>
     <div class="landing-map-canvas">
       <div
         ref="mapContainer"
         class="h-full w-full"
         role="img"
-        :aria-label="`Fixed satellite map of ${activeCountry.displayName} showing MODIS and VIIRS fire detections`"
+        :aria-label="t('landing.mapPreview.mapAria', { country: activeCountry.displayName })"
       />
       <div
         class="landing-map-readout z-10 rounded-lg border border-white/10 bg-[#0b1215]/75 px-3 py-2 backdrop-blur-sm"
         role="status"
         aria-live="polite"
       >
-        <span class="landing-map-readout-label">DETECTIONS IN {{ activeYear }}</span>
-        <strong>{{ summaryTotal !== null ? numberFmt.format(summaryTotal) : '—' }}</strong>
+        <span class="landing-map-readout-label">{{
+          t('landing.mapPreview.detectionsIn', { year: activeYear })
+        }}</span>
+        <strong>{{ summaryTotal !== null ? formatInt(summaryTotal) : '—' }}</strong>
         <span>
           <i class="landing-status-dot" />
           {{ sensor === 'ALL' ? 'MODIS + VIIRS' : sensor }}
           <template v-if="summaryFrpAvg !== null">
-            · {{ decimalFmt.format(summaryFrpAvg) }} MW avg
+            · {{ t('landing.mapPreview.mwAvg', { value: formatDecimal(summaryFrpAvg) }) }}
           </template>
           <template v-if="summaryDayPct !== null">
-            · {{ summaryDayPct }}% day
+            · {{ t('landing.mapPreview.dayPct', { value: summaryDayPct }) }}
           </template>
         </span>
       </div>
       <div class="landing-map-key z-10 rounded-md bg-[#0b1215]/75 px-2.5 py-1 backdrop-blur-sm">
         <span class="inline-flex items-center gap-1"
-          ><Flame :size="12" class="text-amber-300 fill-amber-500" aria-hidden="true" /> MODIS</span
+          ><Flame :size="12" class="text-amber-300 fill-amber-500" aria-hidden="true" />
+          {{ t('common.modis') }}</span
         >
         <span class="inline-flex items-center gap-1"
-          ><Flame :size="12" class="text-sky-200 fill-sky-500" aria-hidden="true" /> VIIRS</span
+          ><Flame :size="12" class="text-sky-200 fill-sky-500" aria-hidden="true" />
+          {{ t('common.viirs') }}</span
         >
       </div>
     </div>
-    <div class="landing-sensor-switch" role="group" aria-label="Preview sensor filter">
+    <div
+      class="landing-sensor-switch"
+      role="group"
+      :aria-label="t('landing.mapPreview.sensorFilterAria')"
+    >
       <button
         v-for="option in sensors"
         :key="option.value"
@@ -467,8 +485,12 @@ onUnmounted(() => {
       </button>
     </div>
     <div class="landing-map-source">
-      <span>NASA FIRMS · last 30 days on map</span>
-      <span>{{ isLoading ? 'Loading…' : `${visibleHotspots.length} recent detections` }}</span>
+      <span>{{ t('landing.mapPreview.sourceFooter') }}</span>
+      <span>{{
+        isLoading
+          ? t('common.loading')
+          : t('landing.mapPreview.recentDetections', { count: formatInt(visibleHotspots.length) })
+      }}</span>
     </div>
   </div>
 </template>

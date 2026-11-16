@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
 import { CalendarDays, ChevronLeft, ChevronRight, X } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { parseDate } from '@internationalized/date'
+import { useLocaleFormatters } from '@/i18n'
 import type { DateValue } from 'reka-ui'
 import {
   CalendarCell,
@@ -38,6 +40,8 @@ const emit = defineEmits<{
   'select-date': [date: string]
 }>()
 
+const { t } = useI18n()
+const { bcp47Locale } = useLocaleFormatters()
 const minDate = computed(() => parseDate(props.availableDates.start))
 const maxDate = computed(() => parseDate(props.availableDates.end))
 const selectedDate = shallowRef<DateValue | undefined>(undefined)
@@ -70,18 +74,22 @@ function selectLatest() {
         <div class="mb-2 flex items-start justify-between gap-3">
           <div class="flex items-center gap-2">
             <CalendarDays aria-hidden="true" class="h-4 w-4 text-accent" />
-            <DialogTitle class="text-sm font-semibold">No report for today</DialogTitle>
+            <DialogTitle class="text-sm font-semibold">{{
+              t('dashboard.dialogs.datePrompt.title')
+            }}</DialogTitle>
           </div>
           <DialogClose
             type="button"
-            aria-label="Close dialog"
+            :aria-label="t('dashboard.dialogs.closeAria')"
             class="rounded p-1 text-ink-muted hover:bg-surface-elevated hover:text-ink-primary focus-visible:outline-2 focus-visible:outline-focus"
           >
             <X aria-hidden="true" class="h-4 w-4" />
           </DialogClose>
         </div>
         <DialogDescription class="mb-4 text-xs text-ink-muted">
-          No hotspot detections were found for <span class="font-medium text-ink-secondary">{{ todayDate }}</span> (UTC). Pick an available date to load from the backend.
+          {{ t('dashboard.dialogs.datePrompt.descriptionBefore') }}
+          <span class="font-medium text-ink-secondary">{{ todayDate }}</span>
+          {{ t('dashboard.dialogs.datePrompt.descriptionAfter') }}
         </DialogDescription>
 
         <CalendarRoot
@@ -91,14 +99,14 @@ function selectLatest() {
           :min-value="minDate"
           :max-value="maxDate"
           :is-date-unavailable="isDateUnavailable"
-          locale="en-US"
+          :locale="bcp47Locale"
           weekday-format="short"
           @update:model-value="onSelectDate"
         >
           <CalendarHeader class="mb-3 flex items-center justify-between">
             <CalendarPrev
               type="button"
-              aria-label="Previous month"
+              :aria-label="t('dashboard.filters.prevMonth')"
               class="rounded p-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-30"
             >
               <ChevronLeft aria-hidden="true" class="h-4 w-4" />
@@ -106,7 +114,7 @@ function selectLatest() {
             <CalendarHeading class="text-sm font-medium" />
             <CalendarNext
               type="button"
-              aria-label="Next month"
+              :aria-label="t('dashboard.filters.nextMonth')"
               class="rounded p-2 hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-30"
             >
               <ChevronRight aria-hidden="true" class="h-4 w-4" />
@@ -153,7 +161,7 @@ function selectLatest() {
             class="inline-flex w-full items-center justify-center rounded-md bg-accent px-3 py-2 text-xs font-semibold text-surface-base hover:bg-accent-bright focus-visible:outline-2 focus-visible:outline-focus"
             @click="selectLatest"
           >
-            Load latest available ({{ availableDates.end }})
+            {{ t('dashboard.dialogs.datePrompt.loadLatest', { date: availableDates.end }) }}
           </button>
         </div>
       </DialogContent>

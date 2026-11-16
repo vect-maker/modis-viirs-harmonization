@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Loader2 } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
+import { useLocaleFormatters } from '@/i18n'
+
+const { t } = useI18n()
+const { formatInt } = useLocaleFormatters()
 
 const props = defineProps<{
   visible: boolean
@@ -24,7 +29,7 @@ const percent = computed(() => {
       v-if="visible"
       role="status"
       aria-live="polite"
-      aria-label="Loading fire detection data"
+      :aria-label="t('dashboard.loading.aria')"
       class="fixed inset-0 z-50 flex items-center justify-center bg-surface-base/65 px-4 backdrop-blur-md"
     >
       <div
@@ -33,13 +38,18 @@ const percent = computed(() => {
         <div class="flex items-center gap-3">
           <Loader2 aria-hidden="true" class="h-5 w-5 shrink-0 animate-spin text-accent" />
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold">Loading fire detections…</p>
+            <p class="text-sm font-semibold">{{ t('dashboard.loading.title') }}</p>
             <p class="mt-0.5 text-xs text-ink-muted">
               <template v-if="progress && percent !== null">
-                {{ progress.loaded.toLocaleString() }} of
-                {{ progress.total.toLocaleString() }} records ({{ percent }}%)
+                {{
+                  t('dashboard.loading.progress', {
+                    loaded: formatInt(progress.loaded),
+                    total: formatInt(progress.total),
+                    percent,
+                  })
+                }}
               </template>
-              <template v-else>Fetching batch data for selected range…</template>
+              <template v-else>{{ t('dashboard.loading.fetching') }}</template>
             </p>
           </div>
         </div>

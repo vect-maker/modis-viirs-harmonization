@@ -2,6 +2,7 @@
 import { computed, onMounted, shallowRef, watch, useTemplateRef } from 'vue'
 import { useMediaQuery, useElementSize, useGeolocation, usePermission } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import FireMap from '@/components/map/FireMap.vue'
 import HotspotControlPanel from '@/components/features/HotspotControlPanel.vue'
 import HotspotTimeline from '@/components/features/HotspotTimeline.vue'
@@ -19,6 +20,7 @@ import { useClustersStore } from '@/stores/clusters'
 import { useFeedbackStore } from '@/stores/feedback'
 import { useCalendarStore } from '@/stores/calendar'
 
+const { t } = useI18n()
 const hotspotsStore = useHotspotsStore()
 const clustersStore = useClustersStore()
 const feedbackStore = useFeedbackStore()
@@ -86,9 +88,9 @@ const userLocation = computed(() => {
 const locationErrorMessage = computed(() => {
   if (!geolocationError.value) return null
   if (geolocationError.value.code === 1) {
-    return 'Location permission is blocked. Allow location access in your browser settings and try again.'
+    return t('explorer.locationBlocked')
   }
-  return geolocationError.value.message || 'Unable to retrieve your current location.'
+  return geolocationError.value.message || t('explorer.locationUnavailable')
 })
 
 watch(
@@ -189,8 +191,8 @@ function onRoiChange(payload: { areaKm2: number | null }) {
     class="flex h-dvh min-h-0 flex-col overflow-hidden bg-surface-base font-sans text-ink-primary selection:bg-accent selection:text-surface-base"
   >
     <DashboardNavbar />
-    <main id="map-stage" class="relative min-h-0 flex-1" aria-label="PyroTrace hotspot map">
-      <h1 class="sr-only">PyroTrace — Fire Activity</h1>
+    <main id="map-stage" class="relative min-h-0 flex-1" :aria-label="t('explorer.mapAria')">
+      <h1 class="sr-only">{{ t('explorer.srHeading') }}</h1>
       <div class="absolute inset-0">
         <FireMap
           :side-panel-open="panelOpen"
@@ -228,7 +230,7 @@ function onRoiChange(payload: { areaKm2: number | null }) {
       </div>
       <aside
         class="pointer-events-none absolute right-3 top-3 z-20 flex w-[min(20rem,calc(100%_-_4.5rem))] flex-col gap-3 md:right-5 md:top-5"
-        aria-label="Map filters and results"
+        :aria-label="t('explorer.asideAria')"
       >
         <HotspotControlPanel
           v-model:open="panelOpen"

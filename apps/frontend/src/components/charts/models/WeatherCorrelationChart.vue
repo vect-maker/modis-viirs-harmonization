@@ -2,6 +2,7 @@
 import { computed, shallowRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RotateCw } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { z } from 'zod'
 import { useModelChartsApi } from '@/api'
 import { useApiFetch } from '@/api/useApiFetch'
@@ -74,22 +75,33 @@ const LOCATION_PRESETS = [
   { value: '8.40,-77.95', label: 'Darién, Panama (8.4°N, 78.0°W)' },
 ] as const
 
-const DIRECTION_OPTIONS = [
-  { value: '270', label: 'West (270°)' },
-  { value: '315', label: 'NW (315°)' },
-  { value: '0', label: 'North (0°)' },
-  { value: '90', label: 'East (90°)' },
-] as const
+const { t } = useI18n()
 
-const VIEW_OPTIONS = [
-  { value: 'alignment', label: 'Wind-Fire Alignment' },
-  { value: 'meteo', label: 'NASA POWER Daily (T2M / RH2M)' },
-] as const
+const DIRECTION_OPTIONS = computed(
+  () =>
+    [
+      { value: '270', label: t('charts.weather.directions.west') },
+      { value: '315', label: t('charts.weather.directions.nw') },
+      { value: '0', label: t('charts.weather.directions.north') },
+      { value: '90', label: t('charts.weather.directions.east') },
+    ] as const,
+)
 
-const SOURCE_OPTIONS = [
-  { value: 'cluster', label: 'Active Fire Cluster' },
-  { value: 'preset', label: 'Reference Location' },
-] as const
+const VIEW_OPTIONS = computed(
+  () =>
+    [
+      { value: 'alignment', label: t('charts.weather.alignmentView') },
+      { value: 'meteo', label: t('charts.weather.meteoView') },
+    ] as const,
+)
+
+const SOURCE_OPTIONS = computed(
+  () =>
+    [
+      { value: 'cluster', label: t('charts.weather.activeCluster') },
+      { value: 'preset', label: t('charts.weather.referenceLocation') },
+    ] as const,
+)
 
 const presetLocation = shallowRef<string>('16.92,-90.25')
 const fireDirection = shallowRef<'270' | '315' | '0' | '90'>('270')
@@ -220,26 +232,24 @@ const summaryText = computed(() => {
       <div class="max-w-[62ch]">
         <div class="flex flex-wrap items-center gap-2">
           <h2 id="weather-correlation-title" class="text-base font-semibold text-ink-primary">
-            NASA POWER daily meteorology &amp; wind-fire alignment
+            {{ t('charts.weather.title') }}
           </h2>
           <span
             class="rounded-md border border-border-subtle bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-ink-secondary"
           >
             <template v-if="activeTarget.fromCluster">
-              Synced with Cluster #{{ activeTarget.clusterId }} ({{ activeTarget.directionDeg }}°)
+              #{{ activeTarget.clusterId }} ({{ activeTarget.directionDeg }}°)
             </template>
             <template v-else-if="activeTarget.fromPolygon">
-              Drawn area centroid · {{ selectedYear }}
+              {{ t('stats.drawnArea') }} · {{ selectedYear }}
             </template>
             <template v-else>
-              Reference point · {{ selectedYear }}
+              {{ t('charts.weather.referenceLocation') }} · {{ selectedYear }}
             </template>
           </span>
         </div>
         <p class="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
-          Combines NASA POWER daily 10 m wind vectors, 2 m temperature, relative humidity, and
-          precipitation to measure cosine alignment (<code class="font-mono text-xs">cos Δθ</code>)
-          with active fire spread.
+          {{ t('charts.weather.subtitle') }}
         </p>
       </div>
 
@@ -248,20 +258,20 @@ const summaryText = computed(() => {
           v-if="activeClusterContext"
           v-model="sourceMode"
           :options="SOURCE_OPTIONS"
-          label="Coordinates source"
+          :label="t('charts.weather.source')"
         />
-        <BaseToggleGroup v-model="viewMode" :options="VIEW_OPTIONS" label="Weather chart mode" />
+        <BaseToggleGroup v-model="viewMode" :options="VIEW_OPTIONS" :label="t('charts.weather.view')" />
         <BaseToggleGroup
           v-if="!usingCluster"
           v-model="fireDirection"
           :options="DIRECTION_OPTIONS"
-          label="Fire spread bearing"
+          :label="t('charts.weather.fireHeading')"
         />
         <BaseSelect
           v-if="!usingCluster && !activeTarget.fromPolygon"
           v-model="presetLocation"
           :options="LOCATION_PRESETS"
-          label="Reference location"
+          :label="t('charts.weather.location')"
           :disabled="isLoading && correlationResult === null"
         />
       </div>
@@ -273,28 +283,28 @@ const summaryText = computed(() => {
         role="alert"
         class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-100"
       >
-        <span>Could not fetch NASA POWER weather data. {{ error }}</span>
+        <span>{{ t('charts.weather.errorLoad', { error }) }}</span>
         <button
           type="button"
           class="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-red-300/40 px-3 text-xs font-medium hover:bg-red-400/10 focus-visible:outline-2 focus-visible:outline-focus"
           @click="refresh"
         >
           <RotateCw aria-hidden="true" class="h-3.5 w-3.5" />
-          Try again
+          {{ t('common.retry') }}
         </button>
       </div>
 
       <BaseChartLoading
         v-if="correlationResult === null && isLoading"
         height-class="h-[21rem]"
-        label="Loading weather correlation…"
+        :label="t('charts.weather.loading')"
       />
 
       <p
         v-else-if="isEmpty"
         class="rounded-lg border border-dashed border-border-strong px-4 py-10 text-center text-[13px] text-ink-muted"
       >
-        No daily meteorological records returned for this point.
+        {{ t('charts.weather.empty') }}
       </p>
 
       <template v-else-if="correlationResult !== null">

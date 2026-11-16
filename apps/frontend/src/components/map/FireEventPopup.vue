@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Flame, Layers, Clock, Maximize2 } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { ClusterHotspotItem, FireEventProperties } from '@/api'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   event: FireEventProperties
@@ -44,8 +47,19 @@ const statusBadgeClass = computed(() => {
   }
 })
 
+const statusLabel = computed(() => {
+  switch (effectiveStatus.value) {
+    case 'ACTIVE':
+      return t('map.eventPopup.active')
+    case 'ISOLATED':
+      return t('map.eventPopup.isolated')
+    default:
+      return t('map.eventPopup.ended')
+  }
+})
+
 const formattedWindow = computed(() => {
-  if (!props.event.datetime_start) return 'Unknown'
+  if (!props.event.datetime_start) return t('map.eventPopup.unknownWindow')
   const start = props.event.datetime_start.slice(0, 16).replace('T', ' ')
   const end = props.event.datetime_end?.slice(0, 16).replace('T', ' ')
   return end && end !== start ? `${start} → ${end}` : start
@@ -68,10 +82,16 @@ const maxHotspotFrp = computed(() => {
         </span>
         <div>
           <h3 class="text-sm font-semibold leading-tight text-white">
-            Fire Event #{{ event.id }}
+            {{ t('map.eventPopup.title', { id: event.id }) }}
           </h3>
           <p class="text-[11px] text-neutral-400">
-            {{ event.hotspot_count }} detections ({{ event.modis_count }} MODIS · {{ event.viirs_count }} VIIRS)
+            {{
+              t('map.eventPopup.detections', {
+                total: event.hotspot_count,
+                modis: event.modis_count,
+                viirs: event.viirs_count,
+              })
+            }}
           </p>
         </div>
       </div>
@@ -79,14 +99,14 @@ const maxHotspotFrp = computed(() => {
         class="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
         :class="statusBadgeClass"
       >
-        {{ effectiveStatus }}
+        {{ statusLabel }}
       </span>
     </div>
 
     <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
       <div class="rounded-lg border border-neutral-800/80 bg-neutral-900/70 p-2">
         <span class="flex items-center gap-1 text-[10px] text-neutral-400">
-          <Maximize2 :size="11" /> Footprint
+          <Maximize2 :size="11" /> {{ t('map.eventPopup.footprint') }}
         </span>
         <span class="mt-0.5 block font-mono text-sm font-semibold text-white">
           {{ event.area_km2.toFixed(2) }} km²
@@ -94,20 +114,20 @@ const maxHotspotFrp = computed(() => {
       </div>
       <div class="rounded-lg border border-neutral-800/80 bg-neutral-900/70 p-2">
         <span class="flex items-center gap-1 text-[10px] text-neutral-400">
-          <Clock :size="11" /> Duration
+          <Clock :size="11" /> {{ t('map.eventPopup.duration') }}
         </span>
         <span class="mt-0.5 block font-mono text-sm font-semibold text-white">
           {{ event.duration_h.toFixed(1) }} h
         </span>
       </div>
       <div class="rounded-lg border border-neutral-800/80 bg-neutral-900/70 p-2">
-        <span class="text-[10px] text-neutral-400">Max FRP</span>
+        <span class="text-[10px] text-neutral-400">{{ t('map.eventPopup.maxFrp') }}</span>
         <span class="mt-0.5 block font-mono text-sm font-semibold text-orange-300">
           {{ event.max_frp !== null ? `${event.max_frp.toFixed(1)} MW` : '—' }}
         </span>
       </div>
       <div class="rounded-lg border border-neutral-800/80 bg-neutral-900/70 p-2">
-        <span class="text-[10px] text-neutral-400">Harm. Index</span>
+        <span class="text-[10px] text-neutral-400">{{ t('map.eventPopup.harmIndex') }}</span>
         <span class="mt-0.5 block font-mono text-sm font-semibold text-emerald-300">
           {{ event.harmonized_weight !== null ? event.harmonized_weight.toFixed(1) : '—' }}
         </span>
@@ -115,7 +135,7 @@ const maxHotspotFrp = computed(() => {
     </div>
 
     <p class="mt-2.5 truncate text-[11px] text-neutral-400" :title="formattedWindow">
-      Window: {{ formattedWindow }} UTC
+      {{ t('map.eventPopup.window', { window: formattedWindow }) }}
     </p>
 
     <button
@@ -125,11 +145,11 @@ const maxHotspotFrp = computed(() => {
       @click="emit('inspect', event)"
     >
       <Layers :size="13" />
-      <span v-if="isLoadingDetail">Loading hotspots…</span>
+      <span v-if="isLoadingDetail">{{ t('map.eventPopup.loadingHotspots') }}</span>
       <span v-else-if="isInspecting">
-        Showing {{ inspectedCount ?? event.hotspot_count }} constituent hotspots
+        {{ t('map.eventPopup.showingHotspots', { count: inspectedCount ?? event.hotspot_count }) }}
       </span>
-      <span v-else>Inspect constituent hotspots</span>
+      <span v-else>{{ t('map.eventPopup.inspectHotspots') }}</span>
     </button>
     <p v-if="detailError" class="mt-1.5 text-[11px] text-red-400">
       {{ detailError }}

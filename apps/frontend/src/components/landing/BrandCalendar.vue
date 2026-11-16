@@ -2,6 +2,8 @@
 import { computed, defineAsyncComponent, onMounted, shallowRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ArrowUpRight, ChevronLeft, ChevronRight, Info } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
+import { useLocaleFormatters } from '@/i18n'
 import { useCalendarStore } from '@/stores/calendar'
 import type { CalendarCell, CalendarSensor } from '@/types/calendar'
 import { calendarCount } from '@/utils/historicalCalendar'
@@ -17,25 +19,23 @@ onMounted(() => {
   void calendarStore.fetchHistoricalCalendar()
 })
 
+const { t } = useI18n()
+const { bcp47Locale, formatInt } = useLocaleFormatters()
 const year = shallowRef(2024)
 const month = shallowRef(5)
 const sensor = shallowRef<CalendarSensor>('ALL')
-const format = new Intl.NumberFormat('en-US')
-const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const fullLabels = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-]
+const shortMonthFmt = computed(
+  () => new Intl.DateTimeFormat(bcp47Locale.value, { month: 'short', timeZone: 'UTC' }),
+)
+const longMonthFmt = computed(
+  () => new Intl.DateTimeFormat(bcp47Locale.value, { month: 'long', timeZone: 'UTC' }),
+)
+const labels = computed(() =>
+  Array.from({ length: 12 }, (_, i) => shortMonthFmt.value.format(new Date(Date.UTC(2024, i, 1)))),
+)
+const fullLabels = computed(() =>
+  Array.from({ length: 12 }, (_, i) => longMonthFmt.value.format(new Date(Date.UTC(2024, i, 1)))),
+)
 const firstYear = computed(() =>
   archive.value.firstDetection ? Number(archive.value.firstDetection.slice(0, 4)) : 2020,
 )
@@ -69,7 +69,7 @@ const maximum = computed(() =>
 const rows = computed(() =>
   recentYears.value.map((y) => ({
     year: y,
-    cells: labels.map((_, i): CalendarCell => {
+    cells: labels.value.map((_, i): CalendarCell => {
       const m = i + 1
       const item = index.value.get(`${y}-${m}`)
       return {
@@ -88,7 +88,7 @@ function onSelectPeriod(selectedYear: number, selectedMonth: number) {
 const selected = computed(() => index.value.get(`${year.value}-${month.value}`))
 const selectedCount = computed(() => calendarCount(selected.value, sensor.value))
 const yearCells = computed(() =>
-  labels.map((label, i) => ({
+  labels.value.map((label, i) => ({
     label,
     month: i + 1,
     count: calendarCount(index.value.get(`${year.value}-${i + 1}`), sensor.value),
@@ -106,33 +106,34 @@ const peakMonth = computed(() =>
   <section id="datos" class="landing-section landing-data-section" aria-labelledby="calendar-title">
     <div class="landing-wrap">
       <div class="landing-section-heading">
-        <h2 id="calendar-title">The burning<br />activity calendar.</h2>
+        <h2 id="calendar-title">
+          {{ t('landing.calendar.titleLine1') }}<br />{{ t('landing.calendar.titleLine2') }}
+        </h2>
         <p>
-          Which months see the highest fire activity? Browse the archive since 2000, switch months
-          and sensors, and explore the patterns yourself.
+          {{ t('landing.calendar.subtitle') }}
         </p>
       </div>
       <div class="landing-calendar-layout">
         <div class="landing-calendar-frame">
           <div class="landing-calendar-frame-head">
             <div>
-              <h3>Monthly activity</h3>
-              <span class="landing-calendar-scope">Central America, all 7 countries</span>
+              <h3>{{ t('landing.calendar.monthlyActivity') }}</h3>
+              <span class="landing-calendar-scope">{{ t('landing.calendar.scope') }}</span>
             </div>
             <span class="landing-source-chip">NASA FIRMS</span>
           </div>
           <p v-if="isLoading && !isReady" class="landing-calendar-state" role="status">
-            Loading detection archive…
+            {{ t('landing.calendar.loading') }}
           </p>
           <div v-else-if="!isReady" class="landing-calendar-state" role="alert">
-            <p>Could not load the calendar. Check your connection and try again.</p>
+            <p>{{ t('landing.calendar.error') }}</p>
             <button
               v-if="error"
               type="button"
               class="landing-text-link"
               @click="calendarStore.fetchHistoricalCalendar()"
             >
-              Retry
+              {{ t('common.retry') }}
             </button>
           </div>
           <div v-else class="landing-calendar-matrix">
@@ -144,23 +145,23 @@ const peakMonth = computed(() =>
             />
           </div>
           <div v-if="isReady" class="landing-calendar-legend">
-            <span>Fewer detections</span>
+            <span>{{ t('landing.calendar.fewer') }}</span>
             <div aria-hidden="true">
               <i v-for="color in palette" :key="color" :style="{ backgroundColor: color }" />
             </div>
-            <span>More detections</span>
+            <span>{{ t('landing.calendar.more') }}</span>
           </div>
           <div v-if="isReady" class="landing-calendar-controls">
             <div class="landing-year-picker">
               <button
                 type="button"
                 :disabled="year <= firstYear"
-                aria-label="Previous year"
+                :aria-label="t('landing.calendar.prevYear')"
                 @click="year--"
               >
                 <ChevronLeft :size="18" aria-hidden="true" /></button
               ><label
-                ><span class="landing-sr-only">Year to inspect</span
+                ><span class="landing-sr-only">{{ t('landing.calendar.yearLabel') }}</span
                 ><select v-model="year">
                   <option v-for="option in years" :key="option" :value="option">
                     {{ option }}
@@ -169,18 +170,18 @@ const peakMonth = computed(() =>
               ><button
                 type="button"
                 :disabled="year >= lastYear"
-                aria-label="Next year"
+                :aria-label="t('landing.calendar.nextYear')"
                 @click="year++"
               >
                 <ChevronRight :size="18" aria-hidden="true" />
               </button>
             </div>
             <label class="landing-calendar-sensor"
-              ><span class="landing-sr-only">Calendar sensor filter</span
+              ><span class="landing-sr-only">{{ t('landing.calendar.sensorLabel') }}</span
               ><select v-model="sensor">
-                <option value="ALL">Both sensors</option>
-                <option value="MODIS">MODIS</option>
-                <option value="VIIRS">VIIRS</option>
+                <option value="ALL">{{ t('common.bothSensors') }}</option>
+                <option value="MODIS">{{ t('common.modis') }}</option>
+                <option value="VIIRS">{{ t('common.viirs') }}</option>
               </select></label
             >
           </div>
@@ -188,14 +189,23 @@ const peakMonth = computed(() =>
             v-if="isReady"
             class="landing-month-picker"
             role="group"
-            :aria-label="`Month in ${year} to inspect`"
+            :aria-label="t('landing.calendar.monthGroupAria', { year })"
           >
             <button
               v-for="cell in yearCells"
               :key="cell.month"
               type="button"
               :aria-pressed="month === cell.month"
-              :aria-label="`${fullLabels[cell.month - 1]} ${year}: ${cell.count === null ? 'no data available' : format.format(cell.count) + ' detections'}`"
+              :aria-label="
+                t('landing.calendar.monthAria', {
+                  month: fullLabels[cell.month - 1],
+                  year,
+                  detail:
+                    cell.count === null
+                      ? t('landing.calendar.monthNoData')
+                      : t('landing.calendar.monthDetections', { count: formatInt(cell.count) }),
+                })
+              "
               @click="month = cell.month"
             >
               {{ cell.label }}
@@ -211,30 +221,29 @@ const peakMonth = computed(() =>
             aria-atomic="true"
           >
             <p class="landing-result-period">{{ fullLabels[month - 1] }} {{ year }}</p>
-            <strong>{{ selectedCount === null ? '—' : format.format(selectedCount) }}</strong>
+            <strong>{{ selectedCount === null ? '—' : formatInt(selectedCount) }}</strong>
             <p>
               {{
                 selectedCount === null
-                  ? 'No data available for this sensor and period.'
-                  : 'satellite detections recorded'
+                  ? t('landing.calendar.noDataForPeriod')
+                  : t('landing.calendar.recorded')
               }}
             </p>
           </div>
           <div v-if="isReady" class="landing-peak-note">
-            <span>Peak month in {{ year }}</span
+            <span>{{ t('landing.calendar.peakInYear', { year }) }}</span
             ><strong>{{
-              (peakMonth.count ?? 0) > 0 ? fullLabels[peakMonth.month - 1] : 'No data'
+              (peakMonth.count ?? 0) > 0 ? fullLabels[peakMonth.month - 1] : t('common.noData')
             }}</strong>
           </div>
           <div class="landing-science-note">
             <Info :size="18" aria-hidden="true" />
             <p>
-              Raw, unharmonized detection counts. A detection is a satellite thermal-anomaly pixel,
-              not an individual fire.
+              {{ t('landing.calendar.scienceNote') }}
             </p>
           </div>
           <RouterLink :to="{ name: 'dashboard' }" class="landing-text-link"
-            >Open the Explorer <ArrowUpRight :size="17" aria-hidden="true"
+            >{{ t('landing.calendar.openExplorer') }} <ArrowUpRight :size="17" aria-hidden="true"
           /></RouterLink>
         </div>
       </div>

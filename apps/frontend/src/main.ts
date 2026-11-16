@@ -3,10 +3,17 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
+import { i18n, initI18nLocale } from './i18n'
 
-const app = createApp(App)
+async function bootstrap() {
+  await initI18nLocale()
+  const app = createApp(App)
 
-app.use(createPinia())
-app.use(router)
+  app.use(createPinia())
+  app.use(router)
+  app.use(i18n)
 
-app.mount('#app')
+  app.mount('#app')
+}
+
+void bootstrap()

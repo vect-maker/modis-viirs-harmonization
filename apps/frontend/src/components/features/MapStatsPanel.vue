@@ -3,6 +3,7 @@ import { computed, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vu
 import { onKeyStroke } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ChartColumn, ChevronDown } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { useChartFiltersStore, type ChartAreaScope, type ChartMetric } from '@/stores/chartFilters'
 import { useHotspotsStore } from '@/stores/hotspots'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
@@ -48,22 +49,39 @@ onKeyStroke('Escape', (event) => {
   open.value = false
 })
 
+const { t } = useI18n()
+
 type Metric = ChartMetric
 type AreaScope = ChartAreaScope
 
-const METRIC_OPTIONS = [
-  { value: 'raw', label: 'Detections' },
-  { value: 'harmonized', label: 'Harmonized index' },
-] as const satisfies readonly { value: Metric; label: string }[]
+const METRIC_OPTIONS = computed(
+  () =>
+    [
+      { value: 'raw', label: t('stats.detections') },
+      { value: 'harmonized', label: t('stats.harmonizedIndex') },
+    ] as const satisfies readonly { value: Metric; label: string }[],
+)
 
-const AREA_OPTIONS = [
-  { value: 'area', label: 'Drawn area' },
-  { value: 'all', label: 'All regions' },
-] as const satisfies readonly { value: AreaScope; label: string }[]
+const AREA_OPTIONS = computed(
+  () =>
+    [
+      { value: 'area', label: t('stats.drawnArea') },
+      { value: 'all', label: t('stats.allRegions') },
+    ] as const satisfies readonly { value: AreaScope; label: string }[],
+)
+
+const SECTION_KEY_MAP: Record<StatsSectionId, string> = {
+  seasonal: 'seasonal',
+  annual: 'annual',
+  archive: 'archive',
+  'fire-calendar': 'fireCalendar',
+  intensity: 'intensity',
+  weather: 'weather',
+}
 
 const activeSection = shallowRef<StatsSectionId>('seasonal')
-const activeSectionMeta = computed(
-  () => STATS_SECTIONS.find((s) => s.id === activeSection.value) ?? STATS_SECTIONS[0]!,
+const activeSectionDescription = computed(() =>
+  t(`stats.sections.${SECTION_KEY_MAP[activeSection.value]}.description`),
 )
 
 const { selectedPolygon, dateRange } = storeToRefs(useHotspotsStore())
@@ -120,15 +138,9 @@ function onCompareYearFromArchive(year: number) {
 }
 
 const metricHelp = computed(() =>
-  metric.value === 'harmonized'
-    ? 'Harmonized index weights MODIS detections so years before and after the 2012 VIIRS launch can be compared on one scale. Experimental index, not a fire count.'
-    : 'Raw MODIS and VIIRS detections. VIIRS adds many small fires from 2012 on, so earlier years read low on this scale.',
+  metric.value === 'harmonized' ? t('stats.metricHelpHarmonized') : t('stats.metricHelpRaw'),
 )
-const areaHelp = computed(() =>
-  selectedPolygon.value
-    ? ''
-    : 'Showing all regions. To compare a specific place, collapse this panel and draw an area on the map.',
-)
+const areaHelp = computed(() => (selectedPolygon.value ? '' : t('stats.areaHelp')))
 
 const triggerClass =
   'flex min-h-14 w-full cursor-pointer items-center gap-2.5 px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-focus'
@@ -146,11 +158,11 @@ const triggerClass =
       :class="triggerClass"
       :aria-expanded="open"
       :aria-controls="panelId"
-      aria-label="Expand statistics"
+      :aria-label="t('stats.expandAria')"
       @click="open = true"
     >
       <ChartColumn aria-hidden="true" class="h-4 w-4 text-accent" />
-      <span class="flex-1 text-sm font-semibold">Statistics</span>
+      <span class="flex-1 text-sm font-semibold">{{ t('stats.title') }}</span>
       <ChevronDown aria-hidden="true" class="h-4 w-4 text-ink-muted" />
     </button>
   </div>
@@ -175,27 +187,24 @@ const triggerClass =
           class="shrink-0 border-b border-border-subtle"
           :aria-expanded="open"
           :aria-controls="panelId"
-          aria-label="Collapse statistics"
+          :aria-label="t('stats.collapseAria')"
           @click="open = false"
         >
           <ChartColumn aria-hidden="true" class="h-4 w-4 text-accent" />
-          <span :id="titleId" class="flex-1 text-sm font-semibold">Statistics</span>
+          <span :id="titleId" class="flex-1 text-sm font-semibold">{{ t('stats.title') }}</span>
           <BaseHelpGuidePopover
-            title="Burning Activity Analytics"
-            summary="Explore seasonal baselines, multi-year trends, burning calendars, fire intensity, and fire weather."
-            :steps="[
-              'Use the section tabs below to switch between Seasonal Baseline, Multi-Year Activity, Fire Calendar, Fire Intensity (FRP), and Fire Weather.',
-              'Change Reference year or Metric (Detections vs. Harmonized index) to compare periods.',
-            ]"
+            :title="t('stats.guideTitle')"
+            :summary="t('stats.guideSummary')"
+            :steps="[t('stats.guideStep1'), t('stats.guideStep2')]"
             side="bottom"
             align="end"
-            aria-label="How the statistics panel works"
+            :aria-label="t('stats.guideAria')"
           >
             <template #graphic>
               <DashboardGuideDiagram variant="stats" />
             </template>
           </BaseHelpGuidePopover>
-          <span class="hidden text-xs text-ink-muted sm:inline">Esc to close</span>
+          <span class="hidden text-xs text-ink-muted sm:inline">{{ t('stats.escToClose') }}</span>
           <ChevronDown aria-hidden="true" class="h-4 w-4 rotate-180 text-ink-muted" />
         </button>
 
@@ -207,26 +216,26 @@ const triggerClass =
               v-if="showGlobalFilters"
               v-model="selectedYear"
               :options="YEAR_OPTIONS"
-              label="Reference year"
+              :label="t('stats.referenceYear')"
             />
             <BaseToggleGroup
               v-if="showMetricToggle"
               v-model="metric"
               :options="METRIC_OPTIONS"
-              label="Metric"
+              :label="t('stats.metric')"
             />
             <BaseToggleGroup
               v-if="showGlobalFilters && selectedPolygon && supportsAreaFilter"
               v-model="areaScope"
               :options="AREA_OPTIONS"
-              label="Area"
+              :label="t('stats.area')"
             />
             <p class="min-w-0 flex-1 basis-80 text-xs leading-relaxed text-ink-muted">
               <template v-if="showMetricToggle">
                 {{ metricHelp }} {{ areaHelp }}
               </template>
               <template v-else>
-                {{ activeSectionMeta.description }}
+                {{ activeSectionDescription }}
               </template>
             </p>
           </div>

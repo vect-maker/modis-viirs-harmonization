@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { parseDate } from '@internationalized/date'
+import { useLocaleFormatters } from '@/i18n'
 import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import {
@@ -32,21 +34,29 @@ const props = defineProps<{
 
 const emit = defineEmits<{ select: [date: string] }>()
 
+const { t } = useI18n()
+const { bcp47Locale, formatInt } = useLocaleFormatters()
 const chartColors = computed(() => getChartColors())
 
-const axisFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: '2-digit',
-  timeZone: 'UTC',
-})
+const axisFormatter = computed(
+  () =>
+    new Intl.DateTimeFormat(bcp47Locale.value, {
+      month: 'short',
+      day: 'numeric',
+      year: '2-digit',
+      timeZone: 'UTC',
+    }),
+)
 
-const tooltipFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
+const tooltipFormatter = computed(
+  () =>
+    new Intl.DateTimeFormat(bcp47Locale.value, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }),
+)
 
 function formatUtcDate(dateStr: string, formatter: Intl.DateTimeFormat): string {
   return formatter.format(parseDate(dateStr).toDate('UTC'))
@@ -114,7 +124,7 @@ const chartOption = computed(() => {
             fontSize: 10,
           },
           labelFormatter: (_value: number, valueStr: string) =>
-            valueStr ? formatUtcDate(valueStr, axisFormatter) : '',
+            valueStr ? formatUtcDate(valueStr, axisFormatter.value) : '',
         },
       ]
     : []
@@ -145,9 +155,9 @@ const chartOption = computed(() => {
         const first = list[0] as { dataIndex?: number } | undefined
         const day = first?.dataIndex !== undefined ? props.days[first.dataIndex] : undefined
         if (!day) return ''
-        const label = formatUtcDate(day.date, tooltipFormatter)
-        const count = day.count.toLocaleString()
-        return `<div class="font-medium">${label} · UTC</div><div class="mt-0.5 text-amber-400 font-mono">${count} detections</div>`
+        const label = formatUtcDate(day.date, tooltipFormatter.value)
+        const count = formatInt(day.count)
+        return `<div class="font-medium">${label} · UTC</div><div class="mt-0.5 text-amber-400 font-mono">${t('dashboard.timeline.tooltipDetections', { count })}</div>`
       },
     },
     xAxis: {
@@ -159,7 +169,7 @@ const chartOption = computed(() => {
       axisLabel: {
         color: '#9ca3af',
         fontSize: 10,
-        formatter: (value: string) => formatUtcDate(value, axisFormatter),
+        formatter: (value: string) => formatUtcDate(value, axisFormatter.value),
       },
     },
     yAxis: {

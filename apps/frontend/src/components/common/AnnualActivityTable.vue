@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useLocaleFormatters } from '@/i18n'
 import {
   annualValue,
   completeYearMedian,
@@ -7,17 +9,27 @@ import {
   type AnnualRow,
 } from './AnnualActivityChart.vue'
 
+const { t } = useI18n()
+const { bcp47Locale } = useLocaleFormatters()
+
 const props = defineProps<{
   rows: readonly AnnualRow[]
   metric: AnnualMetric
 }>()
 
-const countFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
-const indexFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
-const pctFormat = new Intl.NumberFormat('en-US', {
-  maximumFractionDigits: 0,
-  signDisplay: 'exceptZero',
-})
+const countFormat = computed(
+  () => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: 0 }),
+)
+const indexFormat = computed(
+  () => new Intl.NumberFormat(bcp47Locale.value, { maximumFractionDigits: 1 }),
+)
+const pctFormat = computed(
+  () =>
+    new Intl.NumberFormat(bcp47Locale.value, {
+      maximumFractionDigits: 0,
+      signDisplay: 'exceptZero',
+    }),
+)
 
 const tableRows = computed(() => {
   const median = completeYearMedian(props.rows, props.metric)
@@ -25,15 +37,17 @@ const tableRows = computed(() => {
     const value = annualValue(row, props.metric)
     return {
       year: row.year,
-      modis: countFormat.format(row.modis_count),
-      viirs: countFormat.format(row.viirs_count),
-      total: countFormat.format(row.total_hotspots),
-      harmonized: indexFormat.format(row.harmonized_index),
+      modis: countFormat.value.format(row.modis_count),
+      viirs: countFormat.value.format(row.viirs_count),
+      total: countFormat.value.format(row.total_hotspots),
+      harmonized: indexFormat.value.format(row.harmonized_index),
       change:
         row.complete && median !== null && median > 0
-          ? `${pctFormat.format(((value - median) / median) * 100)}%`
+          ? `${pctFormat.value.format(((value - median) / median) * 100)}%`
           : '',
-      coverage: row.complete ? 'Full year' : `${row.months_in_archive} of 12 months`,
+      coverage: row.complete
+        ? t('charts.annual.fullYear')
+        : t('charts.annual.monthsCount', { months: row.months_in_archive }),
       complete: row.complete,
     }
   })
@@ -44,17 +58,21 @@ const tableRows = computed(() => {
   <div class="overflow-x-auto">
     <table class="w-full min-w-[38rem] text-left text-xs tabular-nums">
       <caption class="sr-only">
-        Detections per year by sensor and harmonized index
+        {{ t('charts.annual.tableCaption') }}
       </caption>
       <thead class="text-ink-muted">
         <tr class="border-b border-border-subtle">
-          <th scope="col" class="py-2 pr-4 font-medium">Year</th>
-          <th scope="col" class="py-2 pr-4 text-right font-medium">MODIS</th>
-          <th scope="col" class="py-2 pr-4 text-right font-medium">VIIRS</th>
-          <th scope="col" class="py-2 pr-4 text-right font-medium">Total</th>
-          <th scope="col" class="py-2 pr-4 text-right font-medium">Harmonized index</th>
-          <th scope="col" class="py-2 pr-4 text-right font-medium">vs. median year</th>
-          <th scope="col" class="py-2 font-medium">Archive coverage</th>
+          <th scope="col" class="py-2 pr-4 font-medium">{{ t('charts.annual.colYear') }}</th>
+          <th scope="col" class="py-2 pr-4 text-right font-medium">{{ t('common.modis') }}</th>
+          <th scope="col" class="py-2 pr-4 text-right font-medium">{{ t('common.viirs') }}</th>
+          <th scope="col" class="py-2 pr-4 text-right font-medium">{{ t('charts.annual.colTotal') }}</th>
+          <th scope="col" class="py-2 pr-4 text-right font-medium">
+            {{ t('charts.annual.colHarmonized') }}
+          </th>
+          <th scope="col" class="py-2 pr-4 text-right font-medium">
+            {{ t('charts.annual.colVsMedian') }}
+          </th>
+          <th scope="col" class="py-2 font-medium">{{ t('charts.annual.colCoverage') }}</th>
         </tr>
       </thead>
       <tbody class="text-ink-secondary">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import BrandHeader from '@/components/landing/BrandHeader.vue'
 import BrandHero from '@/components/landing/BrandHero.vue'
 import BrandContinuity from '@/components/landing/BrandContinuity.vue'
@@ -9,11 +10,13 @@ import BrandTeam from '@/components/landing/BrandTeam.vue'
 import BrandQuestions from '@/components/landing/BrandQuestions.vue'
 import BrandFooter from '@/components/landing/BrandFooter.vue'
 import '@/assets/landing.css'
+
+const { t, locale } = useI18n()
 </script>
 
 <template>
-  <div class="pyro-landing" lang="en">
-    <a class="landing-skip" href="#contenido">Skip to content</a>
+  <div class="pyro-landing" :lang="locale">
+    <a class="landing-skip" href="#contenido">{{ t('landing.skipToContent') }}</a>
     <BrandHeader />
     <main id="contenido" tabindex="-1">
       <BrandHero />

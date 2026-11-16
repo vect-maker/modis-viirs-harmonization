@@ -1,26 +1,20 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Compass, Microscope, Trees } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
-const audiences = [
-  {
-    icon: Compass,
-    title: 'Curiosity is enough.',
-    audience: 'Enthusiasts & students',
-    body: 'Get started with satellite Earth observation and explore fire activity without advanced GIS training. Clear explanations guide you at every step.',
-  },
-  {
-    icon: Microscope,
-    title: 'More room to investigate.',
-    audience: 'Research & education',
-    body: 'Students, educators, and researchers: explore the historical record, inspect data sources, and export filtered CSV datasets for classes and studies.',
-  },
-  {
-    icon: Trees,
-    title: 'Territory, with context.',
-    audience: 'Environmental & fire management',
-    body: 'Environmental analysts, protected-area teams, firefighters, and emergency planners: spot patterns, anomalies, and critical seasons to guide preparedness.',
-  },
-]
+const { t } = useI18n()
+
+const icons = [Compass, Microscope, Trees]
+const audiences = computed(() =>
+  icons.map((icon, i) => ({
+    icon,
+    id: t(`landing.audience.items.${i}.id`),
+    title: t(`landing.audience.items.${i}.title`),
+    audience: t(`landing.audience.items.${i}.audience`),
+    body: t(`landing.audience.items.${i}.body`),
+  })),
+)
 </script>
 
 <template>
@@ -31,14 +25,17 @@ const audiences = [
   >
     <div class="landing-wrap">
       <div class="landing-section-heading">
-        <h2 id="community-title">Science begins<br /><span>with curiosity.</span></h2>
+        <h2 id="community-title">
+          {{ t('landing.audience.titleLine1') }}<br /><span>{{
+            t('landing.audience.titleHighlight')
+          }}</span>
+        </h2>
         <p>
-          There are many ways to look at a landscape. PyroTrace brings satellite observation closer
-          to everyone who wants to learn, investigate, and plan.
+          {{ t('landing.audience.subtitle') }}
         </p>
       </div>
       <div class="landing-audiences">
-        <article v-for="audience in audiences" :key="audience.audience" class="landing-audience">
+        <article v-for="audience in audiences" :key="audience.id" class="landing-audience">
           <div class="landing-audience-icon">
             <component :is="audience.icon" :size="29" :stroke-width="1.5" aria-hidden="true" />
           </div>
@@ -49,21 +46,15 @@ const audiences = [
       </div>
       <div class="landing-purpose">
         <div>
-          <h3>Mission</h3>
+          <h3>{{ t('landing.audience.missionTitle') }}</h3>
           <p>
-            Provide free access to and clear understanding of satellite fire-activity data by
-            integrating and harmonizing MODIS and VIIRS records through intuitive maps and calendars
-            that help enthusiasts, students, researchers, and environmental managers identify
-            patterns, anomalies, and critical periods for preventive planning.
+            {{ t('landing.audience.missionBody') }}
           </p>
         </div>
         <div>
-          <h3>Vision</h3>
+          <h3>{{ t('landing.audience.visionTitle') }}</h3>
           <p>
-            Become a reference platform that bridges multi-generation satellite records and turns
-            them into clear, comparable, and accessible intelligence—empowering people and
-            organizations to understand fire activity and strengthen research, preparedness, and
-            land management.
+            {{ t('landing.audience.visionBody') }}
           </p>
         </div>
       </div>
